@@ -1,0 +1,5 @@
+# Normalize all text files to LF in the repository and on checkout.
+# The build runs on Windows today and in Linux containers/CI from Milestone
+# 12 onward — deterministic line endings keep diffs, hashes and shell
+# scripts identical across both.
+* text=auto eol=lf

@@ -1,0 +1,18 @@
+# Build output — never commit generated artifacts.
+build/
+cmake-build-*/
+
+# Local environment: holds real ports today, real secrets in later
+# milestones (DB passwords, JWT signing key). .env.example is the committed
+# template; .env itself must never enter history.
+.env
+
+# Editor / IDE noise
+.vscode/
+.idea/
+.vs/
+*.swp
+
+# OS noise
+.DS_Store
+Thumbs.db

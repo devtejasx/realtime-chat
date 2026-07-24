@@ -15,16 +15,35 @@ add_library(rtc_core STATIC
     security/jwt_token_service.cpp
     dto/auth_dto.cpp
     dto/profile_dto.cpp
+    dto/pagination.cpp
+    dto/conversation_dto.cpp
+    dto/message_dto.cpp
+    dto/read_receipt_dto.cpp
     validation/validators.cpp
     database/connection_pool.cpp
     database/migration_runner.cpp
     repositories/pg_user_repository.cpp
+    repositories/pg_conversation_repository.cpp
+    repositories/pg_message_repository.cpp
+    repositories/pg_read_receipt_repository.cpp
     services/user_service.cpp
     services/auth_service.cpp
+    services/conversation_service.cpp
+    services/message_service.cpp
+    services/read_receipt_service.cpp
+    services/presence_service.cpp
+    realtime/session_manager.cpp
+    realtime/room_manager.cpp
+    realtime/connection_manager.cpp
+    realtime/event_dispatcher.cpp
+    realtime/heartbeat_monitor.cpp
     middlewares/auth_middleware.cpp
     controllers/health_controller.cpp
     controllers/auth_controller.cpp
     controllers/user_controller.cpp
+    controllers/conversation_controller.cpp
+    controllers/message_controller.cpp
+    controllers/websocket_controller.cpp
     application.cpp
 )
 

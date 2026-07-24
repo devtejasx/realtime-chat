@@ -1,3 +1,0 @@
-# Formatting is not a matter of taste here — it is automated so code review
-# time is spent on design, never on whitespace.
-BasedOnStyle: Google

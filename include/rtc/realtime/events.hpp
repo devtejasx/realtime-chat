@@ -27,6 +27,7 @@ inline constexpr std::string_view kReady = "ready";
 
 // ---- Client -> server -----------------------------------------------------
 inline constexpr std::string_view kClientPing = "ping";
+inline constexpr std::string_view kClientSendMessage = "message.send";
 inline constexpr std::string_view kClientTypingStart = "typing.start";
 inline constexpr std::string_view kClientTypingStop = "typing.stop";
 inline constexpr std::string_view kClientMarkRead = "mark_read";

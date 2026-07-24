@@ -18,6 +18,18 @@ struct NewUser {
     std::string password_hash;
 };
 
+// A partial profile update (Phase 2). Each field carries a "set" flag so the
+// repository can build an UPDATE touching only the supplied columns; a set
+// field with a nullopt value clears the column (SET column = NULL).
+struct ProfileUpdate {
+    bool display_name_set = false;
+    std::optional<std::string> display_name;
+    bool bio_set = false;
+    std::optional<std::string> bio;
+    bool avatar_url_set = false;
+    std::optional<std::string> avatar_url;
+};
+
 // Persistence boundary for User aggregates. Depends only on the domain model,
 // so services can be unit-tested against an in-memory fake implementation.
 class IUserRepository {
@@ -41,6 +53,12 @@ public:
 
     [[nodiscard]] virtual bool exists_by_username(std::string_view username) = 0;
     [[nodiscard]] virtual bool exists_by_email(std::string_view email) = 0;
+
+    // Applies a partial profile update and returns the refreshed user. Throws
+    // NotFoundException if the user no longer exists. A no-op update (no fields
+    // set) returns the current row unchanged.
+    [[nodiscard]] virtual models::User update_profile(std::int64_t id,
+                                                      const ProfileUpdate& update) = 0;
 };
 
 }  // namespace rtc::repositories

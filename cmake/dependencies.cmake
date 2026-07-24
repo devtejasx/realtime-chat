@@ -123,3 +123,39 @@ if(RTC_BUILD_TESTS)
         GIT_SHALLOW    TRUE)
     FetchContent_MakeAvailable(googletest)
 endif()
+
+# ---------------------------------------------------------------------------
+# Normalise third-party target names.
+#
+# Depending on whether a dependency was found on the system or fetched from
+# source, its imported target may carry a namespace or not. Resolve each to a
+# single canonical variable so the rest of the build references one name.
+# ---------------------------------------------------------------------------
+if(TARGET libpqxx::pqxx)
+    set(RTC_PQXX_TARGET libpqxx::pqxx)
+elseif(TARGET pqxx)
+    set(RTC_PQXX_TARGET pqxx)
+elseif(TARGET libpqxx)
+    set(RTC_PQXX_TARGET libpqxx)
+else()
+    message(FATAL_ERROR "Could not resolve a libpqxx target")
+endif()
+
+if(TARGET Crow::Crow)
+    set(RTC_CROW_TARGET Crow::Crow)
+elseif(TARGET Crow)
+    set(RTC_CROW_TARGET Crow)
+else()
+    message(FATAL_ERROR "Could not resolve a Crow target")
+endif()
+
+if(TARGET jwt-cpp::jwt-cpp)
+    set(RTC_JWT_TARGET jwt-cpp::jwt-cpp)
+elseif(TARGET jwt-cpp)
+    set(RTC_JWT_TARGET jwt-cpp)
+else()
+    message(FATAL_ERROR "Could not resolve a jwt-cpp target")
+endif()
+
+message(STATUS "Resolved dependency targets: ${RTC_CROW_TARGET}, ${RTC_PQXX_TARGET}, "
+               "${RTC_JWT_TARGET}, bcrypt, spdlog::spdlog, nlohmann_json::nlohmann_json")

@@ -184,6 +184,37 @@ std::vector<std::int64_t> PgConversationRepository::list_participant_ids(
     });
 }
 
+std::vector<std::int64_t> PgConversationRepository::list_conversation_ids(std::int64_t user_id) {
+    return with_transaction([&](pqxx::work& txn) -> std::vector<std::int64_t> {
+        const auto result = txn.exec_params(
+            "SELECT conversation_id FROM conversation_participants WHERE user_id = $1", user_id);
+        std::vector<std::int64_t> ids;
+        ids.reserve(result.size());
+        for (const auto& row : result) {
+            ids.push_back(row[0].as<std::int64_t>());
+        }
+        return ids;
+    });
+}
+
+std::vector<std::int64_t> PgConversationRepository::list_peer_ids(std::int64_t user_id) {
+    return with_transaction([&](pqxx::work& txn) -> std::vector<std::int64_t> {
+        // Self-join over shared conversations yields the distinct set of users
+        // who co-participate with `user_id` (excluding themselves).
+        const auto result = txn.exec_params(
+            "SELECT DISTINCT p2.user_id FROM conversation_participants p1 "
+            "JOIN conversation_participants p2 ON p1.conversation_id = p2.conversation_id "
+            "WHERE p1.user_id = $1 AND p2.user_id <> $1",
+            user_id);
+        std::vector<std::int64_t> ids;
+        ids.reserve(result.size());
+        for (const auto& row : result) {
+            ids.push_back(row[0].as<std::int64_t>());
+        }
+        return ids;
+    });
+}
+
 std::optional<models::ConversationParticipant> PgConversationRepository::find_participant(
     std::int64_t conversation_id, std::int64_t user_id) {
     return with_transaction(

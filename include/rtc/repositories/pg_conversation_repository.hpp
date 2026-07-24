@@ -31,6 +31,8 @@ public:
         std::int64_t conversation_id) override;
     [[nodiscard]] std::vector<std::int64_t> list_participant_ids(
         std::int64_t conversation_id) override;
+    [[nodiscard]] std::vector<std::int64_t> list_conversation_ids(std::int64_t user_id) override;
+    [[nodiscard]] std::vector<std::int64_t> list_peer_ids(std::int64_t user_id) override;
     [[nodiscard]] std::optional<models::ConversationParticipant> find_participant(
         std::int64_t conversation_id, std::int64_t user_id) override;
     [[nodiscard]] bool is_participant(std::int64_t conversation_id,

@@ -44,6 +44,14 @@ public:
     [[nodiscard]] virtual std::vector<std::int64_t> list_participant_ids(
         std::int64_t conversation_id) = 0;
 
+    // All conversation ids the user belongs to (used to join realtime rooms).
+    [[nodiscard]] virtual std::vector<std::int64_t> list_conversation_ids(
+        std::int64_t user_id) = 0;
+
+    // Distinct user ids that share at least one conversation with `user_id`
+    // (the audience for that user's presence changes).
+    [[nodiscard]] virtual std::vector<std::int64_t> list_peer_ids(std::int64_t user_id) = 0;
+
     [[nodiscard]] virtual std::optional<models::ConversationParticipant> find_participant(
         std::int64_t conversation_id, std::int64_t user_id) = 0;
 

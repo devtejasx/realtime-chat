@@ -5,15 +5,28 @@
 
 #include "rtc/config/config.hpp"
 #include "rtc/controllers/auth_controller.hpp"
+#include "rtc/controllers/conversation_controller.hpp"
 #include "rtc/controllers/health_controller.hpp"
+#include "rtc/controllers/message_controller.hpp"
 #include "rtc/controllers/user_controller.hpp"
+#include "rtc/controllers/websocket_controller.hpp"
 #include "rtc/database/connection_pool.hpp"
 #include "rtc/http/app.hpp"
 #include "rtc/middlewares/auth_middleware.hpp"
+#include "rtc/realtime/connection_manager.hpp"
+#include "rtc/realtime/event_dispatcher.hpp"
+#include "rtc/realtime/heartbeat_monitor.hpp"
+#include "rtc/repositories/conversation_repository.hpp"
+#include "rtc/repositories/message_repository.hpp"
+#include "rtc/repositories/read_receipt_repository.hpp"
 #include "rtc/repositories/user_repository.hpp"
 #include "rtc/security/password_hasher.hpp"
 #include "rtc/security/token_service.hpp"
 #include "rtc/services/auth_service.hpp"
+#include "rtc/services/conversation_service.hpp"
+#include "rtc/services/message_service.hpp"
+#include "rtc/services/presence_service.hpp"
+#include "rtc/services/read_receipt_service.hpp"
 #include "rtc/services/user_service.hpp"
 
 namespace rtc {
@@ -58,13 +71,36 @@ private:
     std::unique_ptr<database::ConnectionPool> pool_;
     std::unique_ptr<security::IPasswordHasher> password_hasher_;
     std::unique_ptr<security::ITokenService> token_service_;
+
+    // Repositories
     std::unique_ptr<repositories::IUserRepository> user_repository_;
+    std::unique_ptr<repositories::IConversationRepository> conversation_repository_;
+    std::unique_ptr<repositories::IMessageRepository> message_repository_;
+    std::unique_ptr<repositories::IReadReceiptRepository> read_receipt_repository_;
+
+    // Realtime infrastructure (ConnectionManager is the IEventBroadcaster).
+    std::unique_ptr<realtime::ConnectionManager> connection_manager_;
+    std::unique_ptr<services::PresenceService> presence_service_;
+
+    // Services
     std::unique_ptr<services::UserService> user_service_;
     std::unique_ptr<services::AuthService> auth_service_;
+    std::unique_ptr<services::ConversationService> conversation_service_;
+    std::unique_ptr<services::MessageService> message_service_;
+    std::unique_ptr<services::ReadReceiptService> read_receipt_service_;
+
     std::unique_ptr<middlewares::AuthMiddleware> auth_guard_;
+    std::unique_ptr<realtime::EventDispatcher> event_dispatcher_;
+    std::unique_ptr<realtime::HeartbeatMonitor> heartbeat_monitor_;
+
+    // Controllers
     std::unique_ptr<controllers::HealthController> health_controller_;
     std::unique_ptr<controllers::AuthController> auth_controller_;
     std::unique_ptr<controllers::UserController> user_controller_;
+    std::unique_ptr<controllers::ConversationController> conversation_controller_;
+    std::unique_ptr<controllers::MessageController> message_controller_;
+    std::unique_ptr<controllers::WebSocketController> websocket_controller_;
+
     std::unique_ptr<http::App> app_;
     bool bootstrapped_ = false;
 };

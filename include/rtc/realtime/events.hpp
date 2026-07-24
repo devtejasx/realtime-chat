@@ -13,6 +13,7 @@ inline constexpr std::string_view kMessageCreated = "message.created";
 inline constexpr std::string_view kMessageUpdated = "message.updated";
 inline constexpr std::string_view kMessageDeleted = "message.deleted";
 inline constexpr std::string_view kConversationCreated = "conversation.created";
+inline constexpr std::string_view kConversationDeleted = "conversation.deleted";
 inline constexpr std::string_view kMemberAdded = "conversation.member_added";
 inline constexpr std::string_view kMemberRemoved = "conversation.member_removed";
 inline constexpr std::string_view kTypingStart = "typing.start";

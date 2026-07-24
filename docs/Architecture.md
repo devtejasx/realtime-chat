@@ -135,3 +135,67 @@ to share across threads.
 - **DRY** — one error envelope, one transaction helper, one response helper.
 - **RAII** — connection leases, env guards, logger lifetime.
 - **Fail fast** — invalid configuration aborts startup with a clear message.
+
+---
+
+## Real-time layer (Phase 2)
+
+Phase 2 adds WebSockets alongside the existing REST surface. The guiding rule is
+unchanged: **all business logic lives in services**. REST controllers and
+WebSocket handlers are both thin adapters that call the *same* service methods,
+so messaging behaviour is defined once.
+
+### Components (`include/rtc/realtime`)
+
+| Component            | Responsibility                                             |
+| -------------------- | ---------------------------------------------------------- |
+| `SessionManager`     | thread-safe `connection ↔ user` registry (dual-indexed)    |
+| `RoomManager`        | `conversation ↔ connections` routing cache for fan-out     |
+| `ConnectionManager`  | owns the two registries; **implements `IEventBroadcaster`**|
+| `EventDispatcher`    | decodes `{type,data}` frames → service calls; lifecycle    |
+| `HeartbeatMonitor`   | background ping / idle-timeout sweep                       |
+| `PresenceService`    | reference-counted online/offline + last-seen (in `services`) |
+
+### The broadcaster seam
+
+Services never depend on the WebSocket layer. They depend on the
+`realtime::IEventBroadcaster` interface and call `publish(user_ids, type, data)`
+after persisting. `ConnectionManager` implements that interface; a
+`NullEventBroadcaster` is used where realtime is disabled (unit tests). This is
+what lets a REST `POST /api/messages` and a WebSocket `message.send` produce
+identical broadcasts — they run the same `MessageService::send`.
+
+### Persist-first, broadcast-second
+
+Every state-changing realtime action follows the same order inside the service:
+
+1. validate,
+2. **persist** (durability before delivery),
+3. **broadcast** to participants via the injected broadcaster.
+
+A crash between 2 and 3 loses only a notification, never data; clients reconcile
+via the REST list endpoints.
+
+### Connection lifecycle
+
+```
+handshake ──onaccept──► verify JWT (query token / Authorization) ─► accept/reject
+   │
+ onopen ──► register session ─► join conversation rooms ─► presence: online ─► "ready"
+   │
+onmessage ──► touch activity ─► dispatch (ping/typing/send/mark_*) ─► service ─► broadcast
+   │
+ onclose ──► unregister session ─► leave all rooms ─► presence: offline (if last session)
+```
+
+### Concurrency & performance
+
+- All realtime registries use fine-grained mutexes and O(1) hash lookups,
+  sized for thousands of concurrent connections.
+- Presence is reference-counted so multi-device users report "offline" only when
+  their last session closes.
+- Typing indicators route through `RoomManager` (no DB) and are never persisted.
+- Message/receipt writes reuse the pooled connections and prepared,
+  fixed-shape SQL from the repository layer.
+- Broadcast payloads are serialised **once** and delivered to every target
+  session.

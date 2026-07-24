@@ -58,6 +58,11 @@ public:
 
     virtual void rename(std::int64_t conversation_id, std::string_view name) = 0;
 
+    // Transfers group ownership: sets conversations.owner_id and promotes the
+    // new owner to role 'owner', demoting any previous owner to 'member'.
+    virtual void transfer_ownership(std::int64_t conversation_id,
+                                    std::int64_t new_owner_id) = 0;
+
     // Hard-deletes a conversation (participants/messages cascade).
     virtual void remove(std::int64_t conversation_id) = 0;
 

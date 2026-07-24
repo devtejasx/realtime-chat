@@ -40,6 +40,7 @@ public:
                          models::ParticipantRole role) override;
     void remove_participant(std::int64_t conversation_id, std::int64_t user_id) override;
     void rename(std::int64_t conversation_id, std::string_view name) override;
+    void transfer_ownership(std::int64_t conversation_id, std::int64_t new_owner_id) override;
     void remove(std::int64_t conversation_id) override;
     void update_last_read(std::int64_t conversation_id, std::int64_t user_id,
                           std::int64_t message_id) override;

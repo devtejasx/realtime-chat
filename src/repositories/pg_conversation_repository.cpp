@@ -237,6 +237,23 @@ void PgConversationRepository::rename(std::int64_t conversation_id, std::string_
     });
 }
 
+void PgConversationRepository::transfer_ownership(std::int64_t conversation_id,
+                                                  std::int64_t new_owner_id) {
+    with_transaction([&](pqxx::work& txn) {
+        txn.exec_params("UPDATE conversations SET owner_id = $2 WHERE id = $1", conversation_id,
+                        new_owner_id);
+        // Demote any current owner, then promote the new one — both in one txn.
+        txn.exec_params(
+            "UPDATE conversation_participants SET role = 'member' "
+            "WHERE conversation_id = $1 AND role = 'owner' AND user_id <> $2",
+            conversation_id, new_owner_id);
+        txn.exec_params(
+            "UPDATE conversation_participants SET role = 'owner' "
+            "WHERE conversation_id = $1 AND user_id = $2",
+            conversation_id, new_owner_id);
+    });
+}
+
 void PgConversationRepository::remove(std::int64_t conversation_id) {
     with_transaction([&](pqxx::work& txn) {
         txn.exec_params("DELETE FROM conversations WHERE id = $1", conversation_id);

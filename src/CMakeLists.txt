@@ -14,6 +14,7 @@ add_library(rtc_core STATIC
     security/bcrypt_password_hasher.cpp
     security/jwt_token_service.cpp
     dto/auth_dto.cpp
+    dto/profile_dto.cpp
     validation/validators.cpp
     database/connection_pool.cpp
     database/migration_runner.cpp
@@ -23,6 +24,7 @@ add_library(rtc_core STATIC
     middlewares/auth_middleware.cpp
     controllers/health_controller.cpp
     controllers/auth_controller.cpp
+    controllers/user_controller.cpp
     application.cpp
 )
 

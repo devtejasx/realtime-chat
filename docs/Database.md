@@ -70,6 +70,91 @@ distinct accounts; the application also lower-cases emails before insertion.
   the `set_updated_at()` trigger function, making the database the single source
   of truth for modification time.
 
+### `users` (Phase 2 additions)
+
+Migration `0002` adds nullable profile columns: `display_name VARCHAR(64)`,
+`bio VARCHAR(500)`, `avatar_url VARCHAR(2048)`.
+
+### `conversations`
+
+| Column            | Type          | Notes                                        |
+| ----------------- | ------------- | -------------------------------------------- |
+| `id`              | `BIGSERIAL`   | primary key                                  |
+| `type`            | `VARCHAR(16)` | `direct` \| `group` (CHECK)                  |
+| `name`            | `VARCHAR(128)`| group name (NULL for direct)                 |
+| `owner_id`        | `BIGINT`      | FK → users(id) ON DELETE SET NULL            |
+| `direct_key`      | `VARCHAR(64)` | canonical `minId:maxId` for direct chats     |
+| `created_at`      | `TIMESTAMPTZ` | default now()                                |
+| `updated_at`      | `TIMESTAMPTZ` | trigger-maintained                           |
+| `last_message_at` | `TIMESTAMPTZ` | advanced on each new message; sort key       |
+
+- **Unique** partial index `ux_conversations_direct_key ON (direct_key) WHERE
+  direct_key IS NOT NULL` — the DB-level guarantee against duplicate one-to-one
+  conversations.
+- Index `ix_conversations_last_message_at ON (last_message_at DESC NULLS LAST)`
+  for "list my conversations, most recent first".
+
+### `conversation_participants`
+
+| Column                 | Type          | Notes                                  |
+| ---------------------- | ------------- | -------------------------------------- |
+| `id`                   | `BIGSERIAL`   | primary key                            |
+| `conversation_id`      | `BIGINT`      | FK → conversations(id) ON DELETE CASCADE |
+| `user_id`              | `BIGINT`      | FK → users(id) ON DELETE CASCADE       |
+| `role`                 | `VARCHAR(16)` | `owner` \| `member` (CHECK)            |
+| `joined_at`            | `TIMESTAMPTZ` | default now()                          |
+| `last_read_message_id` | `BIGINT`      | read high-water mark (monotonic)       |
+
+- **Unique** index `ux_participants_conversation_user ON (conversation_id,
+  user_id)` — a user appears once per conversation.
+- Index `ix_participants_user ON (user_id)` for membership and "list mine".
+
+### `messages`
+
+| Column            | Type          | Notes                                    |
+| ----------------- | ------------- | ---------------------------------------- |
+| `id`              | `BIGSERIAL`   | primary key                              |
+| `conversation_id` | `BIGINT`      | FK → conversations(id) ON DELETE CASCADE |
+| `sender_id`       | `BIGINT`      | FK → users(id) ON DELETE CASCADE         |
+| `type`            | `VARCHAR(16)` | `text` \| `system` (CHECK)               |
+| `content`         | `TEXT`        | redacted in responses when deleted       |
+| `created_at`      | `TIMESTAMPTZ` | default now()                            |
+| `updated_at`      | `TIMESTAMPTZ` | trigger-maintained                       |
+| `edited_at`       | `TIMESTAMPTZ` | set on edit                              |
+| `deleted_at`      | `TIMESTAMPTZ` | soft delete                              |
+
+- Index `ix_messages_conversation_id ON (conversation_id, id DESC)` — serves the
+  primary access pattern (a conversation's messages, newest-first, keyset).
+- Index `ix_messages_sender ON (sender_id)` for sender filtering.
+- GIN index `ix_messages_content_fts ON to_tsvector('simple', content)` for
+  full-text keyword search.
+
+### `read_receipts`
+
+| Column       | Type          | Notes                                     |
+| ------------ | ------------- | ----------------------------------------- |
+| `id`         | `BIGSERIAL`   | primary key                               |
+| `message_id` | `BIGINT`      | FK → messages(id) ON DELETE CASCADE       |
+| `user_id`    | `BIGINT`      | FK → users(id) ON DELETE CASCADE          |
+| `state`      | `VARCHAR(16)` | `sent` \| `delivered` \| `read` (CHECK)   |
+| `updated_at` | `TIMESTAMPTZ` | trigger-maintained                        |
+
+- **Unique** index `ux_read_receipts_message_user ON (message_id, user_id)` —
+  one receipt per (message, user); makes upserts idempotent. State only ever
+  advances (`sent → delivered → read`).
+
+## Query design notes
+
+- **Duplicate direct chats** are prevented with an `INSERT ... ON CONFLICT
+  (direct_key) ... DO UPDATE` upsert — race-safe and always returns one row.
+- **Message creation** inserts the row and advances the conversation's
+  `last_message_at` in the *same transaction* (persist + side effect atomic).
+- **Listing/search** is a single fixed-shape statement with optional predicates
+  (`$n IS NULL OR ...`) so PostgreSQL prepares it once; keyword search hits the
+  GIN index and skips deleted rows.
+- **Read receipts** advance via `ON CONFLICT ... DO UPDATE` guarded by a rank
+  comparison, so a late "delivered" never overwrites a "read".
+
 ## Timestamps
 
 Timestamps are stored as `TIMESTAMPTZ`. Repository reads return them as Unix

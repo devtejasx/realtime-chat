@@ -175,3 +175,134 @@ Return the currently authenticated user. **Requires** a valid access token.
 curl http://localhost:8080/api/auth/me \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
+
+---
+
+# Phase 2 — Users, Conversations, Messages, Realtime
+
+All Phase 2 endpoints require a Bearer access token.
+
+## Users / Profiles
+
+### `GET /api/users/me`
+Returns the caller's own profile (includes `email`, `display_name`, `bio`,
+`avatar_url`).
+
+### `PUT /api/users/me`
+Partial profile update. Only supplied keys change; send `null` to clear a field.
+
+```json
+{ "display_name": "Alice A.", "bio": "Coffee & C++", "avatar_url": "https://example.com/a.png" }
+```
+
+**200 OK** — the updated self profile. **Errors:** `400` (invalid field).
+
+### `GET /api/users/{id}`
+Another user's **public** profile (no email).
+
+## Conversations
+
+### `POST /api/conversations`
+Create a direct or group conversation.
+
+Direct (deduplicated per user pair):
+```json
+{ "type": "direct", "participant_ids": [2] }
+```
+Group (creator becomes owner):
+```json
+{ "type": "group", "name": "Team", "participant_ids": [2, 3] }
+```
+**201 Created** — the conversation with its `participants`. Direct creation is
+idempotent (returns the existing conversation if present).
+
+### `GET /api/conversations`
+List the caller's conversations, most-recently-active first. Supports
+`?limit=&offset=`. Returns `{ "conversations": [ ... ] }`.
+
+### `GET /api/conversations/{id}`
+Get one conversation (participants only, else `404`).
+
+### `DELETE /api/conversations/{id}`
+Delete. Direct: any participant. Group: owner only (`403` otherwise).
+
+### Group management
+| Method | Path                                        | Who    |
+| ------ | ------------------------------------------- | ------ |
+| PATCH  | `/api/conversations/{id}/name`              | owner  |
+| POST   | `/api/conversations/{id}/members`           | owner  |
+| DELETE | `/api/conversations/{id}/members/{userId}`  | owner  |
+| POST   | `/api/conversations/{id}/leave`             | member |
+
+`PATCH .../name` body: `{ "name": "New Name" }`.
+`POST .../members` body: `{ "user_id": 4 }`.
+When the owner leaves, ownership transfers to the earliest-joined member (or the
+group is deleted if none remain).
+
+## Messages
+
+### `POST /api/messages`
+Send a message. Persists first, then broadcasts `message.created` to all
+participants over WebSocket.
+```json
+{ "conversation_id": 10, "content": "Hello!" }
+```
+**201 Created** — the stored message.
+
+### `GET /api/messages`
+List/search a conversation's messages. Query params:
+`conversation_id` (required), `sender_id`, `q` (keyword, full-text),
+`limit`, `offset`, `before` / `after` (keyset cursor on message id).
+Returns `{ "messages": [ ... ] }`, newest-first.
+
+### `PATCH /api/messages/{id}`
+Edit content (author only). Body: `{ "content": "edited" }`. Broadcasts
+`message.updated`.
+
+### `DELETE /api/messages/{id}`
+Soft-delete (author or group owner). Broadcasts `message.deleted`; content is
+redacted in subsequent reads.
+
+---
+
+# WebSocket API
+
+Endpoint: `ws://localhost:8080/ws?token=<access_token>` (the token may also be
+supplied via an `Authorization: Bearer` header). An invalid token fails the
+upgrade.
+
+All frames are JSON envelopes:
+```json
+{ "type": "<event>", "data": { ... } }
+```
+
+## Client → server
+
+| Type             | `data`                                             | Effect                          |
+| ---------------- | -------------------------------------------------- | ------------------------------- |
+| `ping`           | —                                                  | server replies `pong`           |
+| `message.send`   | `{ conversation_id, content, type? }`              | persist + broadcast a message   |
+| `typing.start`   | `{ conversation_id }`                              | broadcast to room (not stored)  |
+| `typing.stop`    | `{ conversation_id }`                              | broadcast to room (not stored)  |
+| `mark_delivered` | `{ message_id }`                                   | receipt → delivered             |
+| `mark_read`      | `{ conversation_id, up_to_message_id }`            | receipts → read; advance marker |
+
+## Server → client
+
+| Type                            | `data`                                             |
+| ------------------------------- | -------------------------------------------------- |
+| `ready`                         | `{ user_id, username }` (sent on connect)          |
+| `pong`                          | `{}`                                               |
+| `message.created` / `.updated` / `.deleted` | the message object                     |
+| `conversation.created` / `.deleted`         | conversation / `{ conversation_id }`   |
+| `conversation.member_added` / `.member_removed` | `{ conversation_id, user_id }`     |
+| `typing.start` / `typing.stop`  | `{ conversation_id, user_id, username }`           |
+| `presence.update`               | `{ user_id, status: "online"\|"offline" }`         |
+| `receipt.update`                | the receipt `{ message_id, user_id, state }`       |
+| `read.update`                   | `{ conversation_id, user_id, up_to_message_id }`   |
+| `error`                         | `{ code, message }`                                |
+
+## Heartbeat
+The server sends a `ping` every `WS_HEARTBEAT_INTERVAL_SECONDS` and closes any
+connection idle beyond `WS_HEARTBEAT_TIMEOUT_SECONDS`. Any inbound frame counts
+as activity.

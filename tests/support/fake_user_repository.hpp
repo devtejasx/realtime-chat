@@ -74,6 +74,20 @@ public:
         return find_by_email(email).has_value();
     }
 
+    [[nodiscard]] models::User update_profile(std::int64_t id,
+                                              const repositories::ProfileUpdate& update) override {
+        for (auto& user : users_) {
+            if (user.id == id) {
+                if (update.display_name_set) user.display_name = update.display_name;
+                if (update.bio_set) user.bio = update.bio;
+                if (update.avatar_url_set) user.avatar_url = update.avatar_url;
+                user.updated_at = utils::now();
+                return user;
+            }
+        }
+        throw rtc::errors::NotFoundException("User not found");
+    }
+
     [[nodiscard]] std::size_t count() const noexcept { return users_.size(); }
 
 private:

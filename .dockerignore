@@ -1,0 +1,16 @@
+# Keep the build context small and reproducible.
+build/
+build-*/
+cmake-build-*/
+out/
+_deps/
+.git/
+.github/
+docs/
+*.md
+.env
+.env.local
+.vscode/
+.idea/
+logs/
+*.log

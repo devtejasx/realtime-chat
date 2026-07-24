@@ -3,6 +3,7 @@
 #include <string>
 
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/validation/validators.hpp"
 
 namespace rtc::services {
 namespace {
@@ -46,6 +47,20 @@ models::User UserService::get_by_id(std::int64_t id) {
                                              "user_id=" + std::to_string(id));
     }
     return *user;
+}
+
+models::User UserService::update_profile(std::int64_t id, dto::UpdateProfileRequest request) {
+    validation::validate_and_normalize(request);
+
+    repositories::ProfileUpdate update;
+    update.display_name_set = request.display_name_set;
+    update.display_name = request.display_name;
+    update.bio_set = request.bio_set;
+    update.bio = request.bio;
+    update.avatar_url_set = request.avatar_url_set;
+    update.avatar_url = request.avatar_url;
+
+    return repository_.update_profile(id, update);
 }
 
 }  // namespace rtc::services

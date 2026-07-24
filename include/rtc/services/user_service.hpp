@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "rtc/dto/auth_dto.hpp"
+#include "rtc/dto/profile_dto.hpp"
 #include "rtc/models/user.hpp"
 #include "rtc/repositories/user_repository.hpp"
 #include "rtc/security/password_hasher.hpp"
@@ -33,6 +34,13 @@ public:
 
     // Fetches a user by id, throwing NotFoundException when absent.
     [[nodiscard]] models::User get_by_id(std::int64_t id);
+
+    // Validates + normalizes the request and applies a partial profile update
+    // for the given user, returning the refreshed user. Throws
+    // ValidationException on invalid input and NotFoundException if the user is
+    // gone. This is the single entry point both REST and future callers use.
+    [[nodiscard]] models::User update_profile(std::int64_t id,
+                                              dto::UpdateProfileRequest request);
 
 private:
     repositories::IUserRepository& repository_;

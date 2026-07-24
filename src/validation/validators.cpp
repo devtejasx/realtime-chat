@@ -118,6 +118,27 @@ void normalize_optional(std::optional<std::string>& value) {
 
 }  // namespace
 
+std::string validate_group_name(std::string_view name) {
+    std::string trimmed = trim(name);
+    if (trimmed.size() < kGroupNameMinLen || trimmed.size() > kGroupNameMaxLen) {
+        throw ValidationException("Group name must be between 1 and 128 characters",
+                                  "field=name");
+    }
+    return trimmed;
+}
+
+std::string validate_message_content(std::string_view content) {
+    std::string trimmed = trim(content);
+    if (trimmed.empty()) {
+        throw ValidationException("Message content must not be empty", "field=content");
+    }
+    if (trimmed.size() > kMessageMaxLen) {
+        throw ValidationException("Message content is too long (max 4000 characters)",
+                                  "field=content");
+    }
+    return trimmed;
+}
+
 void validate_and_normalize(dto::UpdateProfileRequest& request) {
     if (request.display_name_set) {
         normalize_optional(request.display_name);

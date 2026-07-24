@@ -23,6 +23,11 @@ inline constexpr std::size_t kDisplayNameMaxLen = 64;
 inline constexpr std::size_t kBioMaxLen = 500;
 inline constexpr std::size_t kAvatarUrlMaxLen = 2048;
 
+// Messaging limits (Phase 2).
+inline constexpr std::size_t kGroupNameMinLen = 1;
+inline constexpr std::size_t kGroupNameMaxLen = 128;
+inline constexpr std::size_t kMessageMaxLen = 4000;
+
 // Removes leading/trailing ASCII whitespace.
 [[nodiscard]] std::string trim(std::string_view value);
 
@@ -31,6 +36,14 @@ inline constexpr std::size_t kAvatarUrlMaxLen = 2048;
 void validate_username(std::string_view username);
 void validate_email(std::string_view email);
 void validate_password(std::string_view password);
+
+// Validates a group name (1..128 chars after trimming). Returns the trimmed
+// value. Throws ValidationException on failure.
+[[nodiscard]] std::string validate_group_name(std::string_view name);
+
+// Validates message content (non-empty after trimming, <= 4000 chars). Returns
+// the trimmed content. Throws ValidationException on failure.
+[[nodiscard]] std::string validate_message_content(std::string_view content);
 
 // Normalises (trims username/email, lower-cases email) and fully validates a
 // register request in place. Throws ValidationException on the first problem.

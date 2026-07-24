@@ -110,6 +110,14 @@ std::vector<std::int64_t> ConversationService::participant_ids(std::int64_t conv
     return conversations_.list_participant_ids(conversation_id);
 }
 
+std::vector<std::int64_t> ConversationService::conversation_ids(std::int64_t user_id) {
+    return conversations_.list_conversation_ids(user_id);
+}
+
+std::vector<std::int64_t> ConversationService::peer_ids(std::int64_t user_id) {
+    return conversations_.list_peer_ids(user_id);
+}
+
 void ConversationService::remove(std::int64_t actor_id, std::int64_t conversation_id) {
     const auto conversation = require_conversation(conversation_id);
     if (conversation.is_group()) {

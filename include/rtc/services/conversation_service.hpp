@@ -57,6 +57,12 @@ public:
     // Convenience for callers needing the fan-out target set.
     [[nodiscard]] std::vector<std::int64_t> participant_ids(std::int64_t conversation_id);
 
+    // All conversation ids the user belongs to (realtime room subscription).
+    [[nodiscard]] std::vector<std::int64_t> conversation_ids(std::int64_t user_id);
+
+    // Users sharing a conversation with `user_id` (presence audience).
+    [[nodiscard]] std::vector<std::int64_t> peer_ids(std::int64_t user_id);
+
 private:
     [[nodiscard]] models::Conversation require_conversation(std::int64_t conversation_id);
     void require_participant(std::int64_t conversation_id, std::int64_t user_id);

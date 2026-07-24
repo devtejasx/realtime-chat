@@ -2,13 +2,18 @@
 
 A production-grade real-time chat backend written in **Modern C++20**.
 
-> **Phase 1 — Foundation & Authentication.** This milestone delivers the
-> project foundation: clean architecture, configuration, structured logging,
-> a full error-handling stack, PostgreSQL persistence with a connection pool and
-> migration runner, user registration/login with bcrypt + JWT, an authentication
-> guard for protected routes, a health endpoint, a GoogleTest suite, Docker
-> tooling, and documentation. Real-time messaging (WebSockets) arrives in a
-> later phase.
+> **Phase 1 — Foundation & Authentication** (complete): clean architecture,
+> configuration, structured logging, error handling, PostgreSQL with a
+> connection pool and migration runner, bcrypt + JWT auth, an authentication
+> guard, a health endpoint, tests, Docker, and docs.
+>
+> **Phase 2 — Core Real-Time Messaging Platform** (complete): user profiles,
+> one-to-one and group conversations, messages with edit/soft-delete, read
+> receipts, pagination and full-text search — over both **REST and WebSockets**.
+> The WebSocket server adds session/connection/room managers, an event
+> dispatcher, presence, typing indicators, heartbeat, and disconnect cleanup.
+> REST controllers and WebSocket handlers call the **same service classes**, so
+> business logic is never duplicated.
 
 ## Features
 
@@ -26,8 +31,19 @@ A production-grade real-time chat backend written in **Modern C++20**.
 - **JWT middleware** guarding protected routes (`GET /api/auth/me`), returning
   `401` for missing/invalid tokens.
 - **Health endpoint** — `GET /health`.
-- **Tests** — GoogleTest covering config, validation, hashing, JWT, services,
-  and the register/login APIs, plus opt-in database integration tests.
+- **User profiles** — display name, bio, avatar (`GET/PUT /api/users/me`,
+  `GET /api/users/{id}`).
+- **Conversations** — one-to-one (deduplicated) and group chats with ownership,
+  membership, rename/add/remove/leave, and delete.
+- **Messages** — send, edit, soft-delete, list with keyset pagination, and
+  full-text keyword search.
+- **WebSockets** — real-time message/typing/presence/receipt events with
+  JWT-authenticated handshakes, heartbeat, and disconnect cleanup.
+- **Presence & read receipts** — online/offline/last-seen tracking and
+  sent/delivered/read receipt state.
+- **Tests** — GoogleTest covering config, validation, hashing, JWT, all
+  services, realtime managers, and the register/login APIs, plus opt-in database
+  integration tests.
 
 ## Tech stack
 
@@ -123,6 +139,16 @@ See [docs/API.md](docs/API.md) for full endpoint documentation. In brief:
 | POST   | `/api/auth/register` | —    | Create an account           |
 | POST   | `/api/auth/login`    | —    | Obtain access/refresh tokens|
 | GET    | `/api/auth/me`       | JWT  | Current authenticated user  |
+| GET/PUT| `/api/users/me`      | JWT  | View / update your profile  |
+| GET    | `/api/users/{id}`    | JWT  | Another user's public profile |
+| POST/GET | `/api/conversations` | JWT | Create / list conversations |
+| GET/DELETE | `/api/conversations/{id}` | JWT | Get / delete a conversation |
+| POST/GET | `/api/messages`    | JWT  | Send / list & search messages |
+| PATCH/DELETE | `/api/messages/{id}` | JWT | Edit / soft-delete a message |
+| WS     | `/ws?token=…`        | JWT  | Real-time events (see [API.md](docs/API.md)) |
+
+Group management (`/api/conversations/{id}/name|members|leave`) and the full
+WebSocket event set are documented in [docs/API.md](docs/API.md).
 
 ## Further reading
 

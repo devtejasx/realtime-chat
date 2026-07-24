@@ -1,0 +1,50 @@
+# Docker Compose stack for local development.
+#
+#   docker compose up --build
+#
+# Brings up PostgreSQL and the chat server. The server waits for Postgres to be
+# healthy, runs migrations on startup, then serves on http://localhost:8080.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: realtime-chat-postgres
+    environment:
+      POSTGRES_DB: realtime_chat
+      POSTGRES_USER: chat
+      POSTGRES_PASSWORD: chat_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat -d realtime_chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: realtime-chat-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CHAT_PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: realtime_chat
+      DB_USER: chat
+      DB_PASSWORD: chat_password
+      JWT_SECRET: dev-insecure-secret-change-me-in-production
+      LOG_LEVEL: info
+      APP_ENV: development
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

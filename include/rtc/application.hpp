@@ -6,6 +6,7 @@
 #include "rtc/config/config.hpp"
 #include "rtc/controllers/auth_controller.hpp"
 #include "rtc/controllers/health_controller.hpp"
+#include "rtc/controllers/user_controller.hpp"
 #include "rtc/database/connection_pool.hpp"
 #include "rtc/http/app.hpp"
 #include "rtc/middlewares/auth_middleware.hpp"
@@ -63,6 +64,7 @@ private:
     std::unique_ptr<middlewares::AuthMiddleware> auth_guard_;
     std::unique_ptr<controllers::HealthController> health_controller_;
     std::unique_ptr<controllers::AuthController> auth_controller_;
+    std::unique_ptr<controllers::UserController> user_controller_;
     std::unique_ptr<http::App> app_;
     bool bootstrapped_ = false;
 };

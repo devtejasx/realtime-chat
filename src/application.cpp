@@ -59,6 +59,8 @@ void Application::wire_object_graph() {
     health_controller_ = std::make_unique<controllers::HealthController>(config_);
     auth_controller_ = std::make_unique<controllers::AuthController>(*auth_service_,
                                                                      *user_service_, *auth_guard_);
+    user_controller_ =
+        std::make_unique<controllers::UserController>(*user_service_, *auth_guard_);
 
     app_ = std::make_unique<http::App>();
 }
@@ -66,6 +68,7 @@ void Application::wire_object_graph() {
 void Application::register_routes() {
     health_controller_->register_routes(*app_);
     auth_controller_->register_routes(*app_);
+    user_controller_->register_routes(*app_);
 }
 
 int Application::run() {

@@ -27,6 +27,9 @@ public:
 
     [[nodiscard]] bool exists_by_username(std::string_view username) override;
     [[nodiscard]] bool exists_by_email(std::string_view email) override;
+
+    [[nodiscard]] models::User update_profile(std::int64_t id,
+                                              const ProfileUpdate& update) override;
 };
 
 }  // namespace rtc::repositories

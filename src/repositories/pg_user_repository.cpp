@@ -18,9 +18,17 @@ namespace {
 // any client/server timezone-formatting ambiguity when mapping back to a
 // time_point.
 constexpr const char* kSelectColumns =
-    "id, username, email, password_hash, "
+    "id, username, email, password_hash, display_name, bio, avatar_url, "
     "EXTRACT(EPOCH FROM created_at)::bigint AS created_epoch, "
     "EXTRACT(EPOCH FROM updated_at)::bigint AS updated_epoch";
+
+// Reads a nullable text column into std::optional<std::string>.
+[[nodiscard]] std::optional<std::string> read_optional(const pqxx::field& field) {
+    if (field.is_null()) {
+        return std::nullopt;
+    }
+    return field.as<std::string>();
+}
 
 [[nodiscard]] models::User map_row(const pqxx::row& row) {
     models::User user;
@@ -28,6 +36,9 @@ constexpr const char* kSelectColumns =
     user.username = row["username"].as<std::string>();
     user.email = row["email"].as<std::string>();
     user.password_hash = row["password_hash"].as<std::string>();
+    user.display_name = read_optional(row["display_name"]);
+    user.bio = read_optional(row["bio"]);
+    user.avatar_url = read_optional(row["avatar_url"]);
     user.created_at =
         std::chrono::system_clock::from_time_t(row["created_epoch"].as<std::time_t>());
     user.updated_at =
@@ -116,6 +127,41 @@ bool PgUserRepository::exists_by_email(std::string_view email) {
             "SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1))",
             std::string(email));
         return row[0].as<bool>();
+    });
+}
+
+models::User PgUserRepository::update_profile(std::int64_t id, const ProfileUpdate& update) {
+    return with_transaction([&](pqxx::work& txn) -> models::User {
+        // No-op update: return the current row without bumping updated_at.
+        if (!update.display_name_set && !update.bio_set && !update.avatar_url_set) {
+            const std::string sql =
+                std::string("SELECT ") + kSelectColumns + " FROM users WHERE id = $1";
+            const auto result = txn.exec_params(sql, id);
+            if (result.empty()) {
+                throw rtc::errors::NotFoundException("User not found");
+            }
+            return map_row(result.front());
+        }
+
+        // A per-column CASE lets one prepared statement express three
+        // independent intents: leave unchanged (flag false), set a value, or
+        // clear to NULL (flag true, value null).
+        const std::string sql =
+            std::string(
+                "UPDATE users SET "
+                "display_name = CASE WHEN $2 THEN $3 ELSE display_name END, "
+                "bio          = CASE WHEN $4 THEN $5 ELSE bio END, "
+                "avatar_url   = CASE WHEN $6 THEN $7 ELSE avatar_url END "
+                "WHERE id = $1 RETURNING ") +
+            kSelectColumns;
+
+        const auto result = txn.exec_params(
+            sql, id, update.display_name_set, update.display_name, update.bio_set, update.bio,
+            update.avatar_url_set, update.avatar_url);
+        if (result.empty()) {
+            throw rtc::errors::NotFoundException("User not found");
+        }
+        return map_row(result.front());
     });
 }
 

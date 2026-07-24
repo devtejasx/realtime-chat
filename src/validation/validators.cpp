@@ -97,4 +97,53 @@ void validate_and_normalize(dto::LoginRequest& request) {
     }
 }
 
+namespace {
+
+// Trims a supplied optional string in place; an all-whitespace value becomes an
+// explicit clear (nullopt) so users can't set a blank-but-present profile field.
+void normalize_optional(std::optional<std::string>& value) {
+    if (value) {
+        auto trimmed = trim(*value);
+        if (trimmed.empty()) {
+            value = std::nullopt;
+        } else {
+            value = std::move(trimmed);
+        }
+    }
+}
+
+[[nodiscard]] bool is_http_url(std::string_view url) {
+    return url.rfind("http://", 0) == 0 || url.rfind("https://", 0) == 0;
+}
+
+}  // namespace
+
+void validate_and_normalize(dto::UpdateProfileRequest& request) {
+    if (request.display_name_set) {
+        normalize_optional(request.display_name);
+        if (request.display_name && request.display_name->size() > kDisplayNameMaxLen) {
+            throw ValidationException("Display name must be at most 64 characters",
+                                      "field=display_name");
+        }
+    }
+    if (request.bio_set) {
+        normalize_optional(request.bio);
+        if (request.bio && request.bio->size() > kBioMaxLen) {
+            throw ValidationException("Bio must be at most 500 characters", "field=bio");
+        }
+    }
+    if (request.avatar_url_set) {
+        normalize_optional(request.avatar_url);
+        if (request.avatar_url) {
+            if (request.avatar_url->size() > kAvatarUrlMaxLen) {
+                throw ValidationException("Avatar URL is too long", "field=avatar_url");
+            }
+            if (!is_http_url(*request.avatar_url)) {
+                throw ValidationException("Avatar URL must be an http(s) URL",
+                                          "field=avatar_url");
+            }
+        }
+    }
+}
+
 }  // namespace rtc::validation

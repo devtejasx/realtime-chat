@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "rtc/dto/auth_dto.hpp"
+#include "rtc/dto/profile_dto.hpp"
 
 namespace rtc::validation {
 
@@ -16,6 +17,11 @@ inline constexpr std::size_t kPasswordMinLen = 8;
 // bcrypt only considers the first 72 bytes of a password; reject longer inputs
 // outright rather than silently truncating (which would be a security bug).
 inline constexpr std::size_t kPasswordMaxLen = 72;
+
+// Profile field limits (Phase 2). Mirror the users table column widths.
+inline constexpr std::size_t kDisplayNameMaxLen = 64;
+inline constexpr std::size_t kBioMaxLen = 500;
+inline constexpr std::size_t kAvatarUrlMaxLen = 2048;
 
 // Removes leading/trailing ASCII whitespace.
 [[nodiscard]] std::string trim(std::string_view value);
@@ -32,5 +38,10 @@ void validate_and_normalize(dto::RegisterRequest& request);
 
 // Normalises (trims identifier) and validates a login request in place.
 void validate_and_normalize(dto::LoginRequest& request);
+
+// Normalises (trims set string values) and validates a profile-update request
+// in place. Only fields that were supplied are checked. Throws
+// ValidationException on the first invalid field.
+void validate_and_normalize(dto::UpdateProfileRequest& request);
 
 }  // namespace rtc::validation

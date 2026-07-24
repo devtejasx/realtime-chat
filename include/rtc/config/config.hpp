@@ -34,6 +34,11 @@ public:
     std::int64_t jwt_refresh_ttl_seconds = 1'209'600;     // 14 days
     std::string jwt_issuer = "realtime-chat";
 
+    // WebSocket heartbeat (Phase 2). Interval between server pings and the
+    // idle timeout after which a silent connection is closed.
+    std::int64_t ws_heartbeat_interval_seconds = 30;
+    std::int64_t ws_heartbeat_timeout_seconds = 90;
+
     // Observability / environment
     std::string log_level = "info";
     std::string app_env = "development";

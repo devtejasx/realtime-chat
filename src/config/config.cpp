@@ -86,6 +86,11 @@ Config Config::load_from_env() {
         parse_int64_env("JWT_REFRESH_TTL_SECONDS", cfg.jwt_refresh_ttl_seconds, 1);
     cfg.jwt_issuer = rtc::utils::get_env_or("JWT_ISSUER", cfg.jwt_issuer);
 
+    cfg.ws_heartbeat_interval_seconds =
+        parse_int64_env("WS_HEARTBEAT_INTERVAL_SECONDS", cfg.ws_heartbeat_interval_seconds, 1);
+    cfg.ws_heartbeat_timeout_seconds =
+        parse_int64_env("WS_HEARTBEAT_TIMEOUT_SECONDS", cfg.ws_heartbeat_timeout_seconds, 1);
+
     cfg.log_level = rtc::utils::get_env_or("LOG_LEVEL", cfg.log_level);
     cfg.app_env = rtc::utils::get_env_or("APP_ENV", cfg.app_env);
 
@@ -112,6 +117,9 @@ void Config::validate() const {
     }
     if (db_name.empty() || db_user.empty() || db_host.empty()) {
         throw ConfigException("Database host, name and user must not be empty");
+    }
+    if (ws_heartbeat_timeout_seconds < ws_heartbeat_interval_seconds) {
+        throw ConfigException("WS heartbeat timeout must be >= heartbeat interval");
     }
 }
 

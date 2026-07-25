@@ -306,3 +306,87 @@ All frames are JSON envelopes:
 The server sends a `ping` every `WS_HEARTBEAT_INTERVAL_SECONDS` and closes any
 connection idle beyond `WS_HEARTBEAT_TIMEOUT_SECONDS`. Any inbound frame counts
 as activity.
+
+---
+
+# Phase 3 — Attachments, Reactions, Notifications, Sessions, Metrics
+
+All Phase 3 REST endpoints (except `/metrics`) require a Bearer access token.
+
+## Attachments
+
+### `POST /api/attachments`
+Multipart upload (field name `file`). Rate-limited per user. Validates size and
+an explicit MIME allow-list; images are thumbnailed asynchronously.
+
+```bash
+curl -X POST http://localhost:8080/api/attachments \
+  -H "Authorization: Bearer $ACCESS" -F "file=@photo.png"
+```
+**201** → attachment metadata including `url` and (for images) `thumbnail_url`.
+
+### `GET /api/attachments/{id}` / `GET /api/attachments/{id}/thumbnail`
+Downloads the bytes (owner, or participants of the linked message's
+conversation).
+
+### `DELETE /api/attachments/{id}`
+Deletes an attachment (owner only).
+
+**Linking to a message:** include `attachment_ids` when sending a message —
+`POST /api/messages { "conversation_id":10, "content":"...", "attachment_ids":[5] }`.
+Message responses include `attachment_ids`.
+
+## Reactions
+
+| Method | Path                             | Body               |
+| ------ | -------------------------------- | ------------------ |
+| POST   | `/api/messages/{id}/reactions`   | `{ "emoji":"👍" }` |
+| DELETE | `/api/messages/{id}/reactions`   | —                  |
+| GET    | `/api/messages/{id}/reactions`   | —                  |
+
+Allowed emoji: 👍 ❤️ 😂 😮 😢 👏 🔥. One reaction per user per message
+(re-posting changes it). Broadcasts `reaction.added` / `reaction.removed`.
+
+## Notifications
+
+| Method | Path                            | Description               |
+| ------ | ------------------------------- | ------------------------- |
+| GET    | `/api/notifications`            | list (`?unread=true`, pagination) + `unread_count` |
+| POST   | `/api/notifications/{id}/read`  | mark one read             |
+| POST   | `/api/notifications/read-all`   | mark all read             |
+| DELETE | `/api/notifications/{id}`       | delete one                |
+
+Delivered in real time as the `notification` WebSocket event.
+
+## Sessions & auth
+
+| Method | Path                    | Description                                   |
+| ------ | ----------------------- | --------------------------------------------- |
+| GET    | `/api/sessions`         | list active sessions (`?current=<id>` marks current) |
+| DELETE | `/api/sessions/{id}`    | revoke a specific session                     |
+| POST   | `/api/auth/refresh`     | rotate tokens: `{ "refresh_token", "session_id" }` |
+| POST   | `/api/auth/logout`      | revoke current session: `{ "session_id" }`    |
+| POST   | `/api/auth/logout-all`  | revoke all the user's sessions                |
+
+`register`/`login` responses now also include a `session_id`. Refresh tokens are
+rotated on every `/refresh` (the old token is then rejected — replay protection).
+
+## Metrics
+
+### `GET /metrics`
+Prometheus text exposition (unauthenticated). Includes request rate/latency,
+`rtc_active_users`, `rtc_ws_connections`, `rtc_cache_hit_ratio`,
+`rtc_uploads_total`, `rtc_notifications_total`, `rtc_background_jobs_pending`,
+`rtc_process_memory_bytes`, and `rtc_uptime_seconds`.
+
+## New WebSocket events (server → client)
+
+| Type                    | Data                                          |
+| ----------------------- | --------------------------------------------- |
+| `attachment.uploaded`   | attachment metadata                           |
+| `reaction.added`        | `{ message_id, user_id, emoji }`              |
+| `reaction.removed`      | `{ message_id, user_id }`                     |
+| `notification`          | the notification object                       |
+| `presence.update`       | `{ user_id, status }`                         |
+| `session.expired`       | `{ session_id }` (reserved)                   |
+| `cache.invalidated`     | `{ ns, key }` (reserved)                      |

@@ -166,3 +166,30 @@ ambiguity, and the application formats them as ISO-8601 UTC for API responses.
 1. Create `migrations/NNNN_description.sql` with the next number.
 2. Write forward-only DDL/DML (use `IF NOT EXISTS` where sensible).
 3. Restart the server (or run the migration runner) — it applies automatically.
+
+## Phase 3 tables
+
+### `attachments`
+File metadata (bytes live in the storage backend). Columns: `owner_id`,
+nullable `message_id` (linked on send), `storage_backend`, `storage_key`,
+`thumbnail_key`, `original_filename`, `content_type`, `kind`
+(image/pdf/document/video/audio/other), `byte_size`, `width`/`height`,
+`checksum`. Indexes on `message_id` and `owner_id`. FKs cascade from users and
+messages.
+
+### `message_reactions`
+One reaction per `(message_id, user_id)` (unique index), `emoji`, timestamps.
+Changing a reaction updates the emoji in place.
+
+### `notifications`
+Per-recipient feed: `user_id`, `type`, JSONB `payload`, nullable `read_at`.
+Indexes on `(user_id, id DESC)` and a partial index on unread rows.
+
+### `sessions`
+Distributed session store: `id` (PK), `user_id`, `refresh_token_hash` (SHA-256,
+never the raw token), `user_agent`, `ip`, `expires_at`, `revoked_at`. Valid when
+not revoked and not expired. Indexes on `user_id` and `expires_at`.
+
+### `cache_metadata`
+Cache-coherence bookkeeping: `cache_key` (PK), `namespace`, monotonic `version`,
+`updated_at`.

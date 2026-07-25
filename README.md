@@ -14,6 +14,18 @@ A production-grade real-time chat backend written in **Modern C++20**.
 > dispatcher, presence, typing indicators, heartbeat, and disconnect cleanup.
 > REST controllers and WebSocket handlers call the **same service classes**, so
 > business logic is never duplicated.
+>
+> **Phase 3 — Scalability & Production Readiness** (complete): a pluggable cache
+> (`ICacheStore`: in-memory default, Redis for multi-instance), distributed
+> sessions with refresh-token rotation and multi-device logout, file uploads /
+> attachments over a pluggable storage backend (local default; S3/Azure/GCS
+> seam), message reactions, an **event-driven notification system** (in-app +
+> pluggable FCM/APNs/email/SMS push), a background-job executor and scheduler,
+> Redis-backed rate limiting, Prometheus metrics at `/metrics`, and security
+> hardening (headers, CORS, MIME allow-list, upload limits). Every new backend
+> is an interface with a working default, so the project **builds and runs with
+> no external services** and scales out by swapping implementations — no
+> business-logic changes. See [docs/Deployment.md](docs/Deployment.md).
 
 ## Features
 
@@ -146,9 +158,16 @@ See [docs/API.md](docs/API.md) for full endpoint documentation. In brief:
 | POST/GET | `/api/messages`    | JWT  | Send / list & search messages |
 | PATCH/DELETE | `/api/messages/{id}` | JWT | Edit / soft-delete a message |
 | WS     | `/ws?token=…`        | JWT  | Real-time events (see [API.md](docs/API.md)) |
+| POST/GET/DELETE | `/api/attachments…` | JWT | Upload / download / delete files |
+| POST/GET/DELETE | `/api/messages/{id}/reactions` | JWT | Reactions |
+| GET/POST/DELETE | `/api/notifications…` | JWT | Notification feed |
+| GET/DELETE | `/api/sessions…`  | JWT  | Active sessions / revoke |
+| POST   | `/api/auth/refresh\|logout\|logout-all` | JWT | Session lifecycle |
+| GET    | `/metrics`           | —    | Prometheus metrics |
 
-Group management (`/api/conversations/{id}/name|members|leave`) and the full
-WebSocket event set are documented in [docs/API.md](docs/API.md).
+Group management (`/api/conversations/{id}/name|members|leave`), the full
+WebSocket event set, and all Phase 3 endpoints are documented in
+[docs/API.md](docs/API.md).
 
 ## Further reading
 
@@ -156,6 +175,8 @@ WebSocket event set are documented in [docs/API.md](docs/API.md).
   request lifecycle.
 - [docs/Database.md](docs/Database.md) — schema, migrations, connection pool.
 - [docs/API.md](docs/API.md) — endpoints, payloads, error format.
+- [docs/Deployment.md](docs/Deployment.md) — scaling, Redis, storage, security,
+  monitoring, rolling deploys.
 
 ## License
 

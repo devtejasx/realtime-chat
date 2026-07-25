@@ -199,3 +199,57 @@ onmessage ──► touch activity ─► dispatch (ping/typing/send/mark_*) ─
   fixed-shape SQL from the repository layer.
 - Broadcast payloads are serialised **once** and delivered to every target
   session.
+
+---
+
+## Production & scalability layer (Phase 3)
+
+Phase 3 makes the service horizontally scalable and production-ready while
+preserving the layering: new capabilities are added as **interfaces with default
+implementations**, injected in the composition root, so business logic never
+changes when a backend is swapped.
+
+### New abstractions (and their default vs. pluggable impls)
+
+| Seam                    | Default (no deps)        | Pluggable alternative        |
+| ----------------------- | ------------------------ | ---------------------------- |
+| `cache::ICacheStore`    | `InMemoryCacheStore`     | `RedisCacheStore` (`-DRTC_WITH_REDIS`) |
+| `storage::IFileStorage` | `LocalFileStorage`       | S3 / Azure / GCS             |
+| `media::IImageProcessor`| `NoopImageProcessor`     | stb_image / libvips          |
+| `notifications::IPushProvider` | `NullPushProvider`| FCM / APNs / email / SMS     |
+| `notifications::INotificationDispatcher` | `NullNotificationDispatcher` | `NotificationDispatcher` |
+
+### Cross-cutting infrastructure
+
+- **CacheService** — namespaced, JSON, read-through, with hit/miss metrics.
+- **PresenceCache** — fleet-wide online tracking over the shared store.
+- **RateLimiter** — fixed-window limits over `ICacheStore` (per user/IP).
+- **BackgroundExecutor** / **PeriodicScheduler** — off-request work (thumbnails,
+  push, cache purge, expired-session cleanup).
+- **MetricsRegistry** — Prometheus exposition at `GET /metrics`.
+- **SecurityMiddleware** / **MetricsMiddleware** — global headers/CORS and
+  request timing, added to the Crow middleware stack.
+
+### Event-driven notifications
+
+Domain services (message, conversation, reaction) announce events through the
+`INotificationDispatcher` seam **after** they persist and broadcast. The
+concrete dispatcher turns events into persisted, delivered notifications via
+`NotificationService`, which fans out in-app over WebSocket and dispatches
+external push on the background executor. Producers stay decoupled from delivery
+policy, and every handler is `noexcept` so notifications never disrupt the
+originating operation.
+
+### Distributed sessions
+
+`SessionService` records each login as a session (refresh token stored only as a
+SHA-256 hash), supports rotation on refresh (old token rejected — replay
+protection), and revocation of one or all sessions. The `sessions` table is the
+source of truth; Redis can cache active-session lookups across instances.
+
+### Scaling model
+
+App instances are stateless: durable state in PostgreSQL, shared ephemeral state
+in Redis. This supports multi-instance deployment behind a load balancer,
+targeting 100k+ users and 10k+ concurrent WebSocket connections. See
+[Deployment.md](Deployment.md).

@@ -69,6 +69,19 @@ SendMessageRequest SendMessageRequest::from_json(const nlohmann::json& body) {
         }
         request.type = *type;
     }
+    if (const auto it = body.find("attachment_ids"); it != body.end() && !it->is_null()) {
+        if (!it->is_array()) {
+            throw ValidationException("attachment_ids must be an array of ids",
+                                      "field=attachment_ids");
+        }
+        for (const auto& entry : *it) {
+            if (!entry.is_number_integer()) {
+                throw ValidationException("attachment_ids must contain integers",
+                                          "field=attachment_ids");
+            }
+            request.attachment_ids.push_back(entry.get<std::int64_t>());
+        }
+    }
     return request;
 }
 
@@ -123,6 +136,7 @@ nlohmann::json MessageResponse::to_json() const {
         {"created_at", created_at},
         {"updated_at", updated_at},
         {"edited_at", opt_to_json(edited_at)},
+        {"attachment_ids", attachment_ids},
     };
 }
 

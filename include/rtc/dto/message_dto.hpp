@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <crow/http_request.h>
 #include <nlohmann/json.hpp>
@@ -16,6 +17,8 @@ struct SendMessageRequest {
     std::int64_t conversation_id = 0;
     std::string content;
     models::MessageType type = models::MessageType::kText;
+    // Optional (Phase 3): ids of previously-uploaded attachments to link.
+    std::vector<std::int64_t> attachment_ids;
 
     [[nodiscard]] static SendMessageRequest from_json(const nlohmann::json& body);
 };
@@ -49,6 +52,8 @@ struct MessageResponse {
     std::string created_at;
     std::string updated_at;
     std::optional<std::string> edited_at;
+    // Optional (Phase 3): ids of attachments linked to this message.
+    std::vector<std::int64_t> attachment_ids;
 
     [[nodiscard]] static MessageResponse from(const models::Message& message);
     [[nodiscard]] nlohmann::json to_json() const;

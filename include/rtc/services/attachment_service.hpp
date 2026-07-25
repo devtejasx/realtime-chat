@@ -11,6 +11,7 @@
 #include "rtc/repositories/attachment_repository.hpp"
 #include "rtc/repositories/conversation_repository.hpp"
 #include "rtc/repositories/message_repository.hpp"
+#include "rtc/services/attachment_linker.hpp"
 #include "rtc/storage/file_storage.hpp"
 
 namespace rtc::services {
@@ -22,7 +23,7 @@ namespace rtc::services {
 // the background executor (never on the request thread). Download authorization
 // mirrors messaging visibility: the owner always, plus participants of the
 // conversation once the attachment is linked to a message.
-class AttachmentService {
+class AttachmentService final : public IAttachmentLinker {
 public:
     struct Options {
         std::int64_t max_upload_bytes = 25 * 1024 * 1024;
@@ -70,10 +71,13 @@ public:
     // Deletes an attachment (owner only), removing its bytes and thumbnail.
     void remove(std::int64_t actor_id, std::int64_t id);
 
-    // Links uploaded attachments to a message (used by MessageService::send).
+    // Links uploaded attachments to a message (IAttachmentLinker).
     std::size_t link_to_message(std::int64_t owner_id,
                                 const std::vector<std::int64_t>& attachment_ids,
-                                std::int64_t message_id);
+                                std::int64_t message_id) override;
+
+    // Ids of attachments linked to a message (IAttachmentLinker).
+    [[nodiscard]] std::vector<std::int64_t> attachment_ids_for(std::int64_t message_id) override;
 
     // Fetches a message's attachments (for message serialisation).
     [[nodiscard]] std::vector<models::Attachment> for_message(std::int64_t message_id);

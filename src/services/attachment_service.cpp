@@ -166,6 +166,14 @@ std::size_t AttachmentService::link_to_message(std::int64_t owner_id,
     return attachments_.link_to_message(attachment_ids, message_id, owner_id);
 }
 
+std::vector<std::int64_t> AttachmentService::attachment_ids_for(std::int64_t message_id) {
+    std::vector<std::int64_t> ids;
+    for (const auto& attachment : attachments_.list_for_message(message_id)) {
+        ids.push_back(attachment.id);
+    }
+    return ids;
+}
+
 std::vector<models::Attachment> AttachmentService::for_message(std::int64_t message_id) {
     return attachments_.list_for_message(message_id);
 }

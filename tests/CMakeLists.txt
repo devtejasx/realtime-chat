@@ -27,6 +27,16 @@ add_executable(rtc_tests
     room_manager_test.cpp
     connection_manager_test.cpp
     messaging_integration_test.cpp
+    # Phase 3
+    cache_store_test.cpp
+    cache_service_test.cpp
+    rate_limiter_test.cpp
+    background_executor_test.cpp
+    metrics_registry_test.cpp
+    mime_test.cpp
+    reaction_service_test.cpp
+    notification_service_test.cpp
+    session_service_test.cpp
 )
 
 target_include_directories(rtc_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

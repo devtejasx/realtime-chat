@@ -159,3 +159,16 @@ endif()
 
 message(STATUS "Resolved dependency targets: ${RTC_CROW_TARGET}, ${RTC_PQXX_TARGET}, "
                "${RTC_JWT_TARGET}, bcrypt, spdlog::spdlog, nlohmann_json::nlohmann_json")
+
+# ---------------------------------------------------------------------------
+# Optional: Redis (redis-plus-plus). Only resolved when RTC_WITH_REDIS=ON. We
+# rely on an installed package (vcpkg/distro) here to avoid pulling hiredis into
+# the default build; when absent, the in-memory cache store is used at runtime.
+# ---------------------------------------------------------------------------
+if(RTC_WITH_REDIS)
+    find_package(redis++ CONFIG QUIET)
+    if(NOT redis++_FOUND)
+        message(WARNING "RTC_WITH_REDIS=ON but redis-plus-plus was not found; "
+                        "the build will fall back to the in-memory cache store")
+    endif()
+endif()

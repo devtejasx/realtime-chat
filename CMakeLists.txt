@@ -29,6 +29,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 option(RTC_BUILD_TESTS "Build the GoogleTest suite" ON)
 option(RTC_ENABLE_WARNINGS "Enable a strict warning set" ON)
 option(RTC_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
+option(RTC_WITH_REDIS "Enable the Redis cache backend (requires redis-plus-plus)" OFF)
 
 # Version defines available to the C++ sources.
 add_compile_definitions(

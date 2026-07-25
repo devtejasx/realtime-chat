@@ -20,7 +20,7 @@ void MessageController::register_routes(http::App& app) {
                 const auto request =
                     dto::SendMessageRequest::from_json(http::parse_json_body(req));
                 const auto message = messages_.send(claims.user_id, request);
-                return http::json_response(201, dto::MessageResponse::from(message).to_json());
+                return http::json_response(201, messages_.to_response(message).to_json());
             });
         });
 
@@ -33,7 +33,7 @@ void MessageController::register_routes(http::App& app) {
                 const auto messages = messages_.list(claims.user_id, query, page);
                 nlohmann::json items = nlohmann::json::array();
                 for (const auto& message : messages) {
-                    items.push_back(dto::MessageResponse::from(message).to_json());
+                    items.push_back(messages_.to_response(message).to_json());
                 }
                 return http::json_response(200, nlohmann::json{{"messages", items}});
             });
@@ -46,7 +46,7 @@ void MessageController::register_routes(http::App& app) {
                 const auto request =
                     dto::UpdateMessageRequest::from_json(http::parse_json_body(req));
                 const auto message = messages_.edit(claims.user_id, id, request);
-                return http::json_response(200, dto::MessageResponse::from(message).to_json());
+                return http::json_response(200, messages_.to_response(message).to_json());
             });
         });
 
@@ -55,7 +55,7 @@ void MessageController::register_routes(http::App& app) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
                 const auto message = messages_.remove(claims.user_id, id);
-                return http::json_response(200, dto::MessageResponse::from(message).to_json());
+                return http::json_response(200, messages_.to_response(message).to_json());
             });
         });
 }

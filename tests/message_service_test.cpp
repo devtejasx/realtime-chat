@@ -5,6 +5,8 @@
 #include "rtc/dto/message_dto.hpp"
 #include "rtc/dto/pagination.hpp"
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/notifications/notification_dispatcher.hpp"
+#include "rtc/services/attachment_linker.hpp"
 #include "support/fake_conversation_repository.hpp"
 #include "support/fake_message_repository.hpp"
 #include "support/recording_broadcaster.hpp"
@@ -41,7 +43,10 @@ protected:
     rtc::testing::FakeMessageRepository messages_;
     rtc::testing::FakeConversationRepository conversations_;
     rtc::testing::RecordingBroadcaster broadcaster_;
-    rtc::services::MessageService service_{messages_, conversations_, broadcaster_};
+    rtc::notifications::NullNotificationDispatcher notifications_;
+    rtc::services::NullAttachmentLinker attachments_;
+    rtc::services::MessageService service_{messages_, conversations_, broadcaster_, notifications_,
+                                           attachments_};
 };
 
 TEST_F(MessageServiceTest, SendPersistsThenBroadcasts) {

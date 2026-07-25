@@ -6,9 +6,11 @@
 #include "rtc/dto/message_dto.hpp"
 #include "rtc/dto/pagination.hpp"
 #include "rtc/models/message.hpp"
+#include "rtc/notifications/notification_dispatcher.hpp"
 #include "rtc/realtime/event_broadcaster.hpp"
 #include "rtc/repositories/conversation_repository.hpp"
 #include "rtc/repositories/message_repository.hpp"
+#include "rtc/services/attachment_linker.hpp"
 
 namespace rtc::services {
 
@@ -19,8 +21,17 @@ class MessageService {
 public:
     MessageService(repositories::IMessageRepository& messages,
                    repositories::IConversationRepository& conversations,
-                   realtime::IEventBroadcaster& broadcaster) noexcept
-        : messages_(messages), conversations_(conversations), broadcaster_(broadcaster) {}
+                   realtime::IEventBroadcaster& broadcaster,
+                   notifications::INotificationDispatcher& notifications,
+                   IAttachmentLinker& attachments) noexcept
+        : messages_(messages),
+          conversations_(conversations),
+          broadcaster_(broadcaster),
+          notifications_(notifications),
+          attachments_(attachments) {}
+
+    // Builds a wire response for a message, including its linked attachment ids.
+    [[nodiscard]] dto::MessageResponse to_response(const models::Message& message);
 
     // Validates, stores, then broadcasts a new message. The sender must be a
     // participant of the target conversation.
@@ -49,6 +60,8 @@ private:
     repositories::IMessageRepository& messages_;
     repositories::IConversationRepository& conversations_;
     realtime::IEventBroadcaster& broadcaster_;
+    notifications::INotificationDispatcher& notifications_;
+    IAttachmentLinker& attachments_;
 };
 
 }  // namespace rtc::services

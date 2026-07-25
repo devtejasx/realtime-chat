@@ -28,6 +28,12 @@ void MessageService::require_participant(std::int64_t conversation_id, std::int6
     }
 }
 
+dto::MessageResponse MessageService::to_response(const models::Message& message) {
+    auto response = dto::MessageResponse::from(message);
+    response.attachment_ids = attachments_.attachment_ids_for(message.id);
+    return response;
+}
+
 models::Message MessageService::send(std::int64_t actor_id,
                                      const dto::SendMessageRequest& request) {
     const std::string content = validation::validate_message_content(request.content);
@@ -41,11 +47,20 @@ models::Message MessageService::send(std::int64_t actor_id,
     input.type = request.type;
     const models::Message stored = messages_.create(input);
 
+    // Link any previously-uploaded attachments (owner-scoped) to this message.
+    if (!request.attachment_ids.empty()) {
+        attachments_.link_to_message(actor_id, request.attachment_ids, stored.id);
+    }
+
+    const auto participants = conversations_.list_participant_ids(request.conversation_id);
+
     // 2) Broadcast second — to every participant (including the sender's other
     // sessions) so clients converge on the persisted state.
-    broadcaster_.publish(conversations_.list_participant_ids(request.conversation_id),
-                         realtime::events::kMessageCreated,
-                         dto::MessageResponse::from(stored).to_json());
+    broadcaster_.publish(participants, realtime::events::kMessageCreated,
+                         to_response(stored).to_json());
+
+    // 3) Notifications are event-driven and never block or fail the send.
+    notifications_.new_message(actor_id, stored.conversation_id, stored.id, participants);
     return stored;
 }
 
@@ -70,8 +85,7 @@ models::Message MessageService::edit(std::int64_t actor_id, std::int64_t message
     const models::Message updated = messages_.update_content(message_id, content);
 
     broadcaster_.publish(conversations_.list_participant_ids(updated.conversation_id),
-                         realtime::events::kMessageUpdated,
-                         dto::MessageResponse::from(updated).to_json());
+                         realtime::events::kMessageUpdated, to_response(updated).to_json());
     return updated;
 }
 
@@ -91,8 +105,7 @@ models::Message MessageService::remove(std::int64_t actor_id, std::int64_t messa
 
     const models::Message deleted = messages_.soft_delete(message_id);
     broadcaster_.publish(conversations_.list_participant_ids(deleted.conversation_id),
-                         realtime::events::kMessageDeleted,
-                         dto::MessageResponse::from(deleted).to_json());
+                         realtime::events::kMessageDeleted, to_response(deleted).to_json());
     return deleted;
 }
 

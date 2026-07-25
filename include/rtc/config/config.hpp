@@ -39,6 +39,40 @@ public:
     std::int64_t ws_heartbeat_interval_seconds = 30;
     std::int64_t ws_heartbeat_timeout_seconds = 90;
 
+    // --- Phase 3: scalability & production ---
+
+    // Redis (distributed cache / sessions / presence). When disabled, or when
+    // the binary is built without Redis support, the in-memory store is used.
+    bool redis_enabled = false;
+    std::string redis_url = "tcp://127.0.0.1:6379";
+
+    // Cache TTLs (seconds).
+    std::int64_t cache_user_ttl_seconds = 300;
+    std::int64_t cache_conversation_ttl_seconds = 60;
+
+    // File uploads / attachments.
+    std::string upload_dir = "uploads";
+    std::string upload_public_base_url = "/api/attachments";
+    std::int64_t max_upload_bytes = 25 * 1024 * 1024;   // 25 MiB
+    std::int64_t max_request_bytes = 1 * 1024 * 1024;   // 1 MiB (JSON bodies)
+
+    // Rate limiting (fixed window). Zero disables a given limit.
+    bool rate_limit_enabled = true;
+    std::int64_t rate_limit_window_seconds = 60;
+    std::int64_t rate_limit_login_max = 10;
+    std::int64_t rate_limit_register_max = 5;
+    std::int64_t rate_limit_message_max = 120;
+    std::int64_t rate_limit_upload_max = 30;
+    std::int64_t rate_limit_default_max = 300;
+
+    // Security. Comma-separated allowed CORS origins ("*" allows any).
+    std::string cors_allowed_origins = "*";
+
+    // Background workers.
+    std::int64_t worker_threads = 2;
+    // Interval for periodic maintenance jobs (cache purge, session cleanup).
+    std::int64_t maintenance_interval_seconds = 60;
+
     // Observability / environment
     std::string log_level = "info";
     std::string app_env = "development";

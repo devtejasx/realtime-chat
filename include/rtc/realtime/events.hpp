@@ -21,6 +21,13 @@ inline constexpr std::string_view kTypingStop = "typing.stop";
 inline constexpr std::string_view kPresenceUpdate = "presence.update";
 inline constexpr std::string_view kReceiptUpdate = "receipt.update";
 inline constexpr std::string_view kReadUpdate = "read.update";
+// Phase 3
+inline constexpr std::string_view kAttachmentUploaded = "attachment.uploaded";
+inline constexpr std::string_view kReactionAdded = "reaction.added";
+inline constexpr std::string_view kReactionRemoved = "reaction.removed";
+inline constexpr std::string_view kNotification = "notification";
+inline constexpr std::string_view kSessionExpired = "session.expired";
+inline constexpr std::string_view kCacheInvalidated = "cache.invalidated";
 inline constexpr std::string_view kPong = "pong";
 inline constexpr std::string_view kError = "error";
 inline constexpr std::string_view kReady = "ready";

@@ -71,6 +71,27 @@ public:
         : AppException(ErrorType::kConflict, std::move(message), std::move(details)) {}
 };
 
+// 413 — the request or upload exceeds the permitted size.
+class PayloadTooLargeException : public AppException {
+public:
+    explicit PayloadTooLargeException(std::string message, std::string details = {})
+        : AppException(ErrorType::kPayloadTooLarge, std::move(message), std::move(details)) {}
+};
+
+// 415 — the content type is unsupported or unsafe.
+class UnsupportedMediaTypeException : public AppException {
+public:
+    explicit UnsupportedMediaTypeException(std::string message, std::string details = {})
+        : AppException(ErrorType::kUnsupportedMedia, std::move(message), std::move(details)) {}
+};
+
+// 429 — the caller has exceeded a rate limit.
+class RateLimitException : public AppException {
+public:
+    explicit RateLimitException(std::string message, std::string details = {})
+        : AppException(ErrorType::kRateLimited, std::move(message), std::move(details)) {}
+};
+
 // 500 — a persistence-layer operation failed.
 class DatabaseException : public AppException {
 public:

@@ -14,6 +14,9 @@ enum class ErrorType {
     kAuthorization,    // authenticated but not permitted           -> 403
     kNotFound,         // requested resource does not exist         -> 404
     kConflict,         // state conflict, e.g. duplicate unique key  -> 409
+    kPayloadTooLarge,  // request/upload exceeds allowed size        -> 413
+    kUnsupportedMedia, // unsupported/again unsafe content type      -> 415
+    kRateLimited,      // too many requests in the window            -> 429
     kDatabase,         // persistence-layer failure                 -> 500
     kConfiguration,    // invalid / missing configuration           -> 500
     kInternal,         // unexpected, uncategorised failure         -> 500
@@ -32,6 +35,12 @@ enum class ErrorType {
             return 404;
         case ErrorType::kConflict:
             return 409;
+        case ErrorType::kPayloadTooLarge:
+            return 413;
+        case ErrorType::kUnsupportedMedia:
+            return 415;
+        case ErrorType::kRateLimited:
+            return 429;
         case ErrorType::kDatabase:
         case ErrorType::kConfiguration:
         case ErrorType::kInternal:
@@ -53,6 +62,12 @@ enum class ErrorType {
             return "not_found";
         case ErrorType::kConflict:
             return "conflict";
+        case ErrorType::kPayloadTooLarge:
+            return "payload_too_large";
+        case ErrorType::kUnsupportedMedia:
+            return "unsupported_media_type";
+        case ErrorType::kRateLimited:
+            return "rate_limited";
         case ErrorType::kDatabase:
             return "database_error";
         case ErrorType::kConfiguration:

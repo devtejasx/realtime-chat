@@ -162,6 +162,7 @@ models::ConversationParticipant ConversationService::add_member(std::int64_t act
     broadcaster_.publish(
         conversations_.list_participant_ids(conversation_id), realtime::events::kMemberAdded,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", user_id}});
+    notifications_.added_to_group(conversation_id, user_id, actor_id);
     return *participant;
 }
 
@@ -177,6 +178,7 @@ void ConversationService::remove_member(std::int64_t actor_id, std::int64_t conv
     broadcaster_.publish(
         ids, realtime::events::kMemberRemoved,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", target_user_id}});
+    notifications_.removed_from_group(conversation_id, target_user_id, actor_id);
 }
 
 void ConversationService::leave(std::int64_t actor_id, std::int64_t conversation_id) {

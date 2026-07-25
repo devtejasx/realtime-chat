@@ -5,6 +5,7 @@
 #include "rtc/dto/conversation_dto.hpp"
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/models/conversation.hpp"
+#include "rtc/notifications/notification_dispatcher.hpp"
 #include "support/fake_conversation_repository.hpp"
 #include "support/fake_user_repository.hpp"
 #include "support/recording_broadcaster.hpp"
@@ -43,7 +44,9 @@ protected:
     rtc::testing::FakeConversationRepository conversations_;
     rtc::testing::FakeUserRepository users_;
     rtc::testing::RecordingBroadcaster broadcaster_;
-    rtc::services::ConversationService service_{conversations_, users_, broadcaster_};
+    rtc::notifications::NullNotificationDispatcher notifications_;
+    rtc::services::ConversationService service_{conversations_, users_, broadcaster_,
+                                                notifications_};
 };
 
 TEST_F(ConversationServiceTest, CreatesDirectConversationAndBroadcasts) {

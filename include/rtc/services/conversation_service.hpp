@@ -7,6 +7,7 @@
 #include "rtc/dto/pagination.hpp"
 #include "rtc/models/conversation.hpp"
 #include "rtc/models/conversation_participant.hpp"
+#include "rtc/notifications/notification_dispatcher.hpp"
 #include "rtc/realtime/event_broadcaster.hpp"
 #include "rtc/repositories/conversation_repository.hpp"
 #include "rtc/repositories/user_repository.hpp"
@@ -21,8 +22,12 @@ class ConversationService {
 public:
     ConversationService(repositories::IConversationRepository& conversations,
                         repositories::IUserRepository& users,
-                        realtime::IEventBroadcaster& broadcaster) noexcept
-        : conversations_(conversations), users_(users), broadcaster_(broadcaster) {}
+                        realtime::IEventBroadcaster& broadcaster,
+                        notifications::INotificationDispatcher& notifications) noexcept
+        : conversations_(conversations),
+          users_(users),
+          broadcaster_(broadcaster),
+          notifications_(notifications) {}
 
     // Creates a direct or group conversation on behalf of `actor_id`.
     [[nodiscard]] models::Conversation create(std::int64_t actor_id,
@@ -72,6 +77,7 @@ private:
     repositories::IConversationRepository& conversations_;
     repositories::IUserRepository& users_;
     realtime::IEventBroadcaster& broadcaster_;
+    notifications::INotificationDispatcher& notifications_;
 };
 
 }  // namespace rtc::services

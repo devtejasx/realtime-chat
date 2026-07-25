@@ -13,8 +13,10 @@
 #include "rtc/middlewares/auth_middleware.hpp"
 #include "rtc/security/jwt_token_service.hpp"
 #include "rtc/services/auth_service.hpp"
+#include "rtc/services/session_service.hpp"
 #include "rtc/services/user_service.hpp"
 #include "support/fake_password_hasher.hpp"
+#include "support/fake_session_repository.hpp"
 #include "support/fake_user_repository.hpp"
 
 namespace {
@@ -28,8 +30,8 @@ class AuthApiTest : public ::testing::Test {
 protected:
     void SetUp() override {
         health_ = std::make_unique<rtc::controllers::HealthController>(config_);
-        auth_ = std::make_unique<rtc::controllers::AuthController>(auth_service_, user_service_,
-                                                                   guard_);
+        auth_ = std::make_unique<rtc::controllers::AuthController>(
+            auth_service_, user_service_, session_service_, guard_);
         health_->register_routes(app_);
         auth_->register_routes(app_);
         app_.validate();
@@ -66,6 +68,8 @@ protected:
                                                 .issuer = "realtime-chat-test"}};
     rtc::services::UserService user_service_{repo_, hasher_};
     rtc::services::AuthService auth_service_{user_service_, token_service_};
+    rtc::testing::FakeSessionRepository session_repo_;
+    rtc::services::SessionService session_service_{session_repo_, token_service_, 1209600};
     rtc::middlewares::AuthMiddleware guard_{token_service_};
 
     rtc::http::App app_;

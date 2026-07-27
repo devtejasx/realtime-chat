@@ -62,3 +62,57 @@ jobs:
       - name: Test
         working-directory: build
         run: ctest --output-on-failure
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: realtime_chat
+          POSTGRES_USER: chat
+          POSTGRES_PASSWORD: chat_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chat -d realtime_chat"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_NAME: realtime_chat
+      DB_USER: chat
+      DB_PASSWORD: chat_password
+      JWT_SECRET: ci-test-secret-value-please-ignore
+      RTC_RUN_DB_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build git lcov \
+            libssl-dev libpq-dev postgresql-server-dev-all
+      - name: Configure with coverage
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRTC_BUILD_TESTS=ON \
+            -DCMAKE_CXX_FLAGS="--coverage -O0 -g"
+      - name: Build & test
+        run: |
+          cmake --build build --parallel
+          ctest --test-dir build --output-on-failure
+      - name: Generate coverage report
+        run: |
+          lcov --capture --directory build --output-file coverage.info \
+            --ignore-errors mismatch,negative || true
+          lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' \
+            --output-file coverage.info || true
+          lcov --list coverage.info || true
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.info
+          if-no-files-found: ignore

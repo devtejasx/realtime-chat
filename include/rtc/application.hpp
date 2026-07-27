@@ -78,6 +78,11 @@ public:
     // signalled. Returns the process exit code.
     [[nodiscard]] int run();
 
+    // Runs pending migrations and exits (no server). Used by deploy pipelines to
+    // apply the schema ahead of a rolling release. Idempotent. Returns the exit
+    // code.
+    [[nodiscard]] int migrate();
+
     // Requests a graceful shutdown of the running server. Safe to call from a
     // signal handler context.
     void stop();

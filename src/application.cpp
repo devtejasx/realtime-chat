@@ -276,6 +276,17 @@ int Application::run() {
     return 0;
 }
 
+int Application::migrate() {
+    logging::init(config_.log_level, config_.log_format);
+    RTC_LOG_INFO("Running migrations only for realtime-chat {}", RTC_VERSION);
+    pool_ = std::make_unique<database::ConnectionPool>(config_.database_connection_string(),
+                                                       config_.db_pool_size);
+    run_migrations();
+    RTC_LOG_INFO("Migrations complete; exiting");
+    logging::shutdown();
+    return 0;
+}
+
 void Application::stop() {
     if (heartbeat_monitor_) {
         heartbeat_monitor_->stop();

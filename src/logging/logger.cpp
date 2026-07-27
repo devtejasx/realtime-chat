@@ -11,8 +11,13 @@ namespace {
 
 constexpr const char* kLoggerName = "realtime-chat";
 
-// Pattern: 2026-07-24 12:00:00.123 [info] [tid 12345] realtime-chat: message
-constexpr const char* kPattern = "%Y-%m-%d %H:%M:%S.%e [%^%l%$] [tid %t] %n: %v";
+// Human-readable: 2026-07-24 12:00:00.123 [info] [tid 12345] realtime-chat: msg
+constexpr const char* kTextPattern = "%Y-%m-%d %H:%M:%S.%e [%^%l%$] [tid %t] %n: %v";
+
+// One JSON object per line for structured log ingestion. (spdlog does not
+// escape %v; log call sites avoid embedding raw quotes/newlines in messages.)
+constexpr const char* kJsonPattern =
+    R"({"time":"%Y-%m-%dT%H:%M:%S.%e%z","level":"%l","thread":%t,"logger":"%n","message":"%v"})";
 
 [[nodiscard]] std::string to_lower(std::string_view value) {
     std::string out(value);
@@ -35,12 +40,12 @@ spdlog::level::level_enum parse_level(std::string_view level) noexcept {
     return spdlog::level::info;
 }
 
-void init(std::string_view level) {
+void init(std::string_view level, std::string_view format) {
     // Replace any previously registered logger so re-init is idempotent.
     spdlog::drop(kLoggerName);
 
     auto logger = spdlog::stdout_color_mt(kLoggerName);
-    logger->set_pattern(kPattern);
+    logger->set_pattern(to_lower(format) == "json" ? kJsonPattern : kTextPattern);
 
     const auto lvl = parse_level(level);
     logger->set_level(lvl);

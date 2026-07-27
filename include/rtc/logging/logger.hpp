@@ -15,7 +15,10 @@ namespace rtc::logging {
 //
 // `level` accepts: trace, debug, info, warn, warning, error, critical, off.
 // Unrecognised values fall back to "info".
-void init(std::string_view level);
+//
+// `format` selects the output layout: "text" (human-readable, the default) or
+// "json" (one JSON object per line, for log aggregation in production).
+void init(std::string_view level, std::string_view format = "text");
 
 // Returns the shared application logger. Never null after init(); before
 // init() it lazily returns spdlog's default logger so early logging is safe.

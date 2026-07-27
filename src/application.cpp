@@ -65,7 +65,7 @@ Application::Application(config::Config config)
 Application::~Application() { stop(); }
 
 void Application::bootstrap() {
-    logging::init(config_.log_level);
+    logging::init(config_.log_level, config_.log_format);
     RTC_LOG_INFO("Starting realtime-chat {} in '{}' environment", RTC_VERSION, config_.app_env);
     RTC_LOG_INFO("Database target: {}", config_.database_connection_string_redacted());
 

@@ -1,0 +1,53 @@
+# systemd unit for a native (non-container) realtime-chat deployment.
+#
+# Install:
+#   sudo cp deploy/systemd/realtime-chat.service /etc/systemd/system/
+#   sudo cp deploy/systemd/realtime-chat.env.example /etc/realtime-chat/realtime-chat.env
+#   sudo systemctl daemon-reload && sudo systemctl enable --now realtime-chat
+#
+# The binary handles SIGTERM for graceful shutdown (Crow stops accepting
+# connections, background workers drain, then the process exits).
+
+[Unit]
+Description=realtime-chat backend
+Documentation=https://github.com/devtejasx/realtime-chat
+After=network-online.target postgresql.service redis.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=realtimechat
+Group=realtimechat
+WorkingDirectory=/opt/realtime-chat
+EnvironmentFile=/etc/realtime-chat/realtime-chat.env
+ExecStart=/opt/realtime-chat/bin/realtime-chat
+
+# Restart policy — recover automatically, but back off to avoid crash loops.
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Graceful shutdown: send SIGTERM and allow the process time to drain.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Logging to the journal (use LOG_FORMAT=json for structured ingestion).
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=realtime-chat
+
+# Security hardening.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/realtime-chat
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

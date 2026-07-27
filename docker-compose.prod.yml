@@ -1,0 +1,116 @@
+# Production stack: PostgreSQL + Redis + app + Nginx (TLS reverse proxy).
+#
+#   JWT_SECRET=... docker compose -f docker-compose.prod.yml up -d --build
+#
+# The app is not published directly; all external traffic goes through Nginx.
+# Secrets come from the environment (or a .env file); JWT_SECRET is required.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-realtime_chat}
+      POSTGRES_USER: ${DB_USER:-chat}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-chat} -d ${DB_NAME:-realtime_chat}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768m
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prod
+    image: realtime-chat:latest
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      CHAT_PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-realtime_chat}
+      DB_USER: ${DB_USER:-chat}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-16}
+      REDIS_ENABLED: "true"
+      REDIS_URL: tcp://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: json
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads_data:/data
+    networks: [backend, frontend]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on: [server]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/snippets:/etc/nginx/snippets:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    networks: [frontend]
+
+  # On-demand certificate issuance/renewal (see scripts/ssl/init-letsencrypt.sh).
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done'"
+    networks: [frontend]
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+  certbot_certs:
+  certbot_www:
+
+networks:
+  backend:
+    internal: true   # DB/Redis/app-internal traffic never leaves the host
+  frontend:

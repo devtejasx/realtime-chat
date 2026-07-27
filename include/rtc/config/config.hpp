@@ -75,6 +75,9 @@ public:
 
     // Observability / environment
     std::string log_level = "info";
+    // Log output format: "text" (human-readable) or "json" (structured, for log
+    // aggregation in production).
+    std::string log_format = "text";
     std::string app_env = "development";
 
     // Builds Config from the process environment, applying defaults for any

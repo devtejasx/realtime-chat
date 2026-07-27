@@ -141,6 +141,10 @@ Config Config::load_from_env() {
     cfg.maintenance_interval_seconds =
         parse_int64_env("MAINTENANCE_INTERVAL_SECONDS", cfg.maintenance_interval_seconds, 1);
 
+    cfg.log_level = rtc::utils::get_env_or("LOG_LEVEL", cfg.log_level);
+    cfg.log_format = rtc::utils::get_env_or("LOG_FORMAT", cfg.log_format);
+    cfg.app_env = rtc::utils::get_env_or("APP_ENV", cfg.app_env);
+
     cfg.validate();
     return cfg;
 }

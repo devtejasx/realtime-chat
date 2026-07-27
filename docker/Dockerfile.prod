@@ -1,0 +1,82 @@
+# syntax=docker/dockerfile:1
+#
+# Production image for realtime-chat.
+#
+# Differences from docker/Dockerfile (the default/dev build):
+#   - builds with the Redis cache backend enabled (-DRTC_WITH_REDIS=ON) so the
+#     image can join a multi-instance deployment backed by ElastiCache/Redis;
+#   - uses tini as PID 1 for correct signal forwarding and zombie reaping,
+#     enabling graceful shutdown;
+#   - ships a container HEALTHCHECK hitting the liveness probe;
+#   - runs as a non-root user with a read-only-friendly layout.
+
+# ============================================================================
+# Stage 1: build (with Redis support)
+# ============================================================================
+FROM ubuntu:24.04 AS build
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build git ca-certificates pkg-config \
+        libssl-dev libpq-dev postgresql-server-dev-all libhiredis-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build and install redis-plus-plus so the app can be configured with Redis.
+RUN git clone --depth 1 --branch 1.3.13 https://github.com/sewenew/redis-plus-plus.git /tmp/rpp \
+    && cmake -S /tmp/rpp -B /tmp/rpp/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /tmp/rpp/build \
+    && cmake --install /tmp/rpp/build \
+    && rm -rf /tmp/rpp
+
+WORKDIR /src
+COPY CMakeLists.txt ./
+COPY cmake ./cmake
+COPY include ./include
+COPY src ./src
+COPY tests ./tests
+COPY migrations ./migrations
+
+RUN cmake -S . -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DRTC_BUILD_TESTS=OFF \
+        -DRTC_WITH_REDIS=ON \
+    && cmake --build build --parallel
+
+# ============================================================================
+# Stage 2: runtime (minimal)
+# ============================================================================
+FROM ubuntu:24.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libssl3 libpq5 libhiredis0.14 ca-certificates tini curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --no-create-home --uid 10001 appuser
+
+WORKDIR /app
+COPY --from=build /src/build/bin/realtime-chat /app/realtime-chat
+COPY --from=build /src/migrations /app/migrations
+# redis-plus-plus / hiredis shared libs used at runtime.
+COPY --from=build /usr/local/lib/libredis++.so* /usr/local/lib/
+RUN ldconfig
+
+ENV CHAT_PORT=8080 \
+    MIGRATIONS_DIR=/app/migrations \
+    APP_ENV=production \
+    LOG_FORMAT=json \
+    UPLOAD_DIR=/data/uploads
+
+# Uploads volume (kept out of the image layer).
+RUN mkdir -p /data/uploads && chown -R appuser:appuser /data
+VOLUME ["/data"]
+
+EXPOSE 8080
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8080/health/live || exit 1
+
+# tini reaps children and forwards SIGTERM for graceful shutdown.
+ENTRYPOINT ["/usr/bin/tini", "--", "/app/realtime-chat"]

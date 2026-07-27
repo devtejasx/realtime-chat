@@ -26,6 +26,18 @@ A production-grade real-time chat backend written in **Modern C++20**.
 > is an interface with a working default, so the project **builds and runs with
 > no external services** and scales out by swapping implementations — no
 > business-logic changes. See [docs/Deployment.md](docs/Deployment.md).
+>
+> **Phase 4 — Production Deployment & DevOps** (complete): production Docker
+> image (Redis-enabled, tini, healthcheck) + dev/prod Compose stacks, an
+> **Nginx reverse proxy** with TLS termination, HTTP→HTTPS, WebSocket proxying,
+> gzip and security headers, **Let's Encrypt** automation, a hardened
+> **systemd** unit, **GitHub Actions** CI/CD (build+test+coverage, clang-format/
+> clang-tidy, CodeQL, secret scanning, image build/push to GHCR, tagged
+> releases), **AWS** deployment scripts (EC2/RDS/ElastiCache reference),
+> database backup/restore/migrate/maintenance scripts, **liveness/readiness**
+> probes, **structured JSON logs with request ids**, expanded Prometheus
+> metrics (DB/cache latency, memory), and a full production docs set. Clone and
+> follow [docs/Deployment.md](docs/Deployment.md) to ship it.
 
 ## Features
 
@@ -101,6 +113,22 @@ Then:
 curl http://localhost:8080/health
 ```
 
+## Production deployment
+
+The full production stack (PostgreSQL + Redis + app + Nginx/TLS) is one command:
+
+```bash
+export JWT_SECRET="$(openssl rand -hex 32)"
+export DB_PASSWORD="$(openssl rand -hex 16)"
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Obtain TLS certificates with `DOMAIN=… EMAIL=… ./scripts/ssl/init-letsencrypt.sh`.
+For EC2/RDS/ElastiCache, systemd, backups, and the operational runbook, see
+[docs/Deployment.md](docs/Deployment.md), [docs/Docker.md](docs/Docker.md), and
+[docs/AWS.md](docs/AWS.md). Probes: `/health/live`, `/health/ready`; metrics:
+`/metrics`.
+
 ## Build from source
 
 **Prerequisites:** a C++20 compiler, CMake ≥ 3.24, Ninja (optional), plus the
@@ -173,10 +201,20 @@ WebSocket event set, and all Phase 3 endpoints are documented in
 
 - [docs/Architecture.md](docs/Architecture.md) — layers, dependency injection,
   request lifecycle.
+- [docs/Architecture.md](docs/Architecture.md) — layers, DI, request lifecycle,
+  real-time and production layers.
 - [docs/Database.md](docs/Database.md) — schema, migrations, connection pool.
 - [docs/API.md](docs/API.md) — endpoints, payloads, error format.
-- [docs/Deployment.md](docs/Deployment.md) — scaling, Redis, storage, security,
-  monitoring, rolling deploys.
+- [docs/Deployment.md](docs/Deployment.md) — scaling, Redis, storage, rolling
+  deploys, readiness checklist, runbook.
+- [docs/Docker.md](docs/Docker.md) — images and Compose stacks.
+- [docs/AWS.md](docs/AWS.md) — EC2/RDS/ElastiCache reference deployment.
+- [docs/Security.md](docs/Security.md) — OWASP posture.
+- [docs/Monitoring.md](docs/Monitoring.md) — metrics, probes, alerts.
+- [docs/Performance.md](docs/Performance.md) — tuning and scaling.
+- [docs/Troubleshooting.md](docs/Troubleshooting.md) — common issues.
+- [docs/Contributing.md](docs/Contributing.md) — dev workflow and standards.
+- [docs/Release.md](docs/Release.md) — versioning and release process.
 
 ## License
 

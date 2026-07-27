@@ -115,3 +115,68 @@ environment. Scale app instances behind your load balancer.
 2. Roll instances one at a time behind the load balancer.
 3. Clients reconnect WebSockets to healthy instances automatically; presence and
    sessions live in shared state, so no user state is lost.
+
+---
+
+# Production readiness checklist
+
+- [x] **Graceful shutdown** — `SIGTERM` stops accepting connections; the
+  heartbeat monitor, scheduler, and background executor drain and join; RAII
+  unwinds the pool. tini (container) / systemd forward the signal correctly.
+- [x] **Zero-downtime deploys** — stateless instances behind a load balancer;
+  migrate once (`server --migrate`), then roll instances one at a time. Nginx
+  and ≥2 instances keep traffic served throughout.
+- [x] **Migration strategy** — forward-only, idempotent, tracked in
+  `schema_migrations`; applied ahead of the roll so old and new instances run
+  against a compatible schema.
+- [x] **Rollback strategy** — `deploy/aws/rollback.sh` reverts to the previous
+  revision; for schema regressions, restore the pre-migration backup
+  (`scripts/db/rollback.sh`).
+- [x] **Disaster recovery** — nightly `pg_dump` backups with checksums and
+  retention (`scripts/db/backup.sh`); RDS Multi-AZ + automated snapshots in AWS.
+- [x] **Backup verification** — restores are checksum-verified; periodically
+  restore into a scratch database and run `/health/ready` against it.
+- [x] **Monitoring** — `/metrics` (Prometheus), `/health/*` probes, alerts (see
+  [Monitoring.md](Monitoring.md)).
+- [x] **Logging** — structured JSON logs with request ids; JSON Nginx access
+  logs; ship to a central aggregator.
+- [x] **Scaling** — horizontal via shared Postgres + Redis; read replicas /
+  PgBouncer for the database as load grows.
+- [x] **Security** — TLS 1.2+, HSTS, security headers, CORS, rate limiting,
+  refresh-token rotation, upload hardening (see [Security.md](Security.md)).
+
+## Operational runbook
+
+**Deploy a new version**
+1. Merge to `main` (CI green). Tag `vX.Y.Z` to build the image + release.
+2. `scripts/db/backup.sh` — take a pre-deploy backup.
+3. `docker compose -f docker-compose.prod.yml run --rm server --migrate`.
+4. Roll instances (`deploy/aws/deploy.sh vX.Y.Z`), verify `health-check.sh`.
+
+**Incident: high 5xx / latency**
+1. Check `/health/ready` and `/metrics` (`rtc_db_query_seconds`,
+   `rtc_cache_op_seconds`, `rtc_http_5xx_total`).
+2. Inspect logs by `X-Request-Id`. Identify the failing dependency.
+3. Scale out or fail over the dependency (RDS Multi-AZ, ElastiCache).
+4. If a bad release: `rollback.sh`.
+
+**Incident: database outage**
+1. `/health/ready` returns 503 → LB drains instances automatically.
+2. Fail over RDS (Multi-AZ) or restore from snapshot/backup.
+3. Confirm readiness returns 200; traffic resumes.
+
+**Routine maintenance**
+- Weekly `scripts/db/maintenance.sh all` (vacuum/reindex/health).
+- Verify a backup restore monthly.
+- Review metrics/alerts and capacity headroom.
+
+## Validation
+
+- **Build/tests** — `.github/workflows/ci.yml` (with a Postgres service) runs
+  unit + database integration tests and coverage on every push/PR.
+- **Docker** — `.github/workflows/docker.yml` builds the production image on
+  every PR (and pushes on main/tags).
+- **Migrations** — exercised in CI by the integration tests, which run the
+  migration runner against a real PostgreSQL before asserting behaviour.
+- **Deployment** — `deploy/aws/health-check.sh` verifies liveness + readiness
+  after each deploy/rollback.

@@ -1,0 +1,59 @@
+# Development stack: PostgreSQL + Redis + app, with the app port published and
+# hot, human-readable logs. No Nginx/TLS — talk to the app directly on :8080.
+#
+#   docker compose -f docker-compose.dev.yml up --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: realtime_chat
+      POSTGRES_USER: chat
+      POSTGRES_PASSWORD: chat_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat -d realtime_chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prod
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      CHAT_PORT: 8080
+      DB_HOST: postgres
+      DB_NAME: realtime_chat
+      DB_USER: chat
+      DB_PASSWORD: chat_password
+      REDIS_ENABLED: "true"
+      REDIS_URL: tcp://redis:6379
+      JWT_SECRET: dev-insecure-secret-change-me-in-production
+      APP_ENV: development
+      LOG_LEVEL: debug
+      LOG_FORMAT: text
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads_dev_data:/data
+
+volumes:
+  postgres_dev_data:
+  uploads_dev_data:

@@ -162,6 +162,7 @@ void Application::wire_object_graph() {
 
     // Controllers.
     health_controller_ = std::make_unique<controllers::HealthController>(config_);
+    health_controller_->set_readiness_dependencies(*pool_, *cache_store_);
     auth_controller_ = std::make_unique<controllers::AuthController>(
         *auth_service_, *user_service_, *session_service_, *auth_guard_);
     user_controller_ =

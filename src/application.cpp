@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <utility>
 
+#include <pqxx/transaction>
+
 #include "rtc/cache/in_memory_cache_store.hpp"
 #include "rtc/cache/redis_cache_store.hpp"
 #include "rtc/database/migration_runner.hpp"
@@ -194,6 +196,32 @@ void Application::wire_object_graph() {
         const auto removed = session_service_->cleanup_expired();
         if (removed > 0) {
             RTC_LOG_DEBUG("Cleaned up {} expired session(s)", removed);
+        }
+    });
+    // Dependency-latency probes surfaced as gauges on /metrics.
+    scheduler_->add("latency_probe", [this] {
+        using Clock = std::chrono::steady_clock;
+        try {
+            const auto t0 = Clock::now();
+            {
+                auto lease = pool_->acquire();
+                pqxx::work txn(lease.get());
+                txn.exec("SELECT 1");
+                txn.commit();
+            }
+            metrics_->set_gauge("rtc_db_query_seconds",
+                                std::chrono::duration<double>(Clock::now() - t0).count());
+        } catch (const std::exception&) {
+            metrics_->set_gauge("rtc_db_query_seconds", -1.0);  // probe failed
+        }
+        try {
+            const auto t0 = Clock::now();
+            cache_store_->set("health:probe", "1", std::chrono::seconds(30));
+            (void) cache_store_->get("health:probe");
+            metrics_->set_gauge("rtc_cache_op_seconds",
+                                std::chrono::duration<double>(Clock::now() - t0).count());
+        } catch (const std::exception&) {
+            metrics_->set_gauge("rtc_cache_op_seconds", -1.0);
         }
     });
 }

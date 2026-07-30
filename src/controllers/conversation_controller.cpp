@@ -1,7 +1,6 @@
 #include "rtc/controllers/conversation_controller.hpp"
 
 #include <cstdint>
-
 #include <nlohmann/json.hpp>
 
 #include "rtc/dto/conversation_dto.hpp"
@@ -70,8 +69,7 @@ void ConversationController::register_routes(http::App& app) {
         .methods(crow::HTTPMethod::Patch)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
-                const auto request =
-                    dto::RenameGroupRequest::from_json(http::parse_json_body(req));
+                const auto request = dto::RenameGroupRequest::from_json(http::parse_json_body(req));
                 const auto conversation = conversations_.rename_group(claims.user_id, id, request);
                 return http::json_response(200, to_body(conversations_, conversation));
             });
@@ -84,7 +82,8 @@ void ConversationController::register_routes(http::App& app) {
                 const auto request = dto::AddMemberRequest::from_json(http::parse_json_body(req));
                 const auto participant =
                     conversations_.add_member(claims.user_id, id, request.user_id);
-                return http::json_response(201, dto::ParticipantResponse::from(participant).to_json());
+                return http::json_response(201,
+                                           dto::ParticipantResponse::from(participant).to_json());
             });
         });
 

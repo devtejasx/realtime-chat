@@ -1,8 +1,7 @@
 #include "rtc/controllers/docs_controller.hpp"
 
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/docs/openapi.hpp"
 #include "rtc/errors/error_response.hpp"
@@ -76,20 +75,19 @@ void DocsController::register_routes(http::App& app) {
     // to know that /openapi.json is unversioned.
     CROW_ROUTE(app, "/api/v1/openapi.json").methods(crow::HTTPMethod::Get)(serve_spec);
 
-    CROW_ROUTE(app, "/docs")
-        .methods(crow::HTTPMethod::Get)([enabled]() {
-            if (!enabled) {
-                return not_found();
-            }
-            crow::response response(200, docs::swagger_ui_html("/openapi.json"));
-            response.set_header("Content-Type", "text/html; charset=utf-8");
-            // The global security middleware sets `default-src 'none'`, which would
-            // block the viewer's own assets. after_handle would overwrite whatever
-            // is set here, so SecurityMiddleware is told to leave this response
-            // alone via the opt-out header below, which it strips before sending.
-            response.set_header("X-RTC-CSP-Override", std::string(docs::swagger_ui_csp()));
-            return response;
-        });
+    CROW_ROUTE(app, "/docs").methods(crow::HTTPMethod::Get)([enabled]() {
+        if (!enabled) {
+            return not_found();
+        }
+        crow::response response(200, docs::swagger_ui_html("/openapi.json"));
+        response.set_header("Content-Type", "text/html; charset=utf-8");
+        // The global security middleware sets `default-src 'none'`, which would
+        // block the viewer's own assets. after_handle would overwrite whatever
+        // is set here, so SecurityMiddleware is told to leave this response
+        // alone via the opt-out header below, which it strips before sending.
+        response.set_header("X-RTC-CSP-Override", std::string(docs::swagger_ui_csp()));
+        return response;
+    });
 }
 
 }  // namespace rtc::controllers

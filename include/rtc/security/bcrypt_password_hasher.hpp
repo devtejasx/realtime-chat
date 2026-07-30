@@ -13,7 +13,7 @@ namespace rtc::security {
 // factor ("cost"). The default cost of 12 is a reasonable production baseline;
 // raise it as hardware improves. Cost is validated to bcrypt's supported range.
 class BcryptPasswordHasher final : public IPasswordHasher {
-public:
+  public:
     static constexpr int kDefaultCost = 12;
     static constexpr int kMinCost = 4;
     static constexpr int kMaxCost = 31;
@@ -21,12 +21,11 @@ public:
     explicit BcryptPasswordHasher(int cost = kDefaultCost);
 
     [[nodiscard]] std::string hash(std::string_view plaintext) const override;
-    [[nodiscard]] bool verify(std::string_view plaintext,
-                              std::string_view hash) const override;
+    [[nodiscard]] bool verify(std::string_view plaintext, std::string_view hash) const override;
 
     [[nodiscard]] int cost() const noexcept { return cost_; }
 
-private:
+  private:
     int cost_;
 };
 

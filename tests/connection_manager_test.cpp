@@ -1,6 +1,7 @@
 #include "rtc/realtime/connection_manager.hpp"
 
 #include <gtest/gtest.h>
+
 #include <nlohmann/json.hpp>
 
 namespace {

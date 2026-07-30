@@ -15,14 +15,14 @@ namespace rtc::controllers {
 // restriction lives in the SQL (see IMessageSearchRepository), not here, so it
 // cannot be bypassed by a controller mistake.
 class SearchController {
-public:
+  public:
     SearchController(services::SearchService& search,
-                    middlewares::AuthMiddleware& auth_guard) noexcept
+                     middlewares::AuthMiddleware& auth_guard) noexcept
         : search_(search), auth_guard_(auth_guard) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     services::SearchService& search_;
     middlewares::AuthMiddleware& auth_guard_;
 };

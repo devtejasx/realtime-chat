@@ -40,12 +40,18 @@ enum class AttachmentKind {
 
 [[nodiscard]] constexpr std::optional<AttachmentKind> attachment_kind_from_string(
     std::string_view value) noexcept {
-    if (value == "image") return AttachmentKind::kImage;
-    if (value == "pdf") return AttachmentKind::kPdf;
-    if (value == "document") return AttachmentKind::kDocument;
-    if (value == "video") return AttachmentKind::kVideo;
-    if (value == "audio") return AttachmentKind::kAudio;
-    if (value == "other") return AttachmentKind::kOther;
+    if (value == "image")
+        return AttachmentKind::kImage;
+    if (value == "pdf")
+        return AttachmentKind::kPdf;
+    if (value == "document")
+        return AttachmentKind::kDocument;
+    if (value == "video")
+        return AttachmentKind::kVideo;
+    if (value == "audio")
+        return AttachmentKind::kAudio;
+    if (value == "other")
+        return AttachmentKind::kOther;
     return std::nullopt;
 }
 

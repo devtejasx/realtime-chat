@@ -4,10 +4,9 @@
 #include <cstddef>
 #include <memory>
 #include <mutex>
+#include <pqxx/connection>
 #include <queue>
 #include <string>
-
-#include <pqxx/connection>
 
 namespace rtc::database {
 
@@ -19,7 +18,7 @@ class ConnectionPool;
 // connection to the pool on destruction. Move-only: ownership of the lease is
 // unique. Access the connection through operator-> / get().
 class PooledConnection {
-public:
+  public:
     PooledConnection(ConnectionPool* pool, std::unique_ptr<pqxx::connection> conn) noexcept
         : pool_(pool), conn_(std::move(conn)) {}
 
@@ -39,7 +38,7 @@ public:
     [[nodiscard]] pqxx::connection& operator*() const noexcept { return *conn_; }
     [[nodiscard]] bool valid() const noexcept { return conn_ != nullptr; }
 
-private:
+  private:
     void return_to_pool() noexcept;
 
     ConnectionPool* pool_;
@@ -53,7 +52,7 @@ private:
 // transparently replaced when leased, so callers always receive an open
 // connection. The pool is non-copyable and outlives every lease it hands out.
 class ConnectionPool {
-public:
+  public:
     // Builds `size` open connections from `connection_string`. Throws
     // rtc::errors::DatabaseException if the initial connections cannot be made.
     ConnectionPool(std::string connection_string, std::size_t size);
@@ -69,7 +68,7 @@ public:
     [[nodiscard]] std::size_t size() const noexcept { return size_; }
     [[nodiscard]] std::size_t idle_count();
 
-private:
+  private:
     friend class PooledConnection;
 
     [[nodiscard]] std::unique_ptr<pqxx::connection> make_connection() const;

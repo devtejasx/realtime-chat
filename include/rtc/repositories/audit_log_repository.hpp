@@ -1,11 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/dto/pagination.hpp"
 #include "rtc/models/audit_log.hpp"
@@ -49,7 +48,7 @@ struct AuditLogFilter {
 // docs/Monitoring.md), never by application code, so that no code path exists
 // which could be abused to erase evidence.
 class IAuditLogRepository {
-public:
+  public:
     virtual ~IAuditLogRepository() = default;
 
     // Appends a record. Idempotent on event_id: a duplicate is silently ignored
@@ -58,7 +57,7 @@ public:
     virtual bool append(const NewAuditLog& input) = 0;
 
     [[nodiscard]] virtual std::vector<models::AuditLog> search(const AuditLogFilter& filter,
-                                                              const dto::Pagination& page) = 0;
+                                                               const dto::Pagination& page) = 0;
 
     // Total matching rows, for the paginated response envelope.
     [[nodiscard]] virtual std::int64_t count(const AuditLogFilter& filter) = 0;

@@ -16,11 +16,14 @@ namespace {
 
 }  // namespace
 
-HeartbeatMonitor::HeartbeatMonitor(ConnectionManager& connections, std::chrono::seconds interval,
+HeartbeatMonitor::HeartbeatMonitor(ConnectionManager& connections,
+                                   std::chrono::seconds interval,
                                    std::chrono::seconds timeout)
     : connections_(connections), interval_(interval), timeout_(timeout) {}
 
-HeartbeatMonitor::~HeartbeatMonitor() { stop(); }
+HeartbeatMonitor::~HeartbeatMonitor() {
+    stop();
+}
 
 void HeartbeatMonitor::start() {
     bool expected = false;
@@ -28,7 +31,8 @@ void HeartbeatMonitor::start() {
         return;  // already running
     }
     thread_ = std::thread([this] { run(); });
-    RTC_LOG_INFO("Heartbeat monitor started (interval={}s, timeout={}s)", interval_.count(),
+    RTC_LOG_INFO("Heartbeat monitor started (interval={}s, timeout={}s)",
+                 interval_.count(),
                  timeout_.count());
 }
 
@@ -56,16 +60,17 @@ void HeartbeatMonitor::run() {
 
         const std::int64_t now = now_ms();
         for (const auto& session : connections_.sessions().snapshot()) {
-            const std::int64_t idle = now - session->last_activity_ms.load(std::memory_order_relaxed);
+            const std::int64_t idle =
+                now - session->last_activity_ms.load(std::memory_order_relaxed);
             if (idle > timeout_ms) {
-                RTC_LOG_DEBUG("Closing idle ws session (user={}, idle={}ms)", session->user_id,
-                              idle);
+                RTC_LOG_DEBUG(
+                    "Closing idle ws session (user={}, idle={}ms)", session->user_id, idle);
                 if (session->connection != nullptr) {
                     session->connection->close("heartbeat timeout");
                 }
             } else {
-                connections_.send_event(session->connection, realtime::events::kClientPing,
-                                        nlohmann::json::object());
+                connections_.send_event(
+                    session->connection, realtime::events::kClientPing, nlohmann::json::object());
             }
         }
     }

@@ -17,9 +17,12 @@ namespace {
 // function of the trace id, every service in a distributed trace independently
 // reaches the same verdict — no coordination required.
 [[nodiscard]] bool trace_id_ratio_sampled(std::string_view trace_id, double ratio) noexcept {
-    if (ratio >= 1.0) return true;
-    if (ratio <= 0.0) return false;
-    if (trace_id.size() < kTraceIdHexLength) return false;
+    if (ratio >= 1.0)
+        return true;
+    if (ratio <= 0.0)
+        return false;
+    if (trace_id.size() < kTraceIdHexLength)
+        return false;
 
     std::uint64_t low = 0;
     const std::string_view tail = trace_id.substr(kTraceIdHexLength - 16);
@@ -37,8 +40,8 @@ namespace {
 // The fallback tracer returned by tracer() before (or after) one is installed.
 // Disabled, so every span it hands out is inert.
 Tracer& disabled_tracer() noexcept {
-    static Tracer instance(Resource{}, std::make_unique<NullSpanExporter>(),
-                           TracerOptions{.enabled = false});
+    static Tracer instance(
+        Resource{}, std::make_unique<NullSpanExporter>(), TracerOptions{.enabled = false});
     return instance;
 }
 
@@ -46,7 +49,9 @@ std::atomic<Tracer*> g_tracer{nullptr};
 
 }  // namespace
 
-void set_tracer(Tracer* tracer) noexcept { g_tracer.store(tracer, std::memory_order_release); }
+void set_tracer(Tracer* tracer) noexcept {
+    g_tracer.store(tracer, std::memory_order_release);
+}
 
 Tracer& tracer() noexcept {
     Tracer* installed = g_tracer.load(std::memory_order_acquire);
@@ -54,9 +59,7 @@ Tracer& tracer() noexcept {
 }
 
 Tracer::Tracer(Resource resource, std::unique_ptr<ISpanExporter> exporter, TracerOptions options)
-    : resource_(std::move(resource)),
-      exporter_(std::move(exporter)),
-      options_(options) {
+    : resource_(std::move(resource)), exporter_(std::move(exporter)), options_(options) {
     if (exporter_ == nullptr) {
         exporter_ = std::make_unique<NullSpanExporter>();
     }
@@ -65,7 +68,9 @@ Tracer::Tracer(Resource resource, std::unique_ptr<ISpanExporter> exporter, Trace
     options_.max_queue_size = std::max(options_.max_queue_size, options_.max_batch_size);
 }
 
-Tracer::~Tracer() { stop(); }
+Tracer::~Tracer() {
+    stop();
+}
 
 void Tracer::start() {
     if (!options_.enabled || running_.exchange(true)) {
@@ -73,8 +78,10 @@ void Tracer::start() {
     }
     buffer_.reserve(options_.max_batch_size);
     worker_ = std::thread([this] { exporter_loop(); });
-    RTC_LOG_INFO("Tracing enabled: exporter={} service={} sample_ratio={}", exporter_->name(),
-                 resource_.service_name, options_.sample_ratio);
+    RTC_LOG_INFO("Tracing enabled: exporter={} service={} sample_ratio={}",
+                 exporter_->name(),
+                 resource_.service_name,
+                 options_.sample_ratio);
 }
 
 void Tracer::stop() {

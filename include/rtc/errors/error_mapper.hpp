@@ -1,8 +1,8 @@
 #pragma once
 
-#include <exception>
-
 #include <crow/http_response.h>
+
+#include <exception>
 
 #include "rtc/errors/exceptions.hpp"
 
@@ -17,7 +17,7 @@ namespace rtc::errors {
 // std::exception is treated as an unexpected internal error (500) and its
 // message is deliberately NOT leaked to the client.
 class ErrorMapper {
-public:
+  public:
     // Builds a response for a known application exception.
     [[nodiscard]] static crow::response to_response(const AppException& ex);
 

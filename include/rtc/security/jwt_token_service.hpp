@@ -15,7 +15,7 @@ namespace rtc::security {
 // the expected token type. The signing secret is provided by configuration and
 // never logged.
 class JwtTokenService final : public ITokenService {
-public:
+  public:
     struct Options {
         std::string secret;
         std::string issuer = "realtime-chat";
@@ -28,13 +28,14 @@ public:
     [[nodiscard]] TokenPair issue_pair(std::int64_t user_id,
                                        std::string_view username) const override;
 
-    [[nodiscard]] std::string issue(std::int64_t user_id, std::string_view username,
-                                     TokenType type) const override;
+    [[nodiscard]] std::string issue(std::int64_t user_id,
+                                    std::string_view username,
+                                    TokenType type) const override;
 
     [[nodiscard]] TokenClaims verify(std::string_view token,
                                      TokenType expected_type) const override;
 
-private:
+  private:
     [[nodiscard]] std::int64_t ttl_for(TokenType type) const noexcept;
 
     Options options_;

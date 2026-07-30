@@ -1,7 +1,6 @@
 #include "rtc/controllers/message_controller.hpp"
 
 #include <cstdint>
-
 #include <nlohmann/json.hpp>
 
 #include "rtc/dto/message_dto.hpp"
@@ -17,8 +16,7 @@ void MessageController::register_routes(http::App& app) {
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
-                const auto request =
-                    dto::SendMessageRequest::from_json(http::parse_json_body(req));
+                const auto request = dto::SendMessageRequest::from_json(http::parse_json_body(req));
                 const auto message = messages_.send(claims.user_id, request);
                 return http::json_response(201, messages_.to_response(message).to_json());
             });

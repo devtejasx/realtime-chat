@@ -58,17 +58,17 @@ struct MessageSearchHit {
 // pre-computed list of visible conversation ids would be both slower (a large IN
 // list) and less safe (the caller could get it wrong).
 class IMessageSearchRepository {
-public:
+  public:
     virtual ~IMessageSearchRepository() = default;
 
     [[nodiscard]] virtual std::vector<MessageSearchHit> search(std::int64_t actor_id,
-                                                              const MessageSearchQuery& query,
-                                                              const dto::Pagination& page) = 0;
+                                                               const MessageSearchQuery& query,
+                                                               const dto::Pagination& page) = 0;
 
     // Total matches, for the paginated envelope. Counted with the same predicate
     // as search() so the total and the page can never disagree.
     [[nodiscard]] virtual std::int64_t count(std::int64_t actor_id,
-                                            const MessageSearchQuery& query) = 0;
+                                             const MessageSearchQuery& query) = 0;
 
     // Whether trigram (fuzzy) support is actually available on this database.
     // Probed once and cached; lets the API tell clients what it can do instead of

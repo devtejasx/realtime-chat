@@ -1,8 +1,7 @@
 #pragma once
 
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/dto/user_dto.hpp"
 #include "rtc/security/token.hpp"

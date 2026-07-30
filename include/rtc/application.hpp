@@ -79,7 +79,7 @@ namespace rtc {
 // decoupled and unit-testable. Lifecycle: construct -> bootstrap() -> run(),
 // with stop() available for graceful shutdown from a signal handler.
 class Application {
-public:
+  public:
     explicit Application(config::Config config);
     ~Application();
 
@@ -105,7 +105,7 @@ public:
 
     [[nodiscard]] const config::Config& config() const noexcept { return config_; }
 
-private:
+  private:
     void run_migrations();
     void wire_object_graph();
     void register_routes();

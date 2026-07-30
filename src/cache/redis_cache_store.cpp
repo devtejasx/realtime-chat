@@ -18,12 +18,13 @@ struct RedisCacheStore::Impl {
     sw::redis::Redis redis;
 };
 
-RedisCacheStore::RedisCacheStore(const std::string& uri)
-    : impl_(std::make_unique<Impl>(uri)) {}
+RedisCacheStore::RedisCacheStore(const std::string& uri) : impl_(std::make_unique<Impl>(uri)) {}
 
 RedisCacheStore::~RedisCacheStore() = default;
 
-bool RedisCacheStore::available() noexcept { return true; }
+bool RedisCacheStore::available() noexcept {
+    return true;
+}
 
 void RedisCacheStore::set(std::string_view key, std::string_view value, Seconds ttl) {
     if (ttl.count() > 0) {
@@ -94,21 +95,47 @@ namespace {
 }
 }  // namespace
 
-RedisCacheStore::RedisCacheStore(const std::string&) { unavailable(); }
+RedisCacheStore::RedisCacheStore(const std::string&) {
+    unavailable();
+}
 RedisCacheStore::~RedisCacheStore() = default;
-bool RedisCacheStore::available() noexcept { return false; }
+bool RedisCacheStore::available() noexcept {
+    return false;
+}
 
-void RedisCacheStore::set(std::string_view, std::string_view, Seconds) { unavailable(); }
-std::optional<std::string> RedisCacheStore::get(std::string_view) { unavailable(); }
-bool RedisCacheStore::del(std::string_view) { unavailable(); }
-bool RedisCacheStore::exists(std::string_view) { unavailable(); }
-void RedisCacheStore::expire(std::string_view, Seconds) { unavailable(); }
-std::int64_t RedisCacheStore::incr(std::string_view, Seconds) { unavailable(); }
-void RedisCacheStore::sadd(std::string_view, std::string_view) { unavailable(); }
-void RedisCacheStore::srem(std::string_view, std::string_view) { unavailable(); }
-bool RedisCacheStore::sismember(std::string_view, std::string_view) { unavailable(); }
-std::vector<std::string> RedisCacheStore::smembers(std::string_view) { unavailable(); }
-std::size_t RedisCacheStore::scard(std::string_view) { unavailable(); }
+void RedisCacheStore::set(std::string_view, std::string_view, Seconds) {
+    unavailable();
+}
+std::optional<std::string> RedisCacheStore::get(std::string_view) {
+    unavailable();
+}
+bool RedisCacheStore::del(std::string_view) {
+    unavailable();
+}
+bool RedisCacheStore::exists(std::string_view) {
+    unavailable();
+}
+void RedisCacheStore::expire(std::string_view, Seconds) {
+    unavailable();
+}
+std::int64_t RedisCacheStore::incr(std::string_view, Seconds) {
+    unavailable();
+}
+void RedisCacheStore::sadd(std::string_view, std::string_view) {
+    unavailable();
+}
+void RedisCacheStore::srem(std::string_view, std::string_view) {
+    unavailable();
+}
+bool RedisCacheStore::sismember(std::string_view, std::string_view) {
+    unavailable();
+}
+std::vector<std::string> RedisCacheStore::smembers(std::string_view) {
+    unavailable();
+}
+std::size_t RedisCacheStore::scard(std::string_view) {
+    unavailable();
+}
 
 #endif  // RTC_WITH_REDIS
 

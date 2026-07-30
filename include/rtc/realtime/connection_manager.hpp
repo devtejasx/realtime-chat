@@ -1,13 +1,13 @@
 #pragma once
 
+#include <crow/websocket.h>
+
 #include <cstdint>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include <crow/websocket.h>
-#include <nlohmann/json.hpp>
 
 #include "rtc/realtime/cluster_bus.hpp"
 #include "rtc/realtime/event_broadcaster.hpp"
@@ -42,10 +42,12 @@ namespace rtc::realtime {
 // message ping-ponging between instances. (Origin-node filtering in the bus is
 // the second, independent guard.)
 class ConnectionManager final : public IEventBroadcaster {
-public:
+  public:
     // --- lifecycle (called by the WebSocket controller) ---
     std::shared_ptr<Session> register_session(
-        crow::websocket::connection* conn, std::int64_t user_id, std::string username,
+        crow::websocket::connection* conn,
+        std::int64_t user_id,
+        std::string username,
         protocol::Version version = protocol::kDefaultVersion);
     std::shared_ptr<Session> unregister_session(crow::websocket::connection* conn);
 
@@ -57,22 +59,27 @@ public:
     // --- IEventBroadcaster ---
     // Delivers to every live session of every listed user, then forwards to the
     // cluster so replicas reach their own connections.
-    void publish(const std::vector<std::int64_t>& user_ids, std::string_view type,
+    void publish(const std::vector<std::int64_t>& user_ids,
+                 std::string_view type,
                  const nlohmann::json& data) override;
 
     // --- direct / room delivery ---
-    void send_event(crow::websocket::connection* conn, std::string_view type,
+    void send_event(crow::websocket::connection* conn,
+                    std::string_view type,
                     const nlohmann::json& data,
                     const protocol::Envelope& envelope = protocol::Envelope{});
 
-    void broadcast_to_room(std::int64_t conversation_id, std::string_view type,
+    void broadcast_to_room(std::int64_t conversation_id,
+                           std::string_view type,
                            const nlohmann::json& data,
                            crow::websocket::connection* exclude = nullptr);
 
     // --- local-only variants (used by the cluster subscriber) ---
-    void deliver_local(const std::vector<std::int64_t>& user_ids, std::string_view type,
+    void deliver_local(const std::vector<std::int64_t>& user_ids,
+                       std::string_view type,
                        const nlohmann::json& data);
-    void deliver_local_to_room(std::int64_t conversation_id, std::string_view type,
+    void deliver_local_to_room(std::int64_t conversation_id,
+                               std::string_view type,
                                const nlohmann::json& data,
                                crow::websocket::connection* exclude = nullptr);
 
@@ -86,18 +93,19 @@ public:
     [[nodiscard]] static std::string make_envelope(std::string_view type,
                                                    const nlohmann::json& data);
 
-private:
+  private:
     // Lazily serialises `type`/`data` for a protocol version, caching the result
     // so a fan-out encodes at most once per distinct version among recipients.
     class FrameCache {
-    public:
-        FrameCache(std::string_view type, const nlohmann::json& data,
+      public:
+        FrameCache(std::string_view type,
+                   const nlohmann::json& data,
                    const protocol::Envelope& envelope) noexcept
             : type_(type), data_(data), envelope_(envelope) {}
 
         [[nodiscard]] const std::string& for_version(protocol::Version version);
 
-    private:
+      private:
         std::string_view type_;
         const nlohmann::json& data_;
         const protocol::Envelope& envelope_;
@@ -108,7 +116,8 @@ private:
     };
 
     void send_to_sessions(const std::vector<std::shared_ptr<Session>>& sessions,
-                          std::string_view type, const nlohmann::json& data,
+                          std::string_view type,
+                          const nlohmann::json& data,
                           const protocol::Envelope& envelope,
                           crow::websocket::connection* exclude);
 

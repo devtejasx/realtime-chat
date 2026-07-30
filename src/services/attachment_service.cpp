@@ -50,8 +50,8 @@ models::Attachment AttachmentService::upload(UploadInput input) {
     const models::AttachmentKind kind = media::classify(content_type);
 
     // Opaque, collision-resistant key namespaced by owner; preserves extension.
-    const std::string key = std::to_string(input.owner_id) + "/" +
-                            utils::generate_hex_token(16) + extension_of(input.filename);
+    const std::string key = std::to_string(input.owner_id) + "/" + utils::generate_hex_token(16) +
+                            extension_of(input.filename);
 
     const auto stored = storage_.put(key, content_type, input.bytes);
 
@@ -76,22 +76,26 @@ models::Attachment AttachmentService::upload(UploadInput input) {
     return attachment;
 }
 
-void AttachmentService::schedule_image_processing(std::int64_t attachment_id, std::string bytes,
+void AttachmentService::schedule_image_processing(std::int64_t attachment_id,
+                                                  std::string bytes,
                                                   std::string content_type,
                                                   std::string base_key) {
     // Runs off the request thread: probe dimensions, generate a thumbnail, and
     // persist both. Failures are logged by the executor and never surfaced to
     // the uploader.
-    executor_.submit([this, attachment_id, bytes = std::move(bytes),
-                      content_type = std::move(content_type), base_key = std::move(base_key)] {
+    executor_.submit([this,
+                      attachment_id,
+                      bytes = std::move(bytes),
+                      content_type = std::move(content_type),
+                      base_key = std::move(base_key)] {
         std::optional<int> width, height;
         if (const auto info = image_processor_.probe(bytes)) {
             width = info->width;
             height = info->height;
         }
         std::optional<std::string> thumbnail_key;
-        if (auto thumb = image_processor_.make_thumbnail(bytes, content_type,
-                                                         options_.thumbnail_max_dimension)) {
+        if (auto thumb = image_processor_.make_thumbnail(
+                bytes, content_type, options_.thumbnail_max_dimension)) {
             const std::string tkey = base_key + ".thumb";
             storage_.put(tkey, thumb->content_type, thumb->bytes);
             thumbnail_key = tkey;
@@ -132,14 +136,14 @@ models::Attachment AttachmentService::get_metadata(std::int64_t actor_id, std::i
     return attachment;
 }
 
-AttachmentService::Download AttachmentService::download(std::int64_t actor_id, std::int64_t id,
+AttachmentService::Download AttachmentService::download(std::int64_t actor_id,
+                                                        std::int64_t id,
                                                         bool thumbnail) {
     const auto attachment = require_attachment(id);
     authorize_view(actor_id, attachment);
 
-    const std::string key =
-        (thumbnail && attachment.thumbnail_key) ? *attachment.thumbnail_key
-                                                : attachment.storage_key;
+    const std::string key = (thumbnail && attachment.thumbnail_key) ? *attachment.thumbnail_key
+                                                                    : attachment.storage_key;
     auto bytes = storage_.get(key);
     if (!bytes) {
         throw rtc::errors::NotFoundException("Attachment content not found");

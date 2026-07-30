@@ -1,10 +1,9 @@
 #pragma once
 
 #include <exception>
+#include <pqxx/transaction>
 #include <type_traits>
 #include <utility>
-
-#include <pqxx/transaction>
 
 #include "rtc/database/connection_pool.hpp"
 #include "rtc/errors/exceptions.hpp"
@@ -23,10 +22,10 @@ namespace rtc::database {
 // violation) propagate unchanged; every other exception is wrapped into a
 // DatabaseException so upper layers see a consistent error taxonomy.
 class BaseRepository {
-public:
+  public:
     virtual ~BaseRepository() = default;
 
-protected:
+  protected:
     explicit BaseRepository(ConnectionPool& pool) noexcept : pool_(pool) {}
 
     template <typename Fn>
@@ -52,7 +51,7 @@ protected:
 
     [[nodiscard]] ConnectionPool& pool() noexcept { return pool_; }
 
-private:
+  private:
     ConnectionPool& pool_;
 };
 

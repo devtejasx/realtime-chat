@@ -28,8 +28,10 @@ enum class MessageType {
 
 [[nodiscard]] constexpr std::optional<MessageType> message_type_from_string(
     std::string_view value) noexcept {
-    if (value == "text") return MessageType::kText;
-    if (value == "system") return MessageType::kSystem;
+    if (value == "text")
+        return MessageType::kText;
+    if (value == "system")
+        return MessageType::kSystem;
     return std::nullopt;
 }
 

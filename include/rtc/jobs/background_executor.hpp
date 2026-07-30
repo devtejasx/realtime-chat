@@ -17,7 +17,7 @@ namespace rtc::jobs {
 // by a task are caught and logged so one bad job never takes down a worker.
 // Shutdown drains cleanly and joins all workers.
 class BackgroundExecutor {
-public:
+  public:
     using Task = std::function<void()>;
 
     explicit BackgroundExecutor(std::size_t worker_count);
@@ -43,7 +43,7 @@ public:
     // keep receiving traffic.
     [[nodiscard]] bool is_running() const noexcept { return running_.load(); }
 
-private:
+  private:
     void worker_loop();
 
     std::size_t worker_count_;

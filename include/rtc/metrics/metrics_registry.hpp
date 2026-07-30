@@ -22,7 +22,7 @@ namespace rtc::metrics {
 // The registry is a process-wide sink injected where needed; it holds no
 // business state, only measurements.
 class MetricsRegistry {
-public:
+  public:
     MetricsRegistry() : start_(std::chrono::steady_clock::now()) {}
 
     void increment(const std::string& name, double amount = 1.0);
@@ -40,7 +40,7 @@ public:
     // Renders all metrics in Prometheus text exposition format.
     [[nodiscard]] std::string render_prometheus() const;
 
-private:
+  private:
     struct Summary {
         double sum = 0.0;
         std::uint64_t count = 0;

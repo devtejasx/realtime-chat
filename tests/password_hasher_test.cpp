@@ -1,6 +1,6 @@
-#include "rtc/security/bcrypt_password_hasher.hpp"
-
 #include <gtest/gtest.h>
+
+#include "rtc/security/bcrypt_password_hasher.hpp"
 
 namespace {
 

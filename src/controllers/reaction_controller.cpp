@@ -1,7 +1,6 @@
 #include "rtc/controllers/reaction_controller.hpp"
 
 #include <cstdint>
-
 #include <nlohmann/json.hpp>
 
 #include "rtc/dto/reaction_dto.hpp"

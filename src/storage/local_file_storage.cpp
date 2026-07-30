@@ -14,8 +14,7 @@ LocalFileStorage::LocalFileStorage(fs::path root) : root_(std::move(root)) {
     std::error_code ec;
     fs::create_directories(root_, ec);
     if (ec) {
-        throw rtc::errors::InternalException("Cannot create upload root directory",
-                                             root_.string());
+        throw rtc::errors::InternalException("Cannot create upload root directory", root_.string());
     }
 }
 
@@ -37,7 +36,8 @@ fs::path LocalFileStorage::resolve(std::string_view key) const {
     return root_ / rel;
 }
 
-StoredObject LocalFileStorage::put(std::string_view key, std::string_view /*content_type*/,
+StoredObject LocalFileStorage::put(std::string_view key,
+                                   std::string_view /*content_type*/,
                                    const std::string& bytes) {
     const fs::path path = resolve(key);
     std::error_code ec;
@@ -51,8 +51,8 @@ StoredObject LocalFileStorage::put(std::string_view key, std::string_view /*cont
     if (!out) {
         throw rtc::errors::InternalException("Failed to write file", path.string());
     }
-    return StoredObject{std::string(key), std::string(backend_name()),
-                        static_cast<std::int64_t>(bytes.size())};
+    return StoredObject{
+        std::string(key), std::string(backend_name()), static_cast<std::int64_t>(bytes.size())};
 }
 
 std::optional<std::string> LocalFileStorage::get(std::string_view key) {

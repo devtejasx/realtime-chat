@@ -19,7 +19,8 @@ models::Message ReactionService::authorize(std::int64_t actor_id, std::int64_t m
     return *message;
 }
 
-models::Reaction ReactionService::react(std::int64_t actor_id, std::int64_t message_id,
+models::Reaction ReactionService::react(std::int64_t actor_id,
+                                        std::int64_t message_id,
                                         std::string_view emoji) {
     if (!models::is_allowed_reaction(emoji)) {
         throw errors::ValidationException("Unsupported reaction emoji", "field=emoji");
@@ -37,10 +38,9 @@ models::Reaction ReactionService::react(std::int64_t actor_id, std::int64_t mess
 void ReactionService::unreact(std::int64_t actor_id, std::int64_t message_id) {
     const models::Message message = authorize(actor_id, message_id);
     if (reactions_.remove(message_id, actor_id)) {
-        broadcaster_.publish(
-            conversations_.list_participant_ids(message.conversation_id),
-            realtime::events::kReactionRemoved,
-            nlohmann::json{{"message_id", message_id}, {"user_id", actor_id}});
+        broadcaster_.publish(conversations_.list_participant_ids(message.conversation_id),
+                             realtime::events::kReactionRemoved,
+                             nlohmann::json{{"message_id", message_id}, {"user_id", actor_id}});
     }
 }
 

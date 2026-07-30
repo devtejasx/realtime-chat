@@ -9,17 +9,17 @@ namespace rtc::errors {
 // JSON error responses. Keeping this as an enum class (rather than raw ints)
 // gives us exhaustive switch coverage and type safety at call sites.
 enum class ErrorType {
-    kValidation,       // malformed / invalid client input          -> 400
-    kAuthentication,   // missing or invalid credentials / token    -> 401
-    kAuthorization,    // authenticated but not permitted           -> 403
-    kNotFound,         // requested resource does not exist         -> 404
-    kConflict,         // state conflict, e.g. duplicate unique key  -> 409
-    kPayloadTooLarge,  // request/upload exceeds allowed size        -> 413
-    kUnsupportedMedia, // unsupported/again unsafe content type      -> 415
-    kRateLimited,      // too many requests in the window            -> 429
-    kDatabase,         // persistence-layer failure                 -> 500
-    kConfiguration,    // invalid / missing configuration           -> 500
-    kInternal,         // unexpected, uncategorised failure         -> 500
+    kValidation,        // malformed / invalid client input          -> 400
+    kAuthentication,    // missing or invalid credentials / token    -> 401
+    kAuthorization,     // authenticated but not permitted           -> 403
+    kNotFound,          // requested resource does not exist         -> 404
+    kConflict,          // state conflict, e.g. duplicate unique key  -> 409
+    kPayloadTooLarge,   // request/upload exceeds allowed size        -> 413
+    kUnsupportedMedia,  // unsupported/again unsafe content type      -> 415
+    kRateLimited,       // too many requests in the window            -> 429
+    kDatabase,          // persistence-layer failure                 -> 500
+    kConfiguration,     // invalid / missing configuration           -> 500
+    kInternal,          // unexpected, uncategorised failure         -> 500
 };
 
 // Canonical HTTP status code for an error type.

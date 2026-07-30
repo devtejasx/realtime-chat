@@ -49,10 +49,9 @@ struct RedisClusterBus::Impl {
                 sw::redis::Redis connection(connection_uri);
                 auto subscriber = connection.subscriber();
 
-                subscriber.on_message(
-                    [this](std::string channel, std::string message) {
-                        deliver(channel, message);
-                    });
+                subscriber.on_message([this](std::string channel, std::string message) {
+                    deliver(channel, message);
+                });
 
                 {
                     std::lock_guard<std::mutex> lock(mutex);
@@ -62,7 +61,8 @@ struct RedisClusterBus::Impl {
                 }
 
                 RTC_LOG_INFO("Cluster bus subscribed on {} channel(s) as node '{}'",
-                             handlers.size(), node_id);
+                             handlers.size(),
+                             node_id);
                 backoff = std::chrono::milliseconds{200};  // connected: reset
 
                 while (running.load(std::memory_order_acquire)) {
@@ -79,7 +79,8 @@ struct RedisClusterBus::Impl {
                 if (!running.load(std::memory_order_acquire)) {
                     break;
                 }
-                RTC_LOG_WARN("Cluster bus subscriber error ({}); reconnecting in {} ms", ex.what(),
+                RTC_LOG_WARN("Cluster bus subscriber error ({}); reconnecting in {} ms",
+                             ex.what(),
                              backoff.count());
                 std::this_thread::sleep_for(backoff);
                 backoff = std::min(backoff * 2, kMaxBackoff);
@@ -135,9 +136,13 @@ struct RedisClusterBus::Impl {
 RedisClusterBus::RedisClusterBus(const std::string& uri, std::string node_id)
     : impl_(std::make_unique<Impl>(uri, std::move(node_id))) {}
 
-RedisClusterBus::~RedisClusterBus() { stop(); }
+RedisClusterBus::~RedisClusterBus() {
+    stop();
+}
 
-bool RedisClusterBus::available() noexcept { return true; }
+bool RedisClusterBus::available() noexcept {
+    return true;
+}
 
 void RedisClusterBus::publish(std::string_view channel, const nlohmann::json& body) noexcept {
     try {
@@ -176,7 +181,9 @@ void RedisClusterBus::stop() {
     }
 }
 
-std::string_view RedisClusterBus::node_id() const noexcept { return impl_->node_id; }
+std::string_view RedisClusterBus::node_id() const noexcept {
+    return impl_->node_id;
+}
 
 std::uint64_t RedisClusterBus::published_count() const noexcept {
     return impl_->published.load(std::memory_order_relaxed);
@@ -200,17 +207,27 @@ namespace {
 }
 }  // namespace
 
-RedisClusterBus::RedisClusterBus(const std::string&, std::string) { unavailable(); }
+RedisClusterBus::RedisClusterBus(const std::string&, std::string) {
+    unavailable();
+}
 RedisClusterBus::~RedisClusterBus() = default;
-bool RedisClusterBus::available() noexcept { return false; }
+bool RedisClusterBus::available() noexcept {
+    return false;
+}
 
 void RedisClusterBus::publish(std::string_view, const nlohmann::json&) noexcept {}
 void RedisClusterBus::subscribe(std::string_view, Handler) {}
 void RedisClusterBus::start() {}
 void RedisClusterBus::stop() {}
-std::string_view RedisClusterBus::node_id() const noexcept { return {}; }
-std::uint64_t RedisClusterBus::published_count() const noexcept { return 0; }
-std::uint64_t RedisClusterBus::received_count() const noexcept { return 0; }
+std::string_view RedisClusterBus::node_id() const noexcept {
+    return {};
+}
+std::uint64_t RedisClusterBus::published_count() const noexcept {
+    return 0;
+}
+std::uint64_t RedisClusterBus::received_count() const noexcept {
+    return 0;
+}
 
 #endif  // RTC_WITH_REDIS
 

@@ -1,12 +1,12 @@
 #pragma once
 
+#include <crow/websocket.h>
+
 #include <cstdint>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include <crow/websocket.h>
 
 namespace rtc::realtime {
 
@@ -19,7 +19,7 @@ namespace rtc::realtime {
 // memberships are removed in one call. Authoritative membership still lives in
 // the database — rooms are a routing cache, not the source of truth.
 class RoomManager {
-public:
+  public:
     void join(std::int64_t conversation_id, crow::websocket::connection* conn);
     void join_many(const std::vector<std::int64_t>& conversation_ids,
                    crow::websocket::connection* conn);
@@ -33,7 +33,7 @@ public:
 
     [[nodiscard]] std::size_t room_count() const;
 
-private:
+  private:
     mutable std::mutex mutex_;
     std::unordered_map<std::int64_t, std::unordered_set<crow::websocket::connection*>> rooms_;
     std::unordered_map<crow::websocket::connection*, std::unordered_set<std::int64_t>> membership_;

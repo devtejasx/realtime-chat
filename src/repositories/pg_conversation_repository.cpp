@@ -2,12 +2,11 @@
 
 #include <algorithm>
 #include <chrono>
-#include <string>
-
 #include <pqxx/except>
 #include <pqxx/result>
 #include <pqxx/row>
 #include <pqxx/transaction>
+#include <string>
 
 #include "rtc/errors/exceptions.hpp"
 
@@ -23,7 +22,8 @@ using Clock = std::chrono::system_clock;
     return field.is_null() ? std::nullopt : std::optional<std::string>(field.as<std::string>());
 }
 [[nodiscard]] std::optional<utils::TimePoint> read_opt_time(const pqxx::field& field) {
-    if (field.is_null()) return std::nullopt;
+    if (field.is_null())
+        return std::nullopt;
     return Clock::from_time_t(field.as<std::time_t>());
 }
 
@@ -91,7 +91,9 @@ models::Conversation PgConversationRepository::create_or_get_direct(std::int64_t
             "INSERT INTO conversation_participants (conversation_id, user_id, role) "
             "VALUES ($1, $2, 'member'), ($1, $3, 'member') "
             "ON CONFLICT (conversation_id, user_id) DO NOTHING",
-            conv.id, user_a, user_b);
+            conv.id,
+            user_a,
+            user_b);
         return conv;
     });
 }
@@ -103,12 +105,14 @@ models::Conversation PgConversationRepository::create_group(
             "INSERT INTO conversations (type, name, owner_id) VALUES ('group', $1, $2) "
             "RETURNING " +
             conv_columns();
-        const auto conv = map_conversation(txn.exec_params(sql, std::string(name), owner_id).front());
+        const auto conv =
+            map_conversation(txn.exec_params(sql, std::string(name), owner_id).front());
 
         txn.exec_params(
             "INSERT INTO conversation_participants (conversation_id, user_id, role) "
             "VALUES ($1, $2, 'owner')",
-            conv.id, owner_id);
+            conv.id,
+            owner_id);
 
         for (const std::int64_t member : member_ids) {
             if (member == owner_id) {
@@ -117,7 +121,8 @@ models::Conversation PgConversationRepository::create_group(
             txn.exec_params(
                 "INSERT INTO conversation_participants (conversation_id, user_id, role) "
                 "VALUES ($1, $2, 'member') ON CONFLICT (conversation_id, user_id) DO NOTHING",
-                conv.id, member);
+                conv.id,
+                member);
         }
         return conv;
     });
@@ -127,7 +132,8 @@ std::optional<models::Conversation> PgConversationRepository::find_by_id(std::in
     return with_transaction([&](pqxx::work& txn) -> std::optional<models::Conversation> {
         const auto result =
             txn.exec_params("SELECT " + conv_columns() + " FROM conversations WHERE id = $1", id);
-        if (result.empty()) return std::nullopt;
+        if (result.empty())
+            return std::nullopt;
         return map_conversation(result.front());
     });
 }
@@ -135,13 +141,12 @@ std::optional<models::Conversation> PgConversationRepository::find_by_id(std::in
 std::vector<models::Conversation> PgConversationRepository::list_for_user(
     std::int64_t user_id, const dto::Pagination& page) {
     return with_transaction([&](pqxx::work& txn) -> std::vector<models::Conversation> {
-        const std::string sql =
-            "SELECT " + conv_columns("c") +
-            " FROM conversations c "
-            "JOIN conversation_participants p ON p.conversation_id = c.id "
-            "WHERE p.user_id = $1 "
-            "ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC "
-            "LIMIT $2 OFFSET $3";
+        const std::string sql = "SELECT " + conv_columns("c") +
+                                " FROM conversations c "
+                                "JOIN conversation_participants p ON p.conversation_id = c.id "
+                                "WHERE p.user_id = $1 "
+                                "ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC "
+                                "LIMIT $2 OFFSET $3";
         const auto result = txn.exec_params(sql, user_id, page.limit, page.offset);
         std::vector<models::Conversation> out;
         out.reserve(result.size());
@@ -154,19 +159,18 @@ std::vector<models::Conversation> PgConversationRepository::list_for_user(
 
 std::vector<models::ConversationParticipant> PgConversationRepository::list_participants(
     std::int64_t conversation_id) {
-    return with_transaction(
-        [&](pqxx::work& txn) -> std::vector<models::ConversationParticipant> {
-            const std::string sql = std::string("SELECT ") + kParticipantColumns +
-                                    " FROM conversation_participants WHERE conversation_id = $1 "
-                                    "ORDER BY joined_at ASC, id ASC";
-            const auto result = txn.exec_params(sql, conversation_id);
-            std::vector<models::ConversationParticipant> out;
-            out.reserve(result.size());
-            for (const auto& row : result) {
-                out.push_back(map_participant(row));
-            }
-            return out;
-        });
+    return with_transaction([&](pqxx::work& txn) -> std::vector<models::ConversationParticipant> {
+        const std::string sql = std::string("SELECT ") + kParticipantColumns +
+                                " FROM conversation_participants WHERE conversation_id = $1 "
+                                "ORDER BY joined_at ASC, id ASC";
+        const auto result = txn.exec_params(sql, conversation_id);
+        std::vector<models::ConversationParticipant> out;
+        out.reserve(result.size());
+        for (const auto& row : result) {
+            out.push_back(map_participant(row));
+        }
+        return out;
+    });
 }
 
 std::vector<std::int64_t> PgConversationRepository::list_participant_ids(
@@ -217,15 +221,15 @@ std::vector<std::int64_t> PgConversationRepository::list_peer_ids(std::int64_t u
 
 std::optional<models::ConversationParticipant> PgConversationRepository::find_participant(
     std::int64_t conversation_id, std::int64_t user_id) {
-    return with_transaction(
-        [&](pqxx::work& txn) -> std::optional<models::ConversationParticipant> {
-            const std::string sql =
-                std::string("SELECT ") + kParticipantColumns +
-                " FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2";
-            const auto result = txn.exec_params(sql, conversation_id, user_id);
-            if (result.empty()) return std::nullopt;
-            return map_participant(result.front());
-        });
+    return with_transaction([&](pqxx::work& txn) -> std::optional<models::ConversationParticipant> {
+        const std::string sql =
+            std::string("SELECT ") + kParticipantColumns +
+            " FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2";
+        const auto result = txn.exec_params(sql, conversation_id, user_id);
+        if (result.empty())
+            return std::nullopt;
+        return map_participant(result.front());
+    });
 }
 
 bool PgConversationRepository::is_participant(std::int64_t conversation_id, std::int64_t user_id) {
@@ -233,19 +237,23 @@ bool PgConversationRepository::is_participant(std::int64_t conversation_id, std:
         const auto row = txn.exec_params1(
             "SELECT EXISTS(SELECT 1 FROM conversation_participants "
             "WHERE conversation_id = $1 AND user_id = $2)",
-            conversation_id, user_id);
+            conversation_id,
+            user_id);
         return row[0].as<bool>();
     });
 }
 
-void PgConversationRepository::add_participant(std::int64_t conversation_id, std::int64_t user_id,
+void PgConversationRepository::add_participant(std::int64_t conversation_id,
+                                               std::int64_t user_id,
                                                models::ParticipantRole role) {
     with_transaction([&](pqxx::work& txn) {
         try {
             txn.exec_params(
                 "INSERT INTO conversation_participants (conversation_id, user_id, role) "
                 "VALUES ($1, $2, $3)",
-                conversation_id, user_id, std::string(models::to_string(role)));
+                conversation_id,
+                user_id,
+                std::string(models::to_string(role)));
         } catch (const pqxx::unique_violation&) {
             throw rtc::errors::ConflictException("User is already a member of the conversation");
         }
@@ -257,31 +265,34 @@ void PgConversationRepository::remove_participant(std::int64_t conversation_id,
     with_transaction([&](pqxx::work& txn) {
         txn.exec_params(
             "DELETE FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2",
-            conversation_id, user_id);
+            conversation_id,
+            user_id);
     });
 }
 
 void PgConversationRepository::rename(std::int64_t conversation_id, std::string_view name) {
     with_transaction([&](pqxx::work& txn) {
-        txn.exec_params("UPDATE conversations SET name = $2 WHERE id = $1", conversation_id,
-                        std::string(name));
+        txn.exec_params(
+            "UPDATE conversations SET name = $2 WHERE id = $1", conversation_id, std::string(name));
     });
 }
 
 void PgConversationRepository::transfer_ownership(std::int64_t conversation_id,
                                                   std::int64_t new_owner_id) {
     with_transaction([&](pqxx::work& txn) {
-        txn.exec_params("UPDATE conversations SET owner_id = $2 WHERE id = $1", conversation_id,
-                        new_owner_id);
+        txn.exec_params(
+            "UPDATE conversations SET owner_id = $2 WHERE id = $1", conversation_id, new_owner_id);
         // Demote any current owner, then promote the new one — both in one txn.
         txn.exec_params(
             "UPDATE conversation_participants SET role = 'member' "
             "WHERE conversation_id = $1 AND role = 'owner' AND user_id <> $2",
-            conversation_id, new_owner_id);
+            conversation_id,
+            new_owner_id);
         txn.exec_params(
             "UPDATE conversation_participants SET role = 'owner' "
             "WHERE conversation_id = $1 AND user_id = $2",
-            conversation_id, new_owner_id);
+            conversation_id,
+            new_owner_id);
     });
 }
 
@@ -292,14 +303,17 @@ void PgConversationRepository::remove(std::int64_t conversation_id) {
 }
 
 void PgConversationRepository::update_last_read(std::int64_t conversation_id,
-                                                std::int64_t user_id, std::int64_t message_id) {
+                                                std::int64_t user_id,
+                                                std::int64_t message_id) {
     with_transaction([&](pqxx::work& txn) {
         // GREATEST keeps the marker monotonic even if events arrive out of order.
         txn.exec_params(
             "UPDATE conversation_participants "
             "SET last_read_message_id = GREATEST(COALESCE(last_read_message_id, 0), $3) "
             "WHERE conversation_id = $1 AND user_id = $2",
-            conversation_id, user_id, message_id);
+            conversation_id,
+            user_id,
+            message_id);
     });
 }
 

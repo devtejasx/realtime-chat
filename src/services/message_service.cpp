@@ -21,8 +21,7 @@ events::IEventPublisher& MessageService::publisher() const noexcept {
 models::Message MessageService::require_message(std::int64_t message_id) {
     auto message = messages_.find_by_id(message_id);
     if (!message) {
-        throw NotFoundException("Message not found",
-                                "message_id=" + std::to_string(message_id));
+        throw NotFoundException("Message not found", "message_id=" + std::to_string(message_id));
     }
     return *message;
 }
@@ -61,8 +60,8 @@ models::Message MessageService::send(std::int64_t actor_id,
 
     // 2) Broadcast second — to every participant (including the sender's other
     // sessions) so clients converge on the persisted state.
-    broadcaster_.publish(participants, realtime::events::kMessageCreated,
-                         to_response(stored).to_json());
+    broadcaster_.publish(
+        participants, realtime::events::kMessageCreated, to_response(stored).to_json());
 
     // 3) Notifications are event-driven and never block or fail the send.
     notifications_.new_message(actor_id, stored.conversation_id, stored.id, participants);
@@ -78,7 +77,8 @@ models::Message MessageService::send(std::int64_t actor_id,
         .sender_id = actor_id,
         .recipient_ids = participants,
         .content_length = content.size(),
-    }.to_event());
+    }
+                            .to_event());
     return stored;
 }
 
@@ -93,7 +93,8 @@ std::vector<models::Message> MessageService::list(std::int64_t actor_id,
     return messages_.list(filter, page);
 }
 
-models::Message MessageService::edit(std::int64_t actor_id, std::int64_t message_id,
+models::Message MessageService::edit(std::int64_t actor_id,
+                                     std::int64_t message_id,
                                      const dto::UpdateMessageRequest& request) {
     const auto existing = require_message(message_id);
     if (existing.sender_id != actor_id) {
@@ -103,12 +104,14 @@ models::Message MessageService::edit(std::int64_t actor_id, std::int64_t message
     const models::Message updated = messages_.update_content(message_id, content);
 
     broadcaster_.publish(conversations_.list_participant_ids(updated.conversation_id),
-                         realtime::events::kMessageUpdated, to_response(updated).to_json());
+                         realtime::events::kMessageUpdated,
+                         to_response(updated).to_json());
     publisher().publish(events::MessageEdited{
         .message_id = updated.id,
         .conversation_id = updated.conversation_id,
         .actor_id = actor_id,
-    }.to_event());
+    }
+                            .to_event());
     return updated;
 }
 
@@ -121,8 +124,7 @@ models::Message MessageService::remove(std::int64_t actor_id, std::int64_t messa
     if (!permitted) {
         // A group owner may remove any message in their group.
         const auto conversation = conversations_.find_by_id(existing.conversation_id);
-        permitted = conversation && conversation->is_group() &&
-                    conversation->owner_id == actor_id;
+        permitted = conversation && conversation->is_group() && conversation->owner_id == actor_id;
         as_moderator = permitted;
     }
     if (!permitted) {
@@ -131,7 +133,8 @@ models::Message MessageService::remove(std::int64_t actor_id, std::int64_t messa
 
     const models::Message deleted = messages_.soft_delete(message_id);
     broadcaster_.publish(conversations_.list_participant_ids(deleted.conversation_id),
-                         realtime::events::kMessageDeleted, to_response(deleted).to_json());
+                         realtime::events::kMessageDeleted,
+                         to_response(deleted).to_json());
     // Deleting someone else's message is the case a security reviewer cares about,
     // so the distinction is recorded rather than inferred later from the ids.
     publisher().publish(events::MessageDeleted{
@@ -139,7 +142,8 @@ models::Message MessageService::remove(std::int64_t actor_id, std::int64_t messa
         .conversation_id = deleted.conversation_id,
         .actor_id = actor_id,
         .by_moderator = as_moderator,
-    }.to_event());
+    }
+                            .to_event());
     return deleted;
 }
 

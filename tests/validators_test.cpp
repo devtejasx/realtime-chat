@@ -1,8 +1,8 @@
 #include "rtc/validation/validators.hpp"
 
-#include <string>
-
 #include <gtest/gtest.h>
+
+#include <string>
 
 #include "rtc/dto/auth_dto.hpp"
 #include "rtc/errors/exceptions.hpp"

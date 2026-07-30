@@ -1,7 +1,6 @@
 #include "rtc/tracing/span_exporter.hpp"
 
 #include <cstdint>
-
 #include <nlohmann/json.hpp>
 
 #include "rtc/logging/logger.hpp"
@@ -88,8 +87,7 @@ namespace {
             otlp_attribute("deployment.environment", resource.deployment_environment));
     }
     if (!resource.service_instance_id.empty()) {
-        attributes.push_back(
-            otlp_attribute("service.instance.id", resource.service_instance_id));
+        attributes.push_back(otlp_attribute("service.instance.id", resource.service_instance_id));
     }
     return attributes;
 }
@@ -179,12 +177,16 @@ std::string to_zipkin_json(const Resource& resource, const std::vector<SpanData>
 void LoggingSpanExporter::export_spans(const Resource& resource,
                                        const std::vector<SpanData>& spans) {
     for (const auto& span : spans) {
-        const double millis =
-            static_cast<double>(span.duration.count()) / 1'000'000.0;
+        const double millis = static_cast<double>(span.duration.count()) / 1'000'000.0;
         RTC_LOG_DEBUG("span service={} trace={} span={} parent={} name='{}' kind={} {:.3f}ms {}",
-                      resource.service_name, span.trace_id, span.span_id,
-                      span.parent_span_id.empty() ? "-" : span.parent_span_id, span.name,
-                      to_string(span.kind), millis, to_string(span.status));
+                      resource.service_name,
+                      span.trace_id,
+                      span.span_id,
+                      span.parent_span_id.empty() ? "-" : span.parent_span_id,
+                      span.name,
+                      to_string(span.kind),
+                      millis,
+                      to_string(span.status));
     }
 }
 

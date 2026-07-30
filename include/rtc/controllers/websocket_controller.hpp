@@ -17,14 +17,14 @@ namespace rtc::controllers {
 // request is the only place the query string is visible. Both are stored as the
 // connection's userdata for the lifetime of the session.
 class WebSocketController {
-public:
+  public:
     WebSocketController(const security::ITokenService& token_service,
                         realtime::EventDispatcher& dispatcher) noexcept
         : token_service_(token_service), dispatcher_(dispatcher) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     // Verifies the handshake and, on success, allocates an AuthContext into
     // *userdata. Returns false to reject the upgrade.
     bool authenticate(const crow::request& req, void** userdata) const;

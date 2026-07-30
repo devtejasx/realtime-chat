@@ -1,9 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <vector>
-
 #include <nlohmann/json.hpp>
+#include <vector>
 
 #include "rtc/dto/pagination.hpp"
 #include "rtc/jobs/background_executor.hpp"
@@ -20,10 +19,11 @@ namespace rtc::services {
 // single sink all notification producers funnel through (via
 // NotificationDispatcher), so delivery policy lives in one place.
 class NotificationService {
-public:
+  public:
     NotificationService(repositories::INotificationRepository& repository,
                         realtime::IEventBroadcaster& broadcaster,
-                        notifications::IPushProvider& push, jobs::BackgroundExecutor& executor,
+                        notifications::IPushProvider& push,
+                        jobs::BackgroundExecutor& executor,
                         metrics::MetricsRegistry& metrics) noexcept
         : repository_(repository),
           broadcaster_(broadcaster),
@@ -32,7 +32,8 @@ public:
           metrics_(metrics) {}
 
     // Creates and delivers a notification to a single recipient.
-    models::Notification create(std::int64_t user_id, models::NotificationType type,
+    models::Notification create(std::int64_t user_id,
+                                models::NotificationType type,
                                 const nlohmann::json& payload);
 
     [[nodiscard]] std::vector<models::Notification> list(std::int64_t user_id,
@@ -43,7 +44,7 @@ public:
     std::int64_t mark_all_read(std::int64_t user_id);
     bool remove(std::int64_t id, std::int64_t user_id);
 
-private:
+  private:
     repositories::INotificationRepository& repository_;
     realtime::IEventBroadcaster& broadcaster_;
     notifications::IPushProvider& push_;

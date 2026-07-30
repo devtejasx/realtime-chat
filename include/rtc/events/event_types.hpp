@@ -39,9 +39,7 @@ struct UserRegistered {
 
     [[nodiscard]] DomainEvent to_event() const {
         return DomainEvent::make(EventType::kUserRegistered,
-                                 {{"user_id", user_id},
-                                  {"username", username},
-                                  {"email", email}},
+                                 {{"user_id", user_id}, {"username", username}, {"email", email}},
                                  user_id);
     }
 };
@@ -66,11 +64,10 @@ struct UserLoggedOut {
     bool all_sessions = false;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(EventType::kUserLoggedOut,
-                                 {{"user_id", user_id},
-                                  {"session_id", session_id},
-                                  {"all_sessions", all_sessions}},
-                                 user_id);
+        return DomainEvent::make(
+            EventType::kUserLoggedOut,
+            {{"user_id", user_id}, {"session_id", session_id}, {"all_sessions", all_sessions}},
+            user_id);
     }
 };
 
@@ -100,11 +97,10 @@ struct UserRoleChanged {
     std::string new_role;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(EventType::kUserRoleChanged,
-                                 {{"user_id", user_id},
-                                  {"previous_role", previous_role},
-                                  {"new_role", new_role}},
-                                 actor_id);
+        return DomainEvent::make(
+            EventType::kUserRoleChanged,
+            {{"user_id", user_id}, {"previous_role", previous_role}, {"new_role", new_role}},
+            actor_id);
     }
 };
 
@@ -118,11 +114,10 @@ struct UserOnline {
     std::size_t session_count = 0;  // concurrent connections after this one
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(EventType::kUserOnline,
-                                 {{"user_id", user_id},
-                                  {"username", username},
-                                  {"session_count", session_count}},
-                                 user_id);
+        return DomainEvent::make(
+            EventType::kUserOnline,
+            {{"user_id", user_id}, {"username", username}, {"session_count", session_count}},
+            user_id);
     }
 };
 
@@ -131,8 +126,8 @@ struct UserOffline {
     std::string username;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(EventType::kUserOffline,
-                                 {{"user_id", user_id}, {"username", username}}, user_id);
+        return DomainEvent::make(
+            EventType::kUserOffline, {{"user_id", user_id}, {"username", username}}, user_id);
     }
 };
 
@@ -160,8 +155,8 @@ struct ConversationDeleted {
     std::int64_t actor_id = 0;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(EventType::kConversationDeleted,
-                                 {{"conversation_id", conversation_id}}, actor_id);
+        return DomainEvent::make(
+            EventType::kConversationDeleted, {{"conversation_id", conversation_id}}, actor_id);
     }
 };
 
@@ -171,9 +166,9 @@ struct MemberAdded {
     std::int64_t actor_id = 0;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(
-            EventType::kMemberAdded,
-            {{"conversation_id", conversation_id}, {"member_id", member_id}}, actor_id);
+        return DomainEvent::make(EventType::kMemberAdded,
+                                 {{"conversation_id", conversation_id}, {"member_id", member_id}},
+                                 actor_id);
     }
 };
 
@@ -183,9 +178,9 @@ struct MemberRemoved {
     std::int64_t actor_id = 0;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(
-            EventType::kMemberRemoved,
-            {{"conversation_id", conversation_id}, {"member_id", member_id}}, actor_id);
+        return DomainEvent::make(EventType::kMemberRemoved,
+                                 {{"conversation_id", conversation_id}, {"member_id", member_id}},
+                                 actor_id);
     }
 };
 
@@ -217,9 +212,9 @@ struct MessageEdited {
     std::int64_t actor_id = 0;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(
-            EventType::kMessageEdited,
-            {{"message_id", message_id}, {"conversation_id", conversation_id}}, actor_id);
+        return DomainEvent::make(EventType::kMessageEdited,
+                                 {{"message_id", message_id}, {"conversation_id", conversation_id}},
+                                 actor_id);
     }
 };
 
@@ -247,11 +242,10 @@ struct ReactionAdded {
     std::string emoji;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(EventType::kReactionAdded,
-                                 {{"message_id", message_id},
-                                  {"conversation_id", conversation_id},
-                                  {"emoji", emoji}},
-                                 user_id);
+        return DomainEvent::make(
+            EventType::kReactionAdded,
+            {{"message_id", message_id}, {"conversation_id", conversation_id}, {"emoji", emoji}},
+            user_id);
     }
 };
 
@@ -262,11 +256,10 @@ struct ReactionRemoved {
     std::string emoji;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(EventType::kReactionRemoved,
-                                 {{"message_id", message_id},
-                                  {"conversation_id", conversation_id},
-                                  {"emoji", emoji}},
-                                 user_id);
+        return DomainEvent::make(
+            EventType::kReactionRemoved,
+            {{"message_id", message_id}, {"conversation_id", conversation_id}, {"emoji", emoji}},
+            user_id);
     }
 };
 
@@ -297,11 +290,10 @@ struct NotificationCreated {
     std::string kind;
 
     [[nodiscard]] DomainEvent to_event() const {
-        return DomainEvent::make(EventType::kNotificationCreated,
-                                 {{"notification_id", notification_id},
-                                  {"user_id", user_id},
-                                  {"kind", kind}},
-                                 actor_id);
+        return DomainEvent::make(
+            EventType::kNotificationCreated,
+            {{"notification_id", notification_id}, {"user_id", user_id}, {"kind", kind}},
+            actor_id);
     }
 };
 
@@ -311,8 +303,8 @@ struct NotificationCreated {
 
 struct AdminAction {
     std::int64_t actor_id = 0;
-    std::string action;        // "user.ban", "feature.toggle", ...
-    std::string target_type;   // "user", "conversation", "feature"
+    std::string action;       // "user.ban", "feature.toggle", ...
+    std::string target_type;  // "user", "conversation", "feature"
     std::string target_id;
     nlohmann::json details = nlohmann::json::object();
 

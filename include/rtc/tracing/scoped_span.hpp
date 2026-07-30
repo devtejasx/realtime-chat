@@ -28,7 +28,7 @@ namespace rtc::tracing {
 // bundle span creation and activation. Use this type directly only when a span
 // must be created and activated separately.
 class SpanScope {
-public:
+  public:
     explicit SpanScope(const SpanContext& context) noexcept;
     ~SpanScope();
 
@@ -37,7 +37,7 @@ public:
     SpanScope(SpanScope&&) = delete;
     SpanScope& operator=(SpanScope&&) = delete;
 
-private:
+  private:
     const SpanContext* previous_ = nullptr;
     bool active_ = false;
 };
@@ -53,7 +53,7 @@ private:
 // restores the previous active context. Zero cost when tracing is disabled: the
 // span is inert and no context is pushed.
 class ScopedSpan {
-public:
+  public:
     ScopedSpan() noexcept = default;
     explicit ScopedSpan(Span span);
     ~ScopedSpan();
@@ -80,7 +80,7 @@ public:
         return *this;
     }
 
-private:
+  private:
     void deactivate() noexcept;
 
     Span span_;

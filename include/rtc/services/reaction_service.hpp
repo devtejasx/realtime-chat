@@ -18,7 +18,7 @@ namespace rtc::services {
 // set, enforces conversation membership, persists, and broadcasts add/remove
 // events. Used by both the REST controller and (potentially) WebSocket handlers.
 class ReactionService {
-public:
+  public:
     ReactionService(repositories::IReactionRepository& reactions,
                     repositories::IMessageRepository& messages,
                     repositories::IConversationRepository& conversations,
@@ -31,7 +31,8 @@ public:
           notifications_(notifications) {}
 
     // Adds or changes the actor's reaction; broadcasts reaction.added.
-    [[nodiscard]] models::Reaction react(std::int64_t actor_id, std::int64_t message_id,
+    [[nodiscard]] models::Reaction react(std::int64_t actor_id,
+                                         std::int64_t message_id,
                                          std::string_view emoji);
 
     // Removes the actor's reaction; broadcasts reaction.removed.
@@ -40,7 +41,7 @@ public:
     [[nodiscard]] std::vector<models::Reaction> list(std::int64_t actor_id,
                                                      std::int64_t message_id);
 
-private:
+  private:
     // Ensures the message exists and the actor participates in its conversation;
     // returns the message (for author/conversation fan-out).
     [[nodiscard]] models::Message authorize(std::int64_t actor_id, std::int64_t message_id);

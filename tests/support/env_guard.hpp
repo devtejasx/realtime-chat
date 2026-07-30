@@ -9,7 +9,7 @@ namespace rtc::testing {
 // scope and restoring the previous value on destruction. Keeps env-dependent
 // tests (e.g. Config) hermetic and order-independent.
 class EnvGuard {
-public:
+  public:
     EnvGuard(std::string name, const std::string& value) : name_(std::move(name)) {
         capture_previous();
         set(name_.c_str(), value.c_str());
@@ -32,7 +32,7 @@ public:
     EnvGuard(const EnvGuard&) = delete;
     EnvGuard& operator=(const EnvGuard&) = delete;
 
-private:
+  private:
     void capture_previous() {
 #if defined(_MSC_VER)
         char* buffer = nullptr;

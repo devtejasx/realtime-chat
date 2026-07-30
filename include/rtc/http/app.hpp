@@ -33,8 +33,10 @@ namespace rtc::http {
 //
 // Adding a middleware here changes no controller: handlers are written against
 // `App&` and are agnostic to the stack's contents.
-using App = crow::App<middlewares::SecurityMiddleware, middlewares::MetricsMiddleware,
-                      middlewares::TracingMiddleware, middlewares::LoggingMiddleware,
+using App = crow::App<middlewares::SecurityMiddleware,
+                      middlewares::MetricsMiddleware,
+                      middlewares::TracingMiddleware,
+                      middlewares::LoggingMiddleware,
                       middlewares::ApiVersionMiddleware>;
 
 }  // namespace rtc::http

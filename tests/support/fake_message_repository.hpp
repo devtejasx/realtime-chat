@@ -17,7 +17,7 @@ namespace rtc::testing {
 // In-memory IMessageRepository for service unit tests. Implements the same
 // filter semantics (sender, keyword substring, keyset bounds, newest-first).
 class FakeMessageRepository final : public repositories::IMessageRepository {
-public:
+  public:
     models::Message create(const repositories::NewMessage& input) override {
         models::Message m;
         m.id = next_id_++;
@@ -33,7 +33,8 @@ public:
 
     std::optional<models::Message> find_by_id(std::int64_t id) override {
         for (const auto& m : messages_)
-            if (m.id == id) return m;
+            if (m.id == id)
+                return m;
         return std::nullopt;
     }
 
@@ -41,19 +42,25 @@ public:
                                       const dto::Pagination& page) override {
         std::vector<models::Message> out;
         for (const auto& m : messages_) {
-            if (m.conversation_id != f.conversation_id) continue;
-            if (f.sender_id && m.sender_id != *f.sender_id) continue;
+            if (m.conversation_id != f.conversation_id)
+                continue;
+            if (f.sender_id && m.sender_id != *f.sender_id)
+                continue;
             if (f.keyword) {
-                if (m.is_deleted()) continue;
-                if (m.content.find(*f.keyword) == std::string::npos) continue;
+                if (m.is_deleted())
+                    continue;
+                if (m.content.find(*f.keyword) == std::string::npos)
+                    continue;
             }
-            if (page.before_id && m.id >= *page.before_id) continue;
-            if (page.after_id && m.id <= *page.after_id) continue;
+            if (page.before_id && m.id >= *page.before_id)
+                continue;
+            if (page.after_id && m.id <= *page.after_id)
+                continue;
             out.push_back(m);
         }
-        std::sort(out.begin(), out.end(),
-                  [](const auto& a, const auto& b) { return a.id > b.id; });
-        if (static_cast<int>(out.size()) > page.limit) out.resize(page.limit);
+        std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) { return a.id > b.id; });
+        if (static_cast<int>(out.size()) > page.limit)
+            out.resize(page.limit);
         return out;
     }
 
@@ -80,7 +87,7 @@ public:
 
     [[nodiscard]] std::size_t count() const noexcept { return messages_.size(); }
 
-private:
+  private:
     std::vector<models::Message> messages_;
     std::int64_t next_id_ = 1;
 };

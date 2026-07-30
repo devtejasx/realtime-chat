@@ -39,8 +39,9 @@ const std::unordered_map<std::string, AttachmentKind>& type_map() {
 
 [[nodiscard]] std::string lower(std::string_view value) {
     std::string out(value);
-    std::transform(out.begin(), out.end(), out.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
     return out;
 }
 
@@ -65,13 +66,20 @@ AttachmentKind classify(std::string_view content_type) {
 
 std::string content_type_for_extension(std::string_view filename) {
     static const std::unordered_map<std::string, std::string> kByExt = {
-        {"jpg", "image/jpeg"},   {"jpeg", "image/jpeg"},
-        {"png", "image/png"},    {"gif", "image/gif"},
-        {"webp", "image/webp"},  {"pdf", "application/pdf"},
-        {"txt", "text/plain"},   {"csv", "text/csv"},
-        {"mp4", "video/mp4"},    {"webm", "video/webm"},
-        {"mov", "video/quicktime"}, {"mp3", "audio/mpeg"},
-        {"ogg", "audio/ogg"},    {"wav", "audio/wav"},
+        {"jpg", "image/jpeg"},
+        {"jpeg", "image/jpeg"},
+        {"png", "image/png"},
+        {"gif", "image/gif"},
+        {"webp", "image/webp"},
+        {"pdf", "application/pdf"},
+        {"txt", "text/plain"},
+        {"csv", "text/csv"},
+        {"mp4", "video/mp4"},
+        {"webm", "video/webm"},
+        {"mov", "video/quicktime"},
+        {"mp3", "audio/mpeg"},
+        {"ogg", "audio/ogg"},
+        {"wav", "audio/wav"},
     };
     const auto it = kByExt.find(extension_of(filename));
     return it == kByExt.end() ? std::string{} : it->second;

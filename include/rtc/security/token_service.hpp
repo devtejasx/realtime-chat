@@ -12,7 +12,7 @@ namespace rtc::security {
 // depend on this interface rather than a concrete JWT library, so the signing
 // scheme is swappable and easily faked in tests.
 class ITokenService {
-public:
+  public:
     virtual ~ITokenService() = default;
 
     // Issues an access + refresh pair for the given identity.
@@ -20,7 +20,8 @@ public:
                                                std::string_view username) const = 0;
 
     // Issues a single token of the given type.
-    [[nodiscard]] virtual std::string issue(std::int64_t user_id, std::string_view username,
+    [[nodiscard]] virtual std::string issue(std::int64_t user_id,
+                                            std::string_view username,
                                             TokenType type) const = 0;
 
     // Verifies signature, issuer, expiry and type of `token`, returning its

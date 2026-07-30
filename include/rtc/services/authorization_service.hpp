@@ -31,7 +31,7 @@ namespace rtc::services {
 // Thread-safe: the cache store and the repository are both thread-safe, and this
 // class holds only immutable configuration plus atomic counters.
 class AuthorizationService {
-public:
+  public:
     struct Options {
         // Worst-case staleness of a role/ban decision. Deliberately short.
         std::chrono::seconds cache_ttl{30};
@@ -41,7 +41,8 @@ public:
     // AttachmentService). A defaulted `Options = {}` argument is not an option
     // here: a nested type's default member initialisers are not usable inside the
     // enclosing class definition, so the default argument would not compile.
-    AuthorizationService(repositories::IUserAdminRepository& users, cache::ICacheStore& cache,
+    AuthorizationService(repositories::IUserAdminRepository& users,
+                         cache::ICacheStore& cache,
                          Options options) noexcept
         : users_(users), cache_(cache), options_(options) {}
 
@@ -73,7 +74,7 @@ public:
     [[nodiscard]] std::uint64_t cache_hits() const noexcept { return hits_.load(); }
     [[nodiscard]] std::uint64_t cache_misses() const noexcept { return misses_.load(); }
 
-private:
+  private:
     [[nodiscard]] static std::string role_key(std::int64_t user_id);
     [[nodiscard]] static std::string ban_key(std::int64_t user_id);
 

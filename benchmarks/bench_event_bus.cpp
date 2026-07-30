@@ -5,10 +5,10 @@
 // background throughput. Those two are measured separately, because conflating them
 // would hide the fact that asynchronous mode exists precisely to move the expensive
 // half off the request path.
+#include <benchmark/benchmark.h>
+
 #include <atomic>
 #include <string>
-
-#include <benchmark/benchmark.h>
 
 #include "rtc/events/domain_event.hpp"
 #include "rtc/events/event_dispatcher.hpp"
@@ -32,7 +32,8 @@ void BM_EventCreate(benchmark::State& state) {
             .sender_id = 3,
             .recipient_ids = {3, 4, 5},
             .content_length = 42,
-        }.to_event());
+        }
+                                     .to_event());
     }
     state.SetItemsProcessed(state.iterations());
 }
@@ -40,9 +41,12 @@ BENCHMARK(BM_EventCreate);
 
 // Serialisation, as the audit writer and any broker forwarder would do it.
 void BM_EventToJson(benchmark::State& state) {
-    const auto event = rtc::events::MessageSent{
-        .message_id = 1, .conversation_id = 2, .sender_id = 3,
-        .recipient_ids = {3, 4, 5}, .content_length = 42}.to_event();
+    const auto event = rtc::events::MessageSent{.message_id = 1,
+                                                .conversation_id = 2,
+                                                .sender_id = 3,
+                                                .recipient_ids = {3, 4, 5},
+                                                .content_length = 42}
+                           .to_event();
 
     for (auto _ : state) {
         benchmark::DoNotOptimize(event.to_json());
@@ -75,7 +79,8 @@ void BM_DispatchUninterestedSubscribers(benchmark::State& state) {
     for (std::size_t i = 0; i < count; ++i) {
         // Interested in a type that is never published.
         subscribers.push_back(std::make_unique<rtc::events::FunctionSubscriber>(
-            "sub-" + std::to_string(i), std::initializer_list<EventType>{EventType::kAdminAction},
+            "sub-" + std::to_string(i),
+            std::initializer_list<EventType>{EventType::kAdminAction},
             [](const DomainEvent&) {}));
         dispatcher.subscribe(*subscribers.back());
     }
@@ -96,7 +101,8 @@ void BM_DispatchInterestedSubscribers(benchmark::State& state) {
 
     for (std::size_t i = 0; i < count; ++i) {
         subscribers.push_back(std::make_unique<rtc::events::FunctionSubscriber>(
-            "sub-" + std::to_string(i), std::initializer_list<EventType>{EventType::kMessageSent},
+            "sub-" + std::to_string(i),
+            std::initializer_list<EventType>{EventType::kMessageSent},
             [&sink](const DomainEvent&) { sink.fetch_add(1, std::memory_order_relaxed); }));
         dispatcher.subscribe(*subscribers.back());
     }
@@ -115,8 +121,9 @@ void BM_PublishSynchronous(benchmark::State& state) {
     rtc::events::EventDispatcher dispatcher;
     std::atomic<std::uint64_t> sink{0};
     rtc::events::FunctionSubscriber subscriber(
-        "sink", {EventType::kMessageSent},
-        [&sink](const DomainEvent&) { sink.fetch_add(1, std::memory_order_relaxed); });
+        "sink", {EventType::kMessageSent}, [&sink](const DomainEvent&) {
+            sink.fetch_add(1, std::memory_order_relaxed);
+        });
     dispatcher.subscribe(subscriber);
 
     rtc::events::InProcessEventBus bus(dispatcher);
@@ -141,8 +148,9 @@ void BM_PublishAsynchronous(benchmark::State& state) {
     rtc::events::EventDispatcher dispatcher;
     std::atomic<std::uint64_t> sink{0};
     rtc::events::FunctionSubscriber subscriber(
-        "sink", {EventType::kMessageSent},
-        [&sink](const DomainEvent&) { sink.fetch_add(1, std::memory_order_relaxed); });
+        "sink", {EventType::kMessageSent}, [&sink](const DomainEvent&) {
+            sink.fetch_add(1, std::memory_order_relaxed);
+        });
     dispatcher.subscribe(subscriber);
 
     rtc::events::InProcessEventBus bus(dispatcher, executor);

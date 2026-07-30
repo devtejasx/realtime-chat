@@ -1,9 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/models/notification.hpp"
 #include "rtc/utils/time.hpp"
@@ -30,7 +29,10 @@ struct NotificationResponse {
 
     [[nodiscard]] nlohmann::json to_json() const {
         return nlohmann::json{
-            {"id", id}, {"type", type}, {"payload", payload}, {"read", read},
+            {"id", id},
+            {"type", type},
+            {"payload", payload},
+            {"read", read},
             {"created_at", created_at},
         };
     }

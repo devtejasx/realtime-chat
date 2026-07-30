@@ -12,7 +12,7 @@ namespace rtc::events {
 // service can be unit-tested by injecting a recording publisher, and it cannot
 // accidentally reach into the subscriber registry.
 class IEventPublisher {
-public:
+  public:
     virtual ~IEventPublisher() = default;
 
     // Publishes an event. Must never throw and must never fail the caller's
@@ -26,7 +26,7 @@ public:
 // Implementations declare which event types they care about, so the dispatcher
 // filters before invoking rather than every subscriber re-checking the tag.
 class IEventSubscriber {
-public:
+  public:
     virtual ~IEventSubscriber() = default;
 
     // True when this subscriber wants `type`. Called on every publish, so keep
@@ -43,7 +43,7 @@ public:
 
 // The full bus: publishing plus subscription management.
 class IEventBus : public IEventPublisher {
-public:
+  public:
     // Registers a subscriber. The bus does not take ownership — the subscriber
     // must outlive the bus, which the composition root guarantees by destruction
     // order. Registration happens during bootstrap, before traffic is served.
@@ -58,7 +58,7 @@ public:
 // keeps the event bus a *non-breaking* addition: existing constructors and every
 // existing unit test keep working, and no producer needs a null check.
 class NullEventPublisher final : public IEventPublisher {
-public:
+  public:
     void publish(DomainEvent /*event*/) noexcept override {}
 
     // Shared immutable instance. Safe as a global: stateless and const-behaving,

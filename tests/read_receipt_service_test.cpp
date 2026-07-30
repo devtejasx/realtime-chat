@@ -14,7 +14,7 @@ namespace {
 using rtc::errors::NotFoundException;
 
 class ReadReceiptServiceTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         conversation_id_ = conversations_.create_or_get_direct(alice_, bob_).id;
         rtc::repositories::NewMessage m;

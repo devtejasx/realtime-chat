@@ -12,8 +12,7 @@ namespace {
 // non-existent account we still run a verification against this dummy hash so
 // the response time does not reveal whether the account exists (mitigating
 // user-enumeration via timing).
-constexpr const char* kDummyHash =
-    "$2b$12$C6UzMDM.H6dfI/f/IKcEeO3f0i1E1r5aI3l0m9n8o7p6q5r4s3t2u";
+constexpr const char* kDummyHash = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO3f0i1E1r5aI3l0m9n8o7p6q5r4s3t2u";
 
 }  // namespace
 
@@ -43,8 +42,7 @@ models::User UserService::authenticate(const dto::LoginRequest& request) {
 models::User UserService::get_by_id(std::int64_t id) {
     const auto user = repository_.find_by_id(id);
     if (!user) {
-        throw rtc::errors::NotFoundException("User not found",
-                                             "user_id=" + std::to_string(id));
+        throw rtc::errors::NotFoundException("User not found", "user_id=" + std::to_string(id));
     }
     return *user;
 }

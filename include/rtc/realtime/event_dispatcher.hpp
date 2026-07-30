@@ -1,9 +1,9 @@
 #pragma once
 
+#include <crow/websocket.h>
+
 #include <cstdint>
 #include <string>
-
-#include <crow/websocket.h>
 
 #include "rtc/events/event_bus.hpp"
 #include "rtc/features/feature_flags.hpp"
@@ -27,8 +27,9 @@ namespace rtc::realtime {
 // thread, and a v2 client's error frame echoes the `request_id` of the command
 // that failed so a client can correlate the two.
 class EventDispatcher {
-public:
-    EventDispatcher(ConnectionManager& connections, services::PresenceService& presence,
+  public:
+    EventDispatcher(ConnectionManager& connections,
+                    services::PresenceService& presence,
                     services::ConversationService& conversations,
                     services::MessageService& messages,
                     services::ReadReceiptService& receipts) noexcept
@@ -54,7 +55,8 @@ public:
 
     // Called after a successful authenticated handshake. `version` is the wire
     // protocol negotiated during the upgrade.
-    void on_open(crow::websocket::connection& conn, std::int64_t user_id,
+    void on_open(crow::websocket::connection& conn,
+                 std::int64_t user_id,
                  const std::string& username,
                  protocol::Version version = protocol::kDefaultVersion);
 
@@ -64,15 +66,20 @@ public:
     // Called when a connection closes (or errors).
     void on_close(crow::websocket::connection& conn);
 
-private:
-    void handle_typing(crow::websocket::connection& conn, std::int64_t user_id,
-                       const std::string& username, const nlohmann::json& data, bool starting);
+  private:
+    void handle_typing(crow::websocket::connection& conn,
+                       std::int64_t user_id,
+                       const std::string& username,
+                       const nlohmann::json& data,
+                       bool starting);
     void handle_send_message(std::int64_t user_id, const nlohmann::json& data);
     void handle_mark_delivered(std::int64_t user_id, const nlohmann::json& data);
     void handle_mark_read(std::int64_t user_id, const nlohmann::json& data);
 
-    void send_error(crow::websocket::connection& conn, std::string_view code,
-                    std::string_view message, const protocol::Envelope& envelope);
+    void send_error(crow::websocket::connection& conn,
+                    std::string_view code,
+                    std::string_view message,
+                    const protocol::Envelope& envelope);
 
     // True when `feature` is on, or when no flag store has been attached.
     [[nodiscard]] bool enabled(features::Feature feature) const noexcept;

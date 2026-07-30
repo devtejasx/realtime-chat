@@ -1,9 +1,9 @@
 #pragma once
 
+#include <spdlog/spdlog.h>
+
 #include <memory>
 #include <string_view>
-
-#include <spdlog/spdlog.h>
 
 namespace rtc::logging {
 

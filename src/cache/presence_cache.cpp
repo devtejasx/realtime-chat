@@ -55,6 +55,8 @@ std::vector<std::int64_t> PresenceCache::online_user_ids() {
     return ids;
 }
 
-std::size_t PresenceCache::online_count() { return store_.scard(kOnlineSet); }
+std::size_t PresenceCache::online_count() {
+    return store_.scard(kOnlineSet);
+}
 
 }  // namespace rtc::cache

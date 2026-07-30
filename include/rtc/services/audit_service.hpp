@@ -1,11 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/dto/pagination.hpp"
 #include "rtc/events/domain_event.hpp"
@@ -31,7 +30,7 @@ namespace rtc::services {
 // handler: an audit failure must not fail the user action that triggered it, and
 // the action has already happened by the time the event is published.
 class AuditService {
-public:
+  public:
     AuditService(repositories::IAuditLogRepository& repository,
                  repositories::IUserRepository& users) noexcept
         : repository_(repository), users_(users) {}
@@ -45,14 +44,16 @@ public:
 
     // Records an explicit administrative action, for paths where the actor's
     // request context (ip, user agent) is worth capturing alongside the event.
-    bool record_admin_action(std::int64_t actor_id, const std::string& action,
-                             const std::string& target_type, const std::string& target_id,
+    bool record_admin_action(std::int64_t actor_id,
+                             const std::string& action,
+                             const std::string& target_type,
+                             const std::string& target_id,
                              nlohmann::json details = nlohmann::json::object(),
                              std::optional<std::string> ip = std::nullopt,
                              std::optional<std::string> user_agent = std::nullopt);
 
-    [[nodiscard]] std::vector<models::AuditLog> search(
-        const repositories::AuditLogFilter& filter, const dto::Pagination& page);
+    [[nodiscard]] std::vector<models::AuditLog> search(const repositories::AuditLogFilter& filter,
+                                                       const dto::Pagination& page);
 
     [[nodiscard]] std::int64_t count(const repositories::AuditLogFilter& filter);
 
@@ -65,7 +66,7 @@ public:
     // shape is only ever produced by this service.
     [[nodiscard]] static nlohmann::json to_json(const models::AuditLog& log);
 
-private:
+  private:
     // Derives (target_type, target_id) from an event's payload so audit rows are
     // queryable by subject without every producer having to spell it out.
     struct Target {

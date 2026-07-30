@@ -18,7 +18,8 @@ void EventDispatcher::subscribe(IEventSubscriber& subscriber) {
         return;
     }
     subscribers_.push_back(&subscriber);
-    RTC_LOG_DEBUG("Registered event subscriber '{}' ({} total)", subscriber.subscriber_name(),
+    RTC_LOG_DEBUG("Registered event subscriber '{}' ({} total)",
+                  subscriber.subscriber_name(),
                   subscribers_.size());
 }
 
@@ -37,13 +38,18 @@ void EventDispatcher::dispatch(const DomainEvent& event) noexcept {
             } catch (const std::exception& ex) {
                 failures_.fetch_add(1, std::memory_order_relaxed);
                 RTC_LOG_ERROR("Event subscriber '{}' failed handling '{}' (event_id={}): {}",
-                              subscriber->subscriber_name(), event.name(), event.event_id,
+                              subscriber->subscriber_name(),
+                              event.name(),
+                              event.event_id,
                               ex.what());
             } catch (...) {
                 failures_.fetch_add(1, std::memory_order_relaxed);
-                RTC_LOG_ERROR("Event subscriber '{}' failed handling '{}' (event_id={}): "
-                              "unknown exception",
-                              subscriber->subscriber_name(), event.name(), event.event_id);
+                RTC_LOG_ERROR(
+                    "Event subscriber '{}' failed handling '{}' (event_id={}): "
+                    "unknown exception",
+                    subscriber->subscriber_name(),
+                    event.name(),
+                    event.event_id);
             }
         }
     } catch (...) {

@@ -20,7 +20,7 @@ namespace rtc::services {
 // is persisted. Both REST controllers and WebSocket handlers call into this
 // service — never the repository directly.
 class ConversationService {
-public:
+  public:
     ConversationService(repositories::IConversationRepository& conversations,
                         repositories::IUserRepository& users,
                         realtime::IEventBroadcaster& broadcaster,
@@ -61,7 +61,8 @@ public:
     [[nodiscard]] models::ConversationParticipant add_member(std::int64_t actor_id,
                                                              std::int64_t conversation_id,
                                                              std::int64_t user_id);
-    void remove_member(std::int64_t actor_id, std::int64_t conversation_id,
+    void remove_member(std::int64_t actor_id,
+                       std::int64_t conversation_id,
                        std::int64_t target_user_id);
     // Any participant may leave; when the owner leaves, ownership transfers to
     // the earliest-joined member, or the group is deleted if none remain.
@@ -76,7 +77,7 @@ public:
     // Users sharing a conversation with `user_id` (presence audience).
     [[nodiscard]] std::vector<std::int64_t> peer_ids(std::int64_t user_id);
 
-private:
+  private:
     [[nodiscard]] models::Conversation require_conversation(std::int64_t conversation_id);
     void require_participant(std::int64_t conversation_id, std::int64_t user_id);
     void require_owner(const models::Conversation& conversation, std::int64_t user_id);

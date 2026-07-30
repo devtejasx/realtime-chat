@@ -2,12 +2,11 @@
 
 #include <chrono>
 #include <optional>
-#include <string>
-
 #include <pqxx/except>
 #include <pqxx/result>
 #include <pqxx/row>
 #include <pqxx/transaction>
+#include <string>
 
 #include "rtc/errors/exceptions.hpp"
 
@@ -58,10 +57,10 @@ constexpr const char* kSelectColumns =
 models::User PgUserRepository::create(const NewUser& input) {
     return with_transaction([&](pqxx::work& txn) -> models::User {
         try {
-            const std::string sql =
-                std::string("INSERT INTO users (username, email, password_hash) "
-                            "VALUES ($1, $2, $3) RETURNING ") +
-                kSelectColumns;
+            const std::string sql = std::string(
+                                        "INSERT INTO users (username, email, password_hash) "
+                                        "VALUES ($1, $2, $3) RETURNING ") +
+                                    kSelectColumns;
             const pqxx::result result =
                 txn.exec_params(sql, input.username, input.email, input.password_hash);
             return map_row(result.front());
@@ -70,11 +69,9 @@ models::User PgUserRepository::create(const NewUser& input) {
             // pinpointing the offending field from the violated index name.
             const std::string what = ex.what();
             if (what.find("email") != std::string::npos) {
-                throw rtc::errors::ConflictException("Email is already registered",
-                                                     "field=email");
+                throw rtc::errors::ConflictException("Email is already registered", "field=email");
             }
-            throw rtc::errors::ConflictException("Username is already taken",
-                                                 "field=username");
+            throw rtc::errors::ConflictException("Username is already taken", "field=username");
         }
     });
 }
@@ -97,8 +94,8 @@ std::optional<models::User> PgUserRepository::find_by_username(std::string_view 
 
 std::optional<models::User> PgUserRepository::find_by_email(std::string_view email) {
     return with_transaction([&](pqxx::work& txn) -> std::optional<models::User> {
-        const std::string sql = std::string("SELECT ") + kSelectColumns +
-                                " FROM users WHERE LOWER(email) = LOWER($1)";
+        const std::string sql =
+            std::string("SELECT ") + kSelectColumns + " FROM users WHERE LOWER(email) = LOWER($1)";
         return map_optional(txn.exec_params(sql, std::string(email)));
     });
 }
@@ -114,18 +111,18 @@ std::optional<models::User> PgUserRepository::find_by_identifier(std::string_vie
 
 bool PgUserRepository::exists_by_username(std::string_view username) {
     return with_transaction([&](pqxx::work& txn) -> bool {
-        const auto row = txn.exec_params1(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(username) = LOWER($1))",
-            std::string(username));
+        const auto row =
+            txn.exec_params1("SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(username) = LOWER($1))",
+                             std::string(username));
         return row[0].as<bool>();
     });
 }
 
 bool PgUserRepository::exists_by_email(std::string_view email) {
     return with_transaction([&](pqxx::work& txn) -> bool {
-        const auto row = txn.exec_params1(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1))",
-            std::string(email));
+        const auto row =
+            txn.exec_params1("SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1))",
+                             std::string(email));
         return row[0].as<bool>();
     });
 }
@@ -146,18 +143,22 @@ models::User PgUserRepository::update_profile(std::int64_t id, const ProfileUpda
         // A per-column CASE lets one prepared statement express three
         // independent intents: leave unchanged (flag false), set a value, or
         // clear to NULL (flag true, value null).
-        const std::string sql =
-            std::string(
-                "UPDATE users SET "
-                "display_name = CASE WHEN $2 THEN $3 ELSE display_name END, "
-                "bio          = CASE WHEN $4 THEN $5 ELSE bio END, "
-                "avatar_url   = CASE WHEN $6 THEN $7 ELSE avatar_url END "
-                "WHERE id = $1 RETURNING ") +
-            kSelectColumns;
+        const std::string sql = std::string(
+                                    "UPDATE users SET "
+                                    "display_name = CASE WHEN $2 THEN $3 ELSE display_name END, "
+                                    "bio          = CASE WHEN $4 THEN $5 ELSE bio END, "
+                                    "avatar_url   = CASE WHEN $6 THEN $7 ELSE avatar_url END "
+                                    "WHERE id = $1 RETURNING ") +
+                                kSelectColumns;
 
-        const auto result = txn.exec_params(
-            sql, id, update.display_name_set, update.display_name, update.bio_set, update.bio,
-            update.avatar_url_set, update.avatar_url);
+        const auto result = txn.exec_params(sql,
+                                            id,
+                                            update.display_name_set,
+                                            update.display_name,
+                                            update.bio_set,
+                                            update.bio,
+                                            update.avatar_url_set,
+                                            update.avatar_url);
         if (result.empty()) {
             throw rtc::errors::NotFoundException("User not found");
         }

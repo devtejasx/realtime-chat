@@ -1,10 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/dto/user_dto.hpp"  // opt_to_json
 #include "rtc/models/attachment.hpp"

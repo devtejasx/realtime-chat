@@ -1,11 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/models/conversation.hpp"
 #include "rtc/models/conversation_participant.hpp"

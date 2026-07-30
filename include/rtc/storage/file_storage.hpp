@@ -19,12 +19,13 @@ struct StoredObject {
 // Blob, Google Cloud Storage — can be swapped via configuration without any
 // change to business logic. Keys are backend-relative, opaque paths.
 class IFileStorage {
-public:
+  public:
     virtual ~IFileStorage() = default;
 
     // Stores `bytes` under `key`. Returns the stored-object descriptor. Throws
     // rtc::errors::* on failure (e.g. an unsafe key or I/O error).
-    virtual StoredObject put(std::string_view key, std::string_view content_type,
+    virtual StoredObject put(std::string_view key,
+                             std::string_view content_type,
                              const std::string& bytes) = 0;
 
     // Reads the object's bytes, or nullopt if the key does not exist.

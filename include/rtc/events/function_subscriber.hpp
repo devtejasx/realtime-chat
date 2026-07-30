@@ -21,7 +21,7 @@ namespace rtc::events {
 // Interest is stored as a bitset so `interested_in` is a single bit test, which
 // matters because it runs for every subscriber on every published event.
 class FunctionSubscriber final : public IEventSubscriber {
-public:
+  public:
     using Handler = std::function<void(const DomainEvent&)>;
 
     FunctionSubscriber(std::string name, std::initializer_list<EventType> types, Handler handler)
@@ -49,7 +49,7 @@ public:
 
     [[nodiscard]] std::string_view subscriber_name() const noexcept override { return name_; }
 
-private:
+  private:
     std::string name_;
     std::bitset<kEventTypeCount> interest_;
     Handler handler_;

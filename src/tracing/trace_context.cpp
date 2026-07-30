@@ -89,8 +89,7 @@ std::optional<SpanContext> parse_traceparent(std::string_view header) {
     SpanContext context;
     context.trace_id = std::string(fields[1]);
     context.span_id = std::string(fields[2]);
-    if (!is_lower_hex(context.trace_id) || !is_lower_hex(context.span_id) ||
-        !context.is_valid()) {
+    if (!is_lower_hex(context.trace_id) || !is_lower_hex(context.span_id) || !context.is_valid()) {
         return std::nullopt;
     }
 

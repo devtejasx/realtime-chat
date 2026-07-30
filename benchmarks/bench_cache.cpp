@@ -7,10 +7,10 @@
 // nanoseconds below), so the useful comparison is not "which is faster" but "how
 // many round trips does a request make" — which is why the Redis path is measured
 // with the k6 suite against a real deployment instead.
+#include <benchmark/benchmark.h>
+
 #include <string>
 #include <vector>
-
-#include <benchmark/benchmark.h>
 
 #include "rtc/cache/in_memory_cache_store.hpp"
 #include "rtc/ratelimit/rate_limiter.hpp"
@@ -26,8 +26,7 @@ void BM_CacheSet(benchmark::State& state) {
         // A distinct key per iteration, so this measures insertion rather than
         // repeatedly overwriting one entry (which would be unrealistically cheap
         // and would not grow the map).
-        store.set("bench:key:" + std::to_string(counter++), value,
-                  std::chrono::seconds(300));
+        store.set("bench:key:" + std::to_string(counter++), value, std::chrono::seconds(300));
     }
     state.SetItemsProcessed(state.iterations());
 }
@@ -114,8 +113,7 @@ void BM_RateLimiterAllow(benchmark::State& state) {
 
     for (auto _ : state) {
         try {
-            limiter.enforce("bench", "user-1", /*max=*/1'000'000'000,
-                            std::chrono::seconds(60));
+            limiter.enforce("bench", "user-1", /*max=*/1'000'000'000, std::chrono::seconds(60));
         } catch (const std::exception&) {
         }
     }

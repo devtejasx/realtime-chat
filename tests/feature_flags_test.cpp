@@ -1,9 +1,10 @@
-#include <string>
+#include "rtc/features/feature_flags.hpp"
 
 #include <gtest/gtest.h>
 
+#include <string>
+
 #include "rtc/errors/exceptions.hpp"
-#include "rtc/features/feature_flags.hpp"
 #include "support/env_guard.hpp"
 
 namespace {

@@ -46,14 +46,13 @@ void ConnectionManager::send_raw(crow::websocket::connection* conn, const std::s
 }
 
 std::shared_ptr<Session> ConnectionManager::register_session(crow::websocket::connection* conn,
-                                                            std::int64_t user_id,
-                                                            std::string username,
-                                                            protocol::Version version) {
+                                                             std::int64_t user_id,
+                                                             std::string username,
+                                                             protocol::Version version) {
     return sessions_.add(conn, user_id, std::move(username), version);
 }
 
-std::shared_ptr<Session> ConnectionManager::unregister_session(
-    crow::websocket::connection* conn) {
+std::shared_ptr<Session> ConnectionManager::unregister_session(crow::websocket::connection* conn) {
     rooms_.leave_all(conn);
     return sessions_.remove(conn);
 }
@@ -89,7 +88,8 @@ void ConnectionManager::set_cluster_bus(IClusterBus& bus) {
                       // No `exclude`: the excluded connection lives on the
                       // originating instance, which already handled it locally.
                       deliver_local_to_room(
-                          room->get<std::int64_t>(), event->get<std::string>(),
+                          room->get<std::int64_t>(),
+                          event->get<std::string>(),
                           data_it != body.end() ? *data_it : nlohmann::json::object());
                   });
 
@@ -97,7 +97,8 @@ void ConnectionManager::set_cluster_bus(IClusterBus& bus) {
 }
 
 void ConnectionManager::send_to_sessions(const std::vector<std::shared_ptr<Session>>& sessions,
-                                         std::string_view type, const nlohmann::json& data,
+                                         std::string_view type,
+                                         const nlohmann::json& data,
                                          const protocol::Envelope& envelope,
                                          crow::websocket::connection* exclude) {
     // One FrameCache per fan-out: the payload is serialised at most once per
@@ -112,15 +113,20 @@ void ConnectionManager::send_to_sessions(const std::vector<std::shared_ptr<Sessi
 }
 
 void ConnectionManager::deliver_local(const std::vector<std::int64_t>& user_ids,
-                                      std::string_view type, const nlohmann::json& data) {
+                                      std::string_view type,
+                                      const nlohmann::json& data) {
     const protocol::Envelope envelope{};
     for (const std::int64_t user_id : user_ids) {
-        send_to_sessions(sessions_.sessions_for_user(user_id), type, data, envelope,
+        send_to_sessions(sessions_.sessions_for_user(user_id),
+                         type,
+                         data,
+                         envelope,
                          /*exclude=*/nullptr);
     }
 }
 
-void ConnectionManager::publish(const std::vector<std::int64_t>& user_ids, std::string_view type,
+void ConnectionManager::publish(const std::vector<std::int64_t>& user_ids,
+                                std::string_view type,
                                 const nlohmann::json& data) {
     deliver_local(user_ids, type, data);
 
@@ -128,14 +134,14 @@ void ConnectionManager::publish(const std::vector<std::int64_t>& user_ids, std::
         // Peers deliver to their own connections. Fire-and-forget: publish() is
         // noexcept and a cluster failure degrades delivery without failing the
         // action that produced the event.
-        cluster_->publish(cluster_channels::kUserBroadcast,
-                          nlohmann::json{{kFieldEvent, type},
-                                         {kFieldUserIds, user_ids},
-                                         {kFieldData, data}});
+        cluster_->publish(
+            cluster_channels::kUserBroadcast,
+            nlohmann::json{{kFieldEvent, type}, {kFieldUserIds, user_ids}, {kFieldData, data}});
     }
 }
 
-void ConnectionManager::send_event(crow::websocket::connection* conn, std::string_view type,
+void ConnectionManager::send_event(crow::websocket::connection* conn,
+                                   std::string_view type,
                                    const nlohmann::json& data,
                                    const protocol::Envelope& envelope) {
     // A direct send targets one known local connection, so it is never forwarded
@@ -146,23 +152,28 @@ void ConnectionManager::send_event(crow::websocket::connection* conn, std::strin
     send_raw(conn, protocol::encode(version, type, data, envelope));
 }
 
-void ConnectionManager::deliver_local_to_room(std::int64_t conversation_id, std::string_view type,
+void ConnectionManager::deliver_local_to_room(std::int64_t conversation_id,
+                                              std::string_view type,
                                               const nlohmann::json& data,
                                               crow::websocket::connection* exclude) {
-    send_to_sessions(sessions_.sessions_for(rooms_.connections_in_room(conversation_id)), type,
-                     data, protocol::Envelope{}, exclude);
+    send_to_sessions(sessions_.sessions_for(rooms_.connections_in_room(conversation_id)),
+                     type,
+                     data,
+                     protocol::Envelope{},
+                     exclude);
 }
 
-void ConnectionManager::broadcast_to_room(std::int64_t conversation_id, std::string_view type,
+void ConnectionManager::broadcast_to_room(std::int64_t conversation_id,
+                                          std::string_view type,
                                           const nlohmann::json& data,
                                           crow::websocket::connection* exclude) {
     deliver_local_to_room(conversation_id, type, data, exclude);
 
     if (cluster_ != nullptr) {
-        cluster_->publish(cluster_channels::kRoomBroadcast,
-                          nlohmann::json{{kFieldEvent, type},
-                                         {kFieldConversationId, conversation_id},
-                                         {kFieldData, data}});
+        cluster_->publish(
+            cluster_channels::kRoomBroadcast,
+            nlohmann::json{
+                {kFieldEvent, type}, {kFieldConversationId, conversation_id}, {kFieldData, data}});
     }
 }
 

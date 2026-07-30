@@ -1,11 +1,11 @@
 #include "rtc/middlewares/tracing_middleware.hpp"
 
+#include <crow/common.h>
+
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
-
-#include <crow/common.h>
 
 #include "rtc/tracing/tracer.hpp"
 #include "rtc/utils/random.hpp"
@@ -35,15 +35,15 @@ void TracingMiddleware::before_handle(crow::request& req, crow::response& /*res*
         return;
     }
 
-    const std::string& traceparent =
-        req.get_header_value(std::string(tracing::kTraceParentHeader));
+    const std::string& traceparent = req.get_header_value(std::string(tracing::kTraceParentHeader));
     std::optional<tracing::SpanContext> parent = tracing::parse_traceparent(traceparent);
     if (parent) {
         parent->trace_state = req.get_header_value(std::string(tracing::kTraceStateHeader));
     }
 
     auto span = tracer.start_span(std::string(crow::method_name(req.method)) + " " + req.url,
-                                 tracing::SpanKind::kServer, parent ? &*parent : nullptr);
+                                  tracing::SpanKind::kServer,
+                                  parent ? &*parent : nullptr);
 
     // OpenTelemetry HTTP semantic conventions. The query string is excluded from
     // url.path because it can carry user-supplied values.
@@ -80,7 +80,7 @@ void TracingMiddleware::after_handle(crow::request& /*req*/, crow::response& res
         // a 4xx is a correct server response to a bad request.
         if (res.code >= 500) {
             ctx.span.span().set_status(tracing::SpanStatus::kError,
-                                      "HTTP " + std::to_string(res.code));
+                                       "HTTP " + std::to_string(res.code));
         } else {
             ctx.span.span().set_status(tracing::SpanStatus::kOk);
         }

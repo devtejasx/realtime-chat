@@ -1,12 +1,12 @@
 #include "rtc/security/bcrypt_password_hasher.hpp"
 
+#include <bcrypt.h>
+#include <openssl/rand.h>
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <string>
-
-#include <bcrypt.h>
-#include <openssl/rand.h>
 
 #include "rtc/errors/exceptions.hpp"
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <string>
-
 #include <crow/http_request.h>
 #include <crow/http_response.h>
+
+#include <string>
 
 namespace rtc::middlewares {
 
@@ -48,19 +48,17 @@ struct SecurityMiddleware {
 
         const std::string requested = res.get_header_value(kCspOverrideHeader);
         if (requested.empty()) {
-            res.set_header("Content-Security-Policy",
-                           "default-src 'none'; frame-ancestors 'none'");
+            res.set_header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
         } else {
             res.set_header("Content-Security-Policy", requested);
             res.headers.erase(kCspOverrideHeader);
         }
     }
 
-private:
+  private:
     void apply_cors(crow::response& res) const {
         res.set_header("Access-Control-Allow-Origin", allowed_origins_);
-        res.set_header("Access-Control-Allow-Methods",
-                       "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Authorization, Content-Type");
         res.set_header("Access-Control-Max-Age", "600");
     }

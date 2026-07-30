@@ -11,7 +11,9 @@ using Clock = std::chrono::system_clock;
 using TimePoint = Clock::time_point;
 
 // Current wall-clock time.
-[[nodiscard]] inline TimePoint now() { return Clock::now(); }
+[[nodiscard]] inline TimePoint now() {
+    return Clock::now();
+}
 
 // Formats a time point as an ISO-8601 UTC string, e.g. "2026-07-24T12:00:00Z".
 // Used for API responses and log context.

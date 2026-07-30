@@ -14,7 +14,7 @@ namespace rtc::cache {
 // project is built without Redis support, constructing this type throws, and
 // the composition root falls back to the in-memory store.
 class RedisCacheStore final : public ICacheStore {
-public:
+  public:
     explicit RedisCacheStore(const std::string& uri);
     ~RedisCacheStore() override;
 
@@ -44,7 +44,7 @@ public:
     // True when the binary was compiled with Redis support.
     [[nodiscard]] static bool available() noexcept;
 
-private:
+  private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

@@ -1,9 +1,8 @@
 #pragma once
 
+#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/errors/error_type.hpp"
 #include "rtc/errors/exceptions.hpp"

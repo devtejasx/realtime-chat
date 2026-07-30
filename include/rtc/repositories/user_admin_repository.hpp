@@ -45,7 +45,7 @@ struct AdminUserFilter {
 //      capability with a different authorisation story, and keeping it behind a
 //      distinct interface means an ordinary service cannot reach it at all.
 class IUserAdminRepository {
-public:
+  public:
     virtual ~IUserAdminRepository() = default;
 
     // The authorisation hot path: resolve a user's role. Returns nullopt when the
@@ -58,17 +58,17 @@ public:
     [[nodiscard]] virtual std::optional<AdminUserRecord> find(std::int64_t user_id) = 0;
 
     [[nodiscard]] virtual std::vector<AdminUserRecord> list(const AdminUserFilter& filter,
-                                                           const dto::Pagination& page) = 0;
+                                                            const dto::Pagination& page) = 0;
     [[nodiscard]] virtual std::int64_t count(const AdminUserFilter& filter) = 0;
 
     // Assigns a role, returning the previous one so the caller can emit an
     // accurate audit event. Throws NotFoundException when the user is missing.
-    [[nodiscard]] virtual security::Role set_role(std::int64_t user_id,
-                                                 security::Role role) = 0;
+    [[nodiscard]] virtual security::Role set_role(std::int64_t user_id, security::Role role) = 0;
 
     // Suspends or reinstates an account. `reason` and `actor_id` are recorded
     // only when banning. Throws NotFoundException when the user is missing.
-    virtual void set_banned(std::int64_t user_id, bool banned,
+    virtual void set_banned(std::int64_t user_id,
+                            bool banned,
                             std::optional<std::string> reason,
                             std::optional<std::int64_t> actor_id) = 0;
 

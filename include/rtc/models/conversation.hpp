@@ -28,8 +28,10 @@ enum class ConversationType {
 
 [[nodiscard]] constexpr std::optional<ConversationType> conversation_type_from_string(
     std::string_view value) noexcept {
-    if (value == "direct") return ConversationType::kDirect;
-    if (value == "group") return ConversationType::kGroup;
+    if (value == "direct")
+        return ConversationType::kDirect;
+    if (value == "group")
+        return ConversationType::kGroup;
     return std::nullopt;
 }
 

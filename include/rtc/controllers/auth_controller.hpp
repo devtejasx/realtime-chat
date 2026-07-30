@@ -23,8 +23,9 @@ namespace rtc::controllers {
 // On register/login a session is recorded (via SessionService) and its id is
 // returned so clients can manage devices and rotate refresh tokens.
 class AuthController {
-public:
-    AuthController(services::AuthService& auth_service, services::UserService& user_service,
+  public:
+    AuthController(services::AuthService& auth_service,
+                   services::UserService& user_service,
                    services::SessionService& session_service,
                    middlewares::AuthMiddleware& auth_guard) noexcept
         : auth_service_(auth_service),
@@ -45,7 +46,7 @@ public:
 
     void register_routes(http::App& app);
 
-private:
+  private:
     [[nodiscard]] events::IEventPublisher& publisher() const noexcept;
 
     services::AuthService& auth_service_;

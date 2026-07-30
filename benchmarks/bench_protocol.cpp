@@ -3,12 +3,12 @@
 // This is the throughput-critical path: every message sent produces one encode per
 // distinct protocol version among the recipients, plus one socket write per
 // recipient. The numbers here set the ceiling on messages/second per instance.
+#include <benchmark/benchmark.h>
+
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
-
-#include <benchmark/benchmark.h>
-#include <nlohmann/json.hpp>
 
 #include "rtc/realtime/protocol.hpp"
 

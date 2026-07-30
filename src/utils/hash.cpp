@@ -1,9 +1,9 @@
 #include "rtc/utils/hash.hpp"
 
+#include <openssl/sha.h>
+
 #include <array>
 #include <cstdint>
-
-#include <openssl/sha.h>
 
 namespace rtc::utils {
 

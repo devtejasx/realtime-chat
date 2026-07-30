@@ -2,11 +2,10 @@
 
 #include <chrono>
 #include <cstddef>
-#include <string>
-
 #include <pqxx/result>
 #include <pqxx/row>
 #include <pqxx/transaction>
+#include <string>
 
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/logging/logger.hpp"
@@ -24,12 +23,14 @@ constexpr const char* kColumns =
     "EXTRACT(EPOCH FROM banned_at)::bigint  AS banned_epoch";
 
 [[nodiscard]] std::optional<std::string> read_opt_string(const pqxx::field& field) {
-    if (field.is_null()) return std::nullopt;
+    if (field.is_null())
+        return std::nullopt;
     return field.as<std::string>();
 }
 
 [[nodiscard]] std::optional<std::int64_t> read_opt_int(const pqxx::field& field) {
-    if (field.is_null()) return std::nullopt;
+    if (field.is_null())
+        return std::nullopt;
     return field.as<std::int64_t>();
 }
 
@@ -45,7 +46,8 @@ constexpr const char* kColumns =
     if (const auto parsed = security::parse_role(raw); parsed.has_value()) {
         return *parsed;
     }
-    RTC_LOG_WARN("Unrecognised role '{}' in users.role; treating as '{}'", raw,
+    RTC_LOG_WARN("Unrecognised role '{}' in users.role; treating as '{}'",
+                 raw,
                  security::to_string(security::kDefaultRole));
     return security::kDefaultRole;
 }
@@ -134,10 +136,12 @@ std::vector<AdminUserRecord> PgUserAdminRepository::list(const AdminUserFilter& 
                                                          const dto::Pagination& page) {
     return with_transaction([&](pqxx::work& txn) -> std::vector<AdminUserRecord> {
         const std::string sql = std::string("SELECT ") + kColumns + " FROM users" +
-                                kFilterPredicate +
-                                " ORDER BY id DESC LIMIT $4 OFFSET $5";
-        const auto result = txn.exec_params(sql, like_pattern(filter.query),
-                                            role_text(filter.role), filter.banned, page.limit,
+                                kFilterPredicate + " ORDER BY id DESC LIMIT $4 OFFSET $5";
+        const auto result = txn.exec_params(sql,
+                                            like_pattern(filter.query),
+                                            role_text(filter.role),
+                                            filter.banned,
+                                            page.limit,
                                             page.offset);
         std::vector<AdminUserRecord> out;
         out.reserve(static_cast<std::size_t>(result.size()));
@@ -152,8 +156,8 @@ std::int64_t PgUserAdminRepository::count(const AdminUserFilter& filter) {
     return with_transaction([&](pqxx::work& txn) -> std::int64_t {
         const std::string sql =
             std::string("SELECT COUNT(*) AS total FROM users") + kFilterPredicate;
-        const auto row = txn.exec_params1(sql, like_pattern(filter.query), role_text(filter.role),
-                                          filter.banned);
+        const auto row = txn.exec_params1(
+            sql, like_pattern(filter.query), role_text(filter.role), filter.banned);
         return row["total"].as<std::int64_t>();
     });
 }
@@ -171,7 +175,8 @@ security::Role PgUserAdminRepository::set_role(std::int64_t user_id, security::R
             "FROM (SELECT id, role FROM users WHERE id = $1 FOR UPDATE) AS previous "
             "WHERE u.id = previous.id "
             "RETURNING previous.role AS previous_role",
-            user_id, std::string(security::to_string(role)));
+            user_id,
+            std::string(security::to_string(role)));
         if (result.empty()) {
             throw rtc::errors::NotFoundException("User not found",
                                                  "user_id=" + std::to_string(user_id));
@@ -180,7 +185,8 @@ security::Role PgUserAdminRepository::set_role(std::int64_t user_id, security::R
     });
 }
 
-void PgUserAdminRepository::set_banned(std::int64_t user_id, bool banned,
+void PgUserAdminRepository::set_banned(std::int64_t user_id,
+                                       bool banned,
                                        std::optional<std::string> reason,
                                        std::optional<std::int64_t> actor_id) {
     with_transaction([&](pqxx::work& txn) -> void {
@@ -193,7 +199,10 @@ void PgUserAdminRepository::set_banned(std::int64_t user_id, bool banned,
             "  banned_by  = CASE WHEN $2::boolean THEN $4::bigint ELSE NULL END, "
             "  updated_at = now() "
             "WHERE id = $1 RETURNING id",
-            user_id, banned, reason, actor_id);
+            user_id,
+            banned,
+            reason,
+            actor_id);
         if (result.empty()) {
             throw rtc::errors::NotFoundException("User not found",
                                                  "user_id=" + std::to_string(user_id));

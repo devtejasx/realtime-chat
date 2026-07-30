@@ -3,11 +3,10 @@
 #include <array>
 #include <atomic>
 #include <cstddef>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string_view>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/errors/exceptions.hpp"
 
@@ -36,8 +35,8 @@ inline constexpr std::size_t kFeatureCount = static_cast<std::size_t>(Feature::k
 // that seeds it, and the default when that variable is unset.
 struct FeatureDescriptor {
     Feature feature;
-    std::string_view name;      // "reactions" — the name used in the admin API
-    std::string_view env_var;   // "ENABLE_REACTIONS"
+    std::string_view name;     // "reactions" — the name used in the admin API
+    std::string_view env_var;  // "ENABLE_REACTIONS"
     bool default_enabled;
     std::string_view description;
 };
@@ -45,17 +44,29 @@ struct FeatureDescriptor {
 // The registry. Defaults are deliberately "on" for everything the service
 // already shipped, so introducing flags changes no existing behaviour.
 inline constexpr std::array<FeatureDescriptor, kFeatureCount> kFeatureRegistry{{
-    {Feature::kReactions, "reactions", "ENABLE_REACTIONS", true,
+    {Feature::kReactions,
+     "reactions",
+     "ENABLE_REACTIONS",
+     true,
      "Message reactions (add/remove emoji)"},
     {Feature::kUploads, "uploads", "ENABLE_UPLOADS", true, "Attachment upload and download"},
-    {Feature::kNotifications, "notifications", "ENABLE_NOTIFICATIONS", true,
+    {Feature::kNotifications,
+     "notifications",
+     "ENABLE_NOTIFICATIONS",
+     true,
      "Notification creation, listing and push delivery"},
     {Feature::kTyping, "typing", "ENABLE_TYPING", true, "Typing indicators over WebSocket"},
     {Feature::kSearch, "search", "ENABLE_SEARCH", true, "Full-text message and user search"},
-    {Feature::kReadReceipts, "read_receipts", "ENABLE_READ_RECEIPTS", true,
+    {Feature::kReadReceipts,
+     "read_receipts",
+     "ENABLE_READ_RECEIPTS",
+     true,
      "Delivery and read receipts"},
     {Feature::kPresence, "presence", "ENABLE_PRESENCE", true, "Online/offline presence tracking"},
-    {Feature::kAuditLog, "audit_log", "ENABLE_AUDIT_LOG", true,
+    {Feature::kAuditLog,
+     "audit_log",
+     "ENABLE_AUDIT_LOG",
+     true,
      "Persisting audit records for security-relevant actions"},
 }};
 
@@ -74,7 +85,7 @@ inline constexpr std::array<FeatureDescriptor, kFeatureCount> kFeatureRegistry{{
 // should look *absent* rather than forbidden — 403 would tell a caller the
 // endpoint exists and they merely lack rights, which is misleading here.
 class FeatureDisabledException : public errors::AppException {
-public:
+  public:
     explicit FeatureDisabledException(std::string_view feature_name)
         : errors::AppException(errors::ErrorType::kNotFound,
                                "Feature is disabled: " + std::string(feature_name),
@@ -92,7 +103,7 @@ public:
 // Injected by reference wherever needed (it is not a singleton); Application
 // owns the single instance.
 class FeatureFlags {
-public:
+  public:
     // All flags at their registry defaults.
     FeatureFlags() noexcept;
 
@@ -131,7 +142,7 @@ public:
     // Names of the currently-enabled features, for startup logging.
     [[nodiscard]] std::vector<std::string_view> enabled_names() const;
 
-private:
+  private:
     // std::atomic<bool> is not copyable, so the array is built in place.
     std::array<std::atomic<bool>, kFeatureCount> flags_;
 };

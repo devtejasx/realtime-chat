@@ -1,11 +1,11 @@
+#include <gtest/gtest.h>
+
 #include <atomic>
 #include <chrono>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "rtc/events/domain_event.hpp"
 #include "rtc/events/event_dispatcher.hpp"
@@ -24,7 +24,7 @@ using rtc::events::InProcessEventBus;
 
 // Records every event it receives, for a declared set of types.
 class RecordingSubscriber final : public rtc::events::IEventSubscriber {
-public:
+  public:
     explicit RecordingSubscriber(std::vector<EventType> types, std::string name = "recorder")
         : name_(std::move(name)) {
         for (const EventType type : types) {
@@ -40,14 +40,14 @@ public:
 
     std::vector<DomainEvent> received;
 
-private:
+  private:
     std::string name_;
     std::bitset<rtc::events::kEventTypeCount> interest_;
 };
 
 // Always throws, to prove failures are isolated.
 class ThrowingSubscriber final : public rtc::events::IEventSubscriber {
-public:
+  public:
     [[nodiscard]] bool interested_in(EventType) const noexcept override { return true; }
     void handle(const DomainEvent&) override {
         ++calls;
@@ -112,9 +112,12 @@ TEST(DomainEvent, SerialisesToJson) {
 }
 
 TEST(DomainEvent, TypedBuildersPopulateTheirPayload) {
-    const auto sent = rtc::events::MessageSent{
-        .message_id = 11, .conversation_id = 5, .sender_id = 3,
-        .recipient_ids = {3, 4}, .content_length = 12}.to_event();
+    const auto sent = rtc::events::MessageSent{.message_id = 11,
+                                               .conversation_id = 5,
+                                               .sender_id = 3,
+                                               .recipient_ids = {3, 4},
+                                               .content_length = 12}
+                          .to_event();
     EXPECT_EQ(sent.type, EventType::kMessageSent);
     EXPECT_EQ(sent.payload["message_id"], 11);
     EXPECT_EQ(sent.payload["content_length"], 12);
@@ -122,8 +125,10 @@ TEST(DomainEvent, TypedBuildersPopulateTheirPayload) {
     // Content itself must never travel on the bus.
     EXPECT_FALSE(sent.payload.contains("content"));
 
-    const auto banned = rtc::events::AdminAction{
-        .actor_id = 1, .action = "user.ban", .target_type = "user", .target_id = "9"}.to_event();
+    const auto banned =
+        rtc::events::AdminAction{
+            .actor_id = 1, .action = "user.ban", .target_type = "user", .target_id = "9"}
+            .to_event();
     EXPECT_EQ(banned.type, EventType::kAdminAction);
     EXPECT_EQ(banned.payload["action"], "user.ban");
     EXPECT_EQ(banned.payload["target_id"], "9");
@@ -203,8 +208,8 @@ TEST(InProcessEventBus, AsynchronousModeDispatchesOnTheWorkerPool) {
 
     EventDispatcher dispatcher;
     std::atomic<int> seen{0};
-    FunctionSubscriber counter("counter", {EventType::kMessageSent},
-                              [&seen](const DomainEvent&) { ++seen; });
+    FunctionSubscriber counter(
+        "counter", {EventType::kMessageSent}, [&seen](const DomainEvent&) { ++seen; });
     dispatcher.subscribe(counter);
 
     InProcessEventBus bus(dispatcher, executor);

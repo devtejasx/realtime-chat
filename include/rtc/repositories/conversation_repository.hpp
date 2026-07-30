@@ -16,7 +16,7 @@ namespace rtc::repositories {
 // mutations and multi-row creations run in a single transaction inside the
 // implementation, so callers never see partially-created state.
 class IConversationRepository {
-public:
+  public:
     virtual ~IConversationRepository() = default;
 
     // Returns the existing direct conversation between the two users, creating
@@ -28,7 +28,8 @@ public:
     // Creates a group owned by `owner_id`, adding the owner plus `member_ids`
     // (deduplicated) as participants. Returns the new conversation.
     [[nodiscard]] virtual models::Conversation create_group(
-        std::int64_t owner_id, std::string_view name,
+        std::int64_t owner_id,
+        std::string_view name,
         const std::vector<std::int64_t>& member_ids) = 0;
 
     [[nodiscard]] virtual std::optional<models::Conversation> find_by_id(std::int64_t id) = 0;
@@ -45,8 +46,7 @@ public:
         std::int64_t conversation_id) = 0;
 
     // All conversation ids the user belongs to (used to join realtime rooms).
-    [[nodiscard]] virtual std::vector<std::int64_t> list_conversation_ids(
-        std::int64_t user_id) = 0;
+    [[nodiscard]] virtual std::vector<std::int64_t> list_conversation_ids(std::int64_t user_id) = 0;
 
     // Distinct user ids that share at least one conversation with `user_id`
     // (the audience for that user's presence changes).
@@ -59,7 +59,8 @@ public:
                                               std::int64_t user_id) = 0;
 
     // Adds a member; throws ConflictException if already present.
-    virtual void add_participant(std::int64_t conversation_id, std::int64_t user_id,
+    virtual void add_participant(std::int64_t conversation_id,
+                                 std::int64_t user_id,
                                  models::ParticipantRole role) = 0;
 
     virtual void remove_participant(std::int64_t conversation_id, std::int64_t user_id) = 0;
@@ -68,14 +69,14 @@ public:
 
     // Transfers group ownership: sets conversations.owner_id and promotes the
     // new owner to role 'owner', demoting any previous owner to 'member'.
-    virtual void transfer_ownership(std::int64_t conversation_id,
-                                    std::int64_t new_owner_id) = 0;
+    virtual void transfer_ownership(std::int64_t conversation_id, std::int64_t new_owner_id) = 0;
 
     // Hard-deletes a conversation (participants/messages cascade).
     virtual void remove(std::int64_t conversation_id) = 0;
 
     // Advances the last-read high-water mark for a participant (never regresses).
-    virtual void update_last_read(std::int64_t conversation_id, std::int64_t user_id,
+    virtual void update_last_read(std::int64_t conversation_id,
+                                  std::int64_t user_id,
                                   std::int64_t message_id) = 0;
 };
 

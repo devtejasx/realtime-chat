@@ -2,12 +2,11 @@
 
 #include <charconv>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/dto/pagination.hpp"
 #include "rtc/errors/exceptions.hpp"
@@ -24,7 +23,7 @@ namespace {
 using security::Permission;
 
 [[nodiscard]] std::optional<std::int64_t> optional_int_param(const crow::request& req,
-                                                            const char* name) {
+                                                             const char* name) {
     const char* raw = req.url_params.get(name);
     if (raw == nullptr) {
         return std::nullopt;
@@ -48,8 +47,7 @@ using security::Permission;
     return std::string(raw);
 }
 
-[[nodiscard]] std::optional<bool> optional_bool_param(const crow::request& req,
-                                                      const char* name) {
+[[nodiscard]] std::optional<bool> optional_bool_param(const crow::request& req, const char* name) {
     const char* raw = req.url_params.get(name);
     if (raw == nullptr) {
         return std::nullopt;
@@ -159,7 +157,7 @@ void AdminController::register_user_routes(http::App& app) {
                 const auto record = deps_.users->find(user_id);
                 if (!record) {
                     throw errors::NotFoundException("User not found",
-                                                     "user_id=" + std::to_string(user_id));
+                                                    "user_id=" + std::to_string(user_id));
                 }
                 return http::json_response(200, user_to_json(*record));
             });
@@ -199,12 +197,14 @@ void AdminController::register_user_routes(http::App& app) {
                     .actor_id = actor_id,
                     .previous_role = std::string(security::to_string(previous)),
                     .new_role = std::string(security::to_string(*target_role)),
-                }.to_event());
+                }
+                                             .to_event());
 
                 return http::json_response(
-                    200, nlohmann::json{{"user_id", user_id},
-                                        {"previous_role", security::to_string(previous)},
-                                        {"role", security::to_string(*target_role)}});
+                    200,
+                    nlohmann::json{{"user_id", user_id},
+                                   {"previous_role", security::to_string(previous)},
+                                   {"role", security::to_string(*target_role)}});
             });
         });
 
@@ -241,13 +241,14 @@ void AdminController::register_user_routes(http::App& app) {
                     .action = "user.ban",
                     .target_type = "user",
                     .target_id = std::to_string(user_id),
-                    .details = {{"reason", reason.value_or("")},
-                                {"sessions_revoked", revoked}},
-                }.to_event());
+                    .details = {{"reason", reason.value_or("")}, {"sessions_revoked", revoked}},
+                }
+                                             .to_event());
 
-                return http::json_response(200, nlohmann::json{{"user_id", user_id},
-                                                               {"banned", true},
-                                                               {"sessions_revoked", revoked}});
+                return http::json_response(
+                    200,
+                    nlohmann::json{
+                        {"user_id", user_id}, {"banned", true}, {"sessions_revoked", revoked}});
             });
         });
 
@@ -263,10 +264,11 @@ void AdminController::register_user_routes(http::App& app) {
                     .action = "user.unban",
                     .target_type = "user",
                     .target_id = std::to_string(user_id),
-                }.to_event());
+                }
+                                             .to_event());
 
-                return http::json_response(
-                    200, nlohmann::json{{"user_id", user_id}, {"banned", false}});
+                return http::json_response(200,
+                                           nlohmann::json{{"user_id", user_id}, {"banned", false}});
             });
         });
 
@@ -285,14 +287,13 @@ void AdminController::register_user_routes(http::App& app) {
                         {"ip", session.ip.value_or("")},
                     });
                 }
-                return http::json_response(200, nlohmann::json{{"user_id", user_id},
-                                                               {"sessions", std::move(items)}});
+                return http::json_response(
+                    200, nlohmann::json{{"user_id", user_id}, {"sessions", std::move(items)}});
             });
         });
 
     CROW_ROUTE(app, "/api/admin/users/<int>/sessions")
-        .methods(crow::HTTPMethod::Delete)([this](const crow::request& req,
-                                                  std::int64_t user_id) {
+        .methods(crow::HTTPMethod::Delete)([this](const crow::request& req, std::int64_t user_id) {
             return http::run_guarded([&] {
                 const std::int64_t actor_id = authorize(req, Permission::kRevokeSessions);
                 const std::int64_t revoked = deps_.sessions->revoke_all(user_id);
@@ -303,7 +304,8 @@ void AdminController::register_user_routes(http::App& app) {
                     .target_type = "user",
                     .target_id = std::to_string(user_id),
                     .details = {{"revoked", revoked}},
-                }.to_event());
+                }
+                                             .to_event());
 
                 return http::json_response(
                     200, nlohmann::json{{"user_id", user_id}, {"revoked", revoked}});
@@ -313,38 +315,39 @@ void AdminController::register_user_routes(http::App& app) {
 
 void AdminController::register_group_routes(http::App& app) {
     CROW_ROUTE(app, "/api/admin/conversations/<int>")
-        .methods(crow::HTTPMethod::Get)([this](const crow::request& req,
-                                               std::int64_t conversation_id) {
-            return http::run_guarded([&] {
-                (void) authorize(req, Permission::kViewAnyConversation);
-                const auto conversation = deps_.conversations->find_by_id(conversation_id);
-                if (!conversation) {
-                    throw errors::NotFoundException(
-                        "Conversation not found",
-                        "conversation_id=" + std::to_string(conversation_id));
-                }
+        .methods(crow::HTTPMethod::Get)(
+            [this](const crow::request& req, std::int64_t conversation_id) {
+                return http::run_guarded([&] {
+                    (void) authorize(req, Permission::kViewAnyConversation);
+                    const auto conversation = deps_.conversations->find_by_id(conversation_id);
+                    if (!conversation) {
+                        throw errors::NotFoundException(
+                            "Conversation not found",
+                            "conversation_id=" + std::to_string(conversation_id));
+                    }
 
-                nlohmann::json participants = nlohmann::json::array();
-                for (const auto& participant :
-                     deps_.conversations->list_participants(conversation_id)) {
-                    participants.push_back({{"user_id", participant.user_id},
-                                            {"role", models::to_string(participant.role)},
-                                            {"joined_at",
-                                             utils::to_iso8601(participant.joined_at)}});
-                }
+                    nlohmann::json participants = nlohmann::json::array();
+                    for (const auto& participant :
+                         deps_.conversations->list_participants(conversation_id)) {
+                        participants.push_back(
+                            {{"user_id", participant.user_id},
+                             {"role", models::to_string(participant.role)},
+                             {"joined_at", utils::to_iso8601(participant.joined_at)}});
+                    }
 
-                return http::json_response(
-                    200, nlohmann::json{
-                             {"id", conversation->id},
-                             {"is_group", conversation->is_group()},
-                             {"name", conversation->name.value_or("")},
-                             {"owner_id", conversation->owner_id.has_value()
-                                              ? nlohmann::json(*conversation->owner_id)
-                                              : nlohmann::json()},
-                             {"created_at", utils::to_iso8601(conversation->created_at)},
-                             {"participants", std::move(participants)}});
+                    return http::json_response(
+                        200,
+                        nlohmann::json{{"id", conversation->id},
+                                       {"is_group", conversation->is_group()},
+                                       {"name", conversation->name.value_or("")},
+                                       {"owner_id",
+                                        conversation->owner_id.has_value()
+                                            ? nlohmann::json(*conversation->owner_id)
+                                            : nlohmann::json()},
+                                       {"created_at", utils::to_iso8601(conversation->created_at)},
+                                       {"participants", std::move(participants)}});
+                });
             });
-        });
 
     CROW_ROUTE(app, "/api/admin/conversations/<int>")
         .methods(crow::HTTPMethod::Delete)([this](const crow::request& req,
@@ -373,7 +376,8 @@ void AdminController::register_group_routes(http::App& app) {
                     .target_type = "conversation",
                     .target_id = std::to_string(conversation_id),
                     .details = {{"participant_count", participants.size()}},
-                }.to_event());
+                }
+                                             .to_event());
 
                 return http::json_response(
                     200, nlohmann::json{{"conversation_id", conversation_id}, {"deleted", true}});
@@ -407,11 +411,9 @@ void AdminController::register_operations_routes(http::App& app) {
                     nlohmann::json{
                         {"node_id", cluster != nullptr ? std::string(cluster->node_id()) : "local"},
                         {"distributed", cluster != nullptr && cluster->is_distributed()},
-                        {"cluster_published",
-                         cluster != nullptr ? cluster->published_count() : 0},
+                        {"cluster_published", cluster != nullptr ? cluster->published_count() : 0},
                         {"cluster_received", cluster != nullptr ? cluster->received_count() : 0},
-                        {"connection_count",
-                         deps_.connections->sessions().session_count()},
+                        {"connection_count", deps_.connections->sessions().session_count()},
                         {"connections", std::move(sessions)}});
             });
         });
@@ -421,10 +423,11 @@ void AdminController::register_operations_routes(http::App& app) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewSystemMetrics);
                 return http::json_response(
-                    200, nlohmann::json{{"backend", deps_.cache->store().backend_name()},
-                                        {"hits", deps_.cache->hits()},
-                                        {"misses", deps_.cache->misses()},
-                                        {"hit_ratio", deps_.cache->hit_ratio()}});
+                    200,
+                    nlohmann::json{{"backend", deps_.cache->store().backend_name()},
+                                   {"hits", deps_.cache->hits()},
+                                   {"misses", deps_.cache->misses()},
+                                   {"hit_ratio", deps_.cache->hit_ratio()}});
             });
         });
 
@@ -461,16 +464,15 @@ void AdminController::register_operations_routes(http::App& app) {
                 }
 
                 return http::json_response(
-                    200, nlohmann::json{
-                             {"version", RTC_VERSION},
-                             {"uptime_seconds", deps_.metrics->uptime_seconds()},
-                             {"http_requests_total",
-                              deps_.metrics->counter("rtc_http_requests_total")},
-                             {"http_4xx_total", deps_.metrics->counter("rtc_http_4xx_total")},
-                             {"http_5xx_total", deps_.metrics->counter("rtc_http_5xx_total")},
-                             {"websocket_connections",
-                              deps_.connections->sessions().session_count()},
-                             {"users_by_role", std::move(roles)}});
+                    200,
+                    nlohmann::json{
+                        {"version", RTC_VERSION},
+                        {"uptime_seconds", deps_.metrics->uptime_seconds()},
+                        {"http_requests_total", deps_.metrics->counter("rtc_http_requests_total")},
+                        {"http_4xx_total", deps_.metrics->counter("rtc_http_4xx_total")},
+                        {"http_5xx_total", deps_.metrics->counter("rtc_http_5xx_total")},
+                        {"websocket_connections", deps_.connections->sessions().session_count()},
+                        {"users_by_role", std::move(roles)}});
             });
         });
 
@@ -485,11 +487,11 @@ void AdminController::register_operations_routes(http::App& app) {
                 for (const auto& record : deps_.audit->search(filter, page)) {
                     items.push_back(services::AuditService::to_json(record));
                 }
-                return http::json_response(
-                    200, nlohmann::json{{"total", deps_.audit->count(filter)},
-                                        {"limit", page.limit},
-                                        {"offset", page.offset},
-                                        {"records", std::move(items)}});
+                return http::json_response(200,
+                                           nlohmann::json{{"total", deps_.audit->count(filter)},
+                                                          {"limit", page.limit},
+                                                          {"offset", page.offset},
+                                                          {"records", std::move(items)}});
             });
         });
 
@@ -511,15 +513,14 @@ void AdminController::register_operations_routes(http::App& app) {
         });
 
     CROW_ROUTE(app, "/api/admin/features/<string>")
-        .methods(crow::HTTPMethod::Put)([this](const crow::request& req,
-                                                const std::string& name) {
+        .methods(crow::HTTPMethod::Put)([this](const crow::request& req, const std::string& name) {
             return http::run_guarded([&] {
                 const std::int64_t actor_id = authorize(req, Permission::kManageFeatureFlags);
 
                 const auto feature = features::parse_feature(name);
                 if (!feature) {
                     throw errors::NotFoundException("Unknown feature flag: " + name,
-                                                     "feature=" + name);
+                                                    "feature=" + name);
                 }
                 const auto body = http::parse_json_body(req);
                 const auto enabled_it = body.find("enabled");
@@ -536,11 +537,13 @@ void AdminController::register_operations_routes(http::App& app) {
                     .target_type = "feature",
                     .target_id = name,
                     .details = {{"previous", previous}, {"enabled", enabled}},
-                }.to_event());
+                }
+                                             .to_event());
 
-                return http::json_response(200, nlohmann::json{{"feature", name},
-                                                               {"previous", previous},
-                                                               {"enabled", enabled}});
+                return http::json_response(
+                    200,
+                    nlohmann::json{
+                        {"feature", name}, {"previous", previous}, {"enabled", enabled}});
             });
         });
 }

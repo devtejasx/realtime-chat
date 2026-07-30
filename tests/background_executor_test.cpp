@@ -1,10 +1,10 @@
 #include "rtc/jobs/background_executor.hpp"
 
+#include <gtest/gtest.h>
+
 #include <atomic>
 #include <chrono>
 #include <thread>
-
-#include <gtest/gtest.h>
 
 namespace {
 

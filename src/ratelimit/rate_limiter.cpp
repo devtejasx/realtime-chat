@@ -7,8 +7,10 @@
 
 namespace rtc::ratelimit {
 
-RateLimiter::Result RateLimiter::check(std::string_view bucket, std::string_view identity,
-                                       std::int64_t max, std::chrono::seconds window) {
+RateLimiter::Result RateLimiter::check(std::string_view bucket,
+                                       std::string_view identity,
+                                       std::int64_t max,
+                                       std::chrono::seconds window) {
     Result result;
     result.limit = max;
     if (!enabled_ || max <= 0) {
@@ -30,8 +32,10 @@ RateLimiter::Result RateLimiter::check(std::string_view bucket, std::string_view
     return result;
 }
 
-RateLimiter::Result RateLimiter::enforce(std::string_view bucket, std::string_view identity,
-                                         std::int64_t max, std::chrono::seconds window) {
+RateLimiter::Result RateLimiter::enforce(std::string_view bucket,
+                                         std::string_view identity,
+                                         std::int64_t max,
+                                         std::chrono::seconds window) {
     const Result result = check(bucket, identity, max, window);
     if (!result.allowed) {
         throw rtc::errors::RateLimitException(

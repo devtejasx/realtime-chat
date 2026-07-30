@@ -27,8 +27,10 @@ enum class ParticipantRole {
 
 [[nodiscard]] constexpr std::optional<ParticipantRole> participant_role_from_string(
     std::string_view value) noexcept {
-    if (value == "owner") return ParticipantRole::kOwner;
-    if (value == "member") return ParticipantRole::kMember;
+    if (value == "owner")
+        return ParticipantRole::kOwner;
+    if (value == "member")
+        return ParticipantRole::kMember;
     return std::nullopt;
 }
 

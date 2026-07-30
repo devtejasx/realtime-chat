@@ -24,7 +24,8 @@ void ReadReceiptService::mark_delivered(std::int64_t actor_id, std::int64_t mess
                          dto::ReceiptResponse::from(receipt).to_json());
 }
 
-void ReadReceiptService::mark_read(std::int64_t actor_id, std::int64_t conversation_id,
+void ReadReceiptService::mark_read(std::int64_t actor_id,
+                                   std::int64_t conversation_id,
                                    std::int64_t up_to_message_id) {
     if (!conversations_.is_participant(conversation_id, actor_id)) {
         throw errors::NotFoundException("Conversation not found");

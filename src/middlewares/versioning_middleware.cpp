@@ -28,8 +28,7 @@ ApiVersionRewrite parse_versioned_path(std::string_view path) {
     // Consume the digit run immediately after "/api/v".
     std::size_t cursor = kVersionedPrefix.size();
     const std::size_t digits_begin = cursor;
-    while (cursor < path.size() &&
-           std::isdigit(static_cast<unsigned char>(path[cursor])) != 0) {
+    while (cursor < path.size() && std::isdigit(static_cast<unsigned char>(path[cursor])) != 0) {
         ++cursor;
     }
     if (cursor == digits_begin) {

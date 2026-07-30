@@ -17,7 +17,7 @@ namespace rtc::services {
 // transport stays in the controller. Dependencies are injected as interfaces
 // so the service is unit-testable with fakes.
 class UserService {
-public:
+  public:
     UserService(repositories::IUserRepository& repository,
                 const security::IPasswordHasher& hasher) noexcept
         : repository_(repository), hasher_(hasher) {}
@@ -39,10 +39,9 @@ public:
     // for the given user, returning the refreshed user. Throws
     // ValidationException on invalid input and NotFoundException if the user is
     // gone. This is the single entry point both REST and future callers use.
-    [[nodiscard]] models::User update_profile(std::int64_t id,
-                                              dto::UpdateProfileRequest request);
+    [[nodiscard]] models::User update_profile(std::int64_t id, dto::UpdateProfileRequest request);
 
-private:
+  private:
     repositories::IUserRepository& repository_;
     const security::IPasswordHasher& hasher_;
 };

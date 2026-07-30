@@ -51,9 +51,10 @@ bool WebSocketController::authenticate(const crow::request& req, void** userdata
     }
     try {
         const auto claims = token_service_.verify(*token, security::TokenType::kAccess);
-        *userdata = new realtime::AuthContext{
-            claims.user_id, claims.username,
-            realtime::protocol::negotiate(requested_protocol(req))};
+        *userdata =
+            new realtime::AuthContext{claims.user_id,
+                                      claims.username,
+                                      realtime::protocol::negotiate(requested_protocol(req))};
         return true;
     } catch (const std::exception&) {
         return false;  // reject the upgrade on any verification failure
@@ -84,13 +85,13 @@ void WebSocketController::configure_route(Rule& rule) {
             }
             dispatcher_.on_open(conn, ctx->user_id, ctx->username, ctx->protocol_version);
         })
-        .onmessage([this](crow::websocket::connection& conn, const std::string& data,
-                          bool is_binary) {
-            if (is_binary) {
-                return;  // this protocol is text/JSON only
-            }
-            dispatcher_.on_message(conn, data);
-        })
+        .onmessage(
+            [this](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
+                if (is_binary) {
+                    return;  // this protocol is text/JSON only
+                }
+                dispatcher_.on_message(conn, data);
+            })
         .onclose([this](crow::websocket::connection& conn, const std::string& reason) {
             dispatcher_.on_close(conn);
             auto* ctx = static_cast<realtime::AuthContext*>(conn.userdata());

@@ -14,7 +14,7 @@ namespace rtc::cache {
 // reference-counts a user's connections across the whole fleet so a user is
 // reported offline only when their last connection (on any node) closes.
 class PresenceCache {
-public:
+  public:
     explicit PresenceCache(ICacheStore& store) noexcept : store_(store) {}
 
     // Registers a connection for the user; returns true if this was their first
@@ -29,7 +29,7 @@ public:
     [[nodiscard]] std::vector<std::int64_t> online_user_ids();
     [[nodiscard]] std::size_t online_count();
 
-private:
+  private:
     ICacheStore& store_;
 };
 

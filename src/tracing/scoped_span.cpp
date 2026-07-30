@@ -14,7 +14,9 @@ thread_local const SpanContext* t_current = nullptr;
 
 }  // namespace
 
-const SpanContext* current_span_context() noexcept { return t_current; }
+const SpanContext* current_span_context() noexcept {
+    return t_current;
+}
 
 SpanScope::SpanScope(const SpanContext& context) noexcept {
     if (context.is_valid()) {
@@ -104,16 +106,14 @@ ScopedSpan ws_scope(std::string event) {
 }
 
 ScopedSpan broker_publish_scope(std::string subject) {
-    auto scope =
-        ScopedSpan(tracer().start_child_span("publish " + subject, SpanKind::kProducer));
+    auto scope = ScopedSpan(tracer().start_child_span("publish " + subject, SpanKind::kProducer));
     scope.span().set_attribute("messaging.operation", std::string("publish"));
     scope.span().set_attribute("messaging.destination.name", std::move(subject));
     return scope;
 }
 
 ScopedSpan broker_consume_scope(std::string subject) {
-    auto scope =
-        ScopedSpan(tracer().start_child_span("process " + subject, SpanKind::kConsumer));
+    auto scope = ScopedSpan(tracer().start_child_span("process " + subject, SpanKind::kConsumer));
     scope.span().set_attribute("messaging.operation", std::string("process"));
     scope.span().set_attribute("messaging.destination.name", std::move(subject));
     return scope;

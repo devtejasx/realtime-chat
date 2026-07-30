@@ -1,10 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/dto/pagination.hpp"
 #include "rtc/models/notification.hpp"
@@ -13,7 +12,7 @@ namespace rtc::repositories {
 
 // Persistence boundary for notifications.
 class INotificationRepository {
-public:
+  public:
     virtual ~INotificationRepository() = default;
 
     [[nodiscard]] virtual models::Notification create(std::int64_t user_id,

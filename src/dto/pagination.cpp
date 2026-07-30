@@ -24,8 +24,7 @@ using rtc::errors::ValidationException;
     std::int64_t value = 0;
     const auto [ptr, ec] = std::from_chars(view.data(), view.data() + view.size(), value);
     if (ec != std::errc{} || ptr != view.data() + view.size()) {
-        throw ValidationException("Invalid integer query parameter",
-                                  std::string("param=") + name);
+        throw ValidationException("Invalid integer query parameter", std::string("param=") + name);
     }
     return value;
 }

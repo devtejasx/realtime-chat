@@ -1,10 +1,9 @@
 #include "rtc/controllers/auth_controller.hpp"
 
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <utility>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/dto/auth_dto.hpp"
 #include "rtc/dto/user_dto.hpp"
@@ -18,7 +17,8 @@ namespace rtc::controllers {
 namespace {
 
 [[nodiscard]] std::optional<std::string> non_empty(std::string value) {
-    if (value.empty()) return std::nullopt;
+    if (value.empty())
+        return std::nullopt;
     return value;
 }
 
@@ -42,9 +42,11 @@ void AuthController::register_routes(http::App& app) {
     // Records a session for a freshly authenticated user and returns the augmented
     // response JSON (adds "session_id").
     const auto with_session = [this](const crow::request& req, const dto::AuthResponse& response) {
-        const std::string session_id = session_service_.record(
-            response.user.id, response.tokens.refresh_token,
-            non_empty(req.get_header_value("User-Agent")), non_empty(req.remote_ip_address));
+        const std::string session_id =
+            session_service_.record(response.user.id,
+                                    response.tokens.refresh_token,
+                                    non_empty(req.get_header_value("User-Agent")),
+                                    non_empty(req.remote_ip_address));
         auto json = response.to_json();
         json["session_id"] = session_id;
         return json;
@@ -60,7 +62,8 @@ void AuthController::register_routes(http::App& app) {
                     .user_id = response.user.id,
                     .username = response.user.username,
                     .email = response.user.email,
-                }.to_event());
+                }
+                                        .to_event());
                 return http::json_response(201, std::move(body));
             });
         });
@@ -78,7 +81,8 @@ void AuthController::register_routes(http::App& app) {
                     .username = response.user.username,
                     .ip = req.remote_ip_address,
                     .user_agent = req.get_header_value("User-Agent"),
-                }.to_event());
+                }
+                                        .to_event());
                 return http::json_response(200, std::move(body));
             });
         });
@@ -93,11 +97,12 @@ void AuthController::register_routes(http::App& app) {
                 const std::string session_id = require_string(body, "session_id");
                 const auto pair = session_service_.rotate(refresh_token, session_id);
                 return http::json_response(
-                    200, nlohmann::json{{"access_token", pair.access_token},
-                                        {"refresh_token", pair.refresh_token},
-                                        {"token_type", "Bearer"},
-                                        {"access_expires_in", pair.access_expires_in_seconds},
-                                        {"refresh_expires_in", pair.refresh_expires_in_seconds}});
+                    200,
+                    nlohmann::json{{"access_token", pair.access_token},
+                                   {"refresh_token", pair.refresh_token},
+                                   {"token_type", "Bearer"},
+                                   {"access_expires_in", pair.access_expires_in_seconds},
+                                   {"refresh_expires_in", pair.refresh_expires_in_seconds}});
             });
         });
 
@@ -118,7 +123,8 @@ void AuthController::register_routes(http::App& app) {
                         .user_id = claims.user_id,
                         .session_id = session_id,
                         .all_sessions = false,
-                    }.to_event());
+                    }
+                                            .to_event());
                 }
                 return http::json_response(200, nlohmann::json{{"revoked", revoked}});
             });
@@ -133,7 +139,8 @@ void AuthController::register_routes(http::App& app) {
                 publisher().publish(events::UserLoggedOut{
                     .user_id = claims.user_id,
                     .all_sessions = true,
-                }.to_event());
+                }
+                                        .to_event());
                 return http::json_response(200, nlohmann::json{{"revoked", count}});
             });
         });

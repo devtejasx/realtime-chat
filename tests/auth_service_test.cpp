@@ -24,12 +24,12 @@ using rtc::testing::FakePasswordHasher;
 using rtc::testing::FakeUserRepository;
 
 class AuthServiceTest : public ::testing::Test {
-protected:
+  protected:
     FakeUserRepository repo_;
     FakePasswordHasher hasher_;
     UserService user_service_{repo_, hasher_};
     JwtTokenService token_service_{JwtTokenService::Options{.secret = "auth-service-test-secret",
-                                                           .issuer = "realtime-chat-test"}};
+                                                            .issuer = "realtime-chat-test"}};
     AuthService auth_service_{user_service_, token_service_};
 
     RegisterRequest valid_register() {

@@ -1,9 +1,9 @@
 #pragma once
 
+#include <crow/http_request.h>
+
 #include <optional>
 #include <string>
-
-#include <crow/http_request.h>
 
 #include "rtc/security/token.hpp"
 #include "rtc/security/token_service.hpp"
@@ -37,7 +37,7 @@ namespace rtc::middlewares {
 // construct an AuthMiddleware with only a token service — keeps compiling and
 // behaving exactly as before.
 class AuthMiddleware {
-public:
+  public:
     explicit AuthMiddleware(const security::ITokenService& token_service) noexcept
         : token_service_(token_service) {}
 
@@ -54,15 +54,14 @@ public:
     // Verifies the token but skips the suspension check. Needed by the few
     // endpoints that must remain reachable while suspended — logout, and reading
     // one's own account — so a banned user can still sign out cleanly.
-    [[nodiscard]] security::TokenClaims authenticate_token_only(
-        const crow::request& request) const;
+    [[nodiscard]] security::TokenClaims authenticate_token_only(const crow::request& request) const;
 
     // Extracts the raw token from an "Authorization: Bearer <token>" header.
     // Returns nullopt when absent or not a well-formed Bearer header.
     [[nodiscard]] static std::optional<std::string> extract_bearer_token(
         const crow::request& request);
 
-private:
+  private:
     const security::ITokenService& token_service_;
     services::AuthorizationService* authorization_ = nullptr;
 };

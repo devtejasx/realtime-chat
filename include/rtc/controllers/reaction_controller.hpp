@@ -12,14 +12,14 @@ namespace rtc::controllers {
 //   DELETE /api/messages/<id>/reactions   — remove the caller's reaction
 //   GET    /api/messages/<id>/reactions   — list a message's reactions
 class ReactionController {
-public:
+  public:
     ReactionController(services::ReactionService& reactions,
                        middlewares::AuthMiddleware& auth_guard) noexcept
         : reactions_(reactions), auth_guard_(auth_guard) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     services::ReactionService& reactions_;
     middlewares::AuthMiddleware& auth_guard_;
 };

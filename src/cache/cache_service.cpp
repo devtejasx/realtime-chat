@@ -32,7 +32,9 @@ std::optional<nlohmann::json> CacheService::get(std::string_view ns, std::string
     return parsed;
 }
 
-void CacheService::put(std::string_view ns, std::string_view key, const nlohmann::json& value,
+void CacheService::put(std::string_view ns,
+                       std::string_view key,
+                       const nlohmann::json& value,
                        std::chrono::seconds ttl) {
     store_.set(make_key(ns, key), value.dump(), ttl);
 }

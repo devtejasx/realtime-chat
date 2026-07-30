@@ -16,7 +16,9 @@ namespace {
 
 }  // namespace
 
-std::string encode(Version version, std::string_view event, const nlohmann::json& payload,
+std::string encode(Version version,
+                   std::string_view event,
+                   const nlohmann::json& payload,
                    const Envelope& envelope) {
     if (version == Version::kV1) {
         // Byte-for-byte the historical format. Do not add fields here: v1 clients

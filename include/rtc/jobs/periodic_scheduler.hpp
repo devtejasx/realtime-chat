@@ -17,7 +17,7 @@ namespace rtc::jobs {
 // registered before start(); each tick runs them all, isolating and logging any
 // exception. The sleep is interruptible so shutdown is immediate.
 class PeriodicScheduler {
-public:
+  public:
     using Task = std::function<void()>;
 
     explicit PeriodicScheduler(std::chrono::seconds interval) : interval_(interval) {}
@@ -27,9 +27,7 @@ public:
     PeriodicScheduler& operator=(const PeriodicScheduler&) = delete;
 
     // Registers a task. Call before start().
-    void add(std::string name, Task task) {
-        tasks_.emplace_back(std::move(name), std::move(task));
-    }
+    void add(std::string name, Task task) { tasks_.emplace_back(std::move(name), std::move(task)); }
 
     void start();
     void stop();
@@ -42,7 +40,7 @@ public:
 
     [[nodiscard]] std::size_t task_count() const noexcept { return tasks_.size(); }
 
-private:
+  private:
     void run();
 
     std::chrono::seconds interval_;

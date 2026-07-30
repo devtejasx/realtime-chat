@@ -46,10 +46,14 @@ inline constexpr Role kDefaultRole = Role::kUser;
 // callers must decide explicitly, and the persistence layer deliberately fails
 // closed to kUser rather than granting an unknown role elevated rights.
 [[nodiscard]] constexpr std::optional<Role> parse_role(std::string_view name) noexcept {
-    if (name == "user") return Role::kUser;
-    if (name == "moderator") return Role::kModerator;
-    if (name == "admin") return Role::kAdmin;
-    if (name == "super_admin") return Role::kSuperAdmin;
+    if (name == "user")
+        return Role::kUser;
+    if (name == "moderator")
+        return Role::kModerator;
+    if (name == "admin")
+        return Role::kAdmin;
+    if (name == "super_admin")
+        return Role::kSuperAdmin;
     return std::nullopt;
 }
 
@@ -135,9 +139,9 @@ namespace detail {
 // a future role deviate from strict inheritance if the product needs it.
 inline constexpr std::uint32_t kUserGrants = 0U;  // ordinary users act only on their own data
 
-inline constexpr std::uint32_t kModeratorGrants =
-    kUserGrants | bit(Permission::kDeleteAnyMessage) | bit(Permission::kEditAnyMessage) |
-    bit(Permission::kManageGroups);
+inline constexpr std::uint32_t kModeratorGrants = kUserGrants | bit(Permission::kDeleteAnyMessage) |
+                                                  bit(Permission::kEditAnyMessage) |
+                                                  bit(Permission::kManageGroups);
 
 inline constexpr std::uint32_t kAdminGrants =
     kModeratorGrants | bit(Permission::kViewAnyConversation) | bit(Permission::kBanUsers) |

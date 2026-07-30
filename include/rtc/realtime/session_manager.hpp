@@ -1,13 +1,13 @@
 #pragma once
 
+#include <crow/websocket.h>
+
 #include <cstdint>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include <crow/websocket.h>
 
 #include "rtc/realtime/session.hpp"
 
@@ -20,11 +20,12 @@ namespace rtc::realtime {
 // is guarded by a single mutex; operations are O(1) amortised. Designed to hold
 // thousands of concurrent sessions.
 class SessionManager {
-public:
+  public:
     // Registers a session. Returns the created Session. `version` is the wire
     // protocol negotiated during the handshake; it defaults to the legacy version
     // so existing callers (and tests) are unaffected.
-    std::shared_ptr<Session> add(crow::websocket::connection* conn, std::int64_t user_id,
+    std::shared_ptr<Session> add(crow::websocket::connection* conn,
+                                 std::int64_t user_id,
                                  std::string username,
                                  protocol::Version version = protocol::kDefaultVersion);
 
@@ -56,7 +57,7 @@ public:
 
     [[nodiscard]] std::size_t session_count() const;
 
-private:
+  private:
     mutable std::mutex mutex_;
     std::unordered_map<crow::websocket::connection*, std::shared_ptr<Session>> by_connection_;
     std::unordered_map<std::int64_t, std::unordered_set<crow::websocket::connection*>> by_user_;

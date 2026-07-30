@@ -44,7 +44,7 @@ enum class TraceWireFormat {
 //     local sidecar/agent — the standard deployment. Point the exporter at an
 //     agent on localhost if the collector is remote.
 class OtlpHttpSpanExporter final : public ISpanExporter {
-public:
+  public:
     struct Options {
         std::string endpoint;  // "http://host:4318/v1/traces" or host:port form
         TraceWireFormat format = TraceWireFormat::kOtlpHttpJson;
@@ -61,7 +61,7 @@ public:
     void flush() override;
     [[nodiscard]] std::string_view name() const noexcept override;
 
-private:
+  private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

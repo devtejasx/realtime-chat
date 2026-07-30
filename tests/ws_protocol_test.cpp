@@ -1,7 +1,7 @@
-#include <string>
-
 #include <gtest/gtest.h>
+
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/realtime/connection_manager.hpp"
 #include "rtc/realtime/protocol.hpp"
@@ -56,9 +56,8 @@ TEST(WsProtocol, V1IgnoresCorrelationMetadata) {
 TEST(WsProtocol, ConnectionManagerEnvelopeStillEmitsV1) {
     // make_envelope is part of the tested surface and documented as the legacy
     // format; it must not drift onto v2.
-    const auto encoded = nlohmann::json::parse(
-        rtc::realtime::ConnectionManager::make_envelope("typing.start",
-                                                        nlohmann::json{{"user_id", 3}}));
+    const auto encoded = nlohmann::json::parse(rtc::realtime::ConnectionManager::make_envelope(
+        "typing.start", nlohmann::json{{"user_id", 3}}));
     EXPECT_EQ(encoded.at("type"), "typing.start");
     EXPECT_EQ(encoded.at("data").at("user_id"), 3);
     EXPECT_EQ(encoded.size(), 2U);
@@ -68,8 +67,7 @@ TEST(WsProtocol, ConnectionManagerEnvelopeStillEmitsV1) {
 
 TEST(WsProtocol, V2CarriesTheFullEnvelope) {
     const auto encoded = nlohmann::json::parse(rtc::realtime::protocol::encode(
-        Version::kV2, "message.created", nlohmann::json{{"id", 7}},
-        Envelope{"req-42", "corr-99"}));
+        Version::kV2, "message.created", nlohmann::json{{"id", 7}}, Envelope{"req-42", "corr-99"}));
 
     EXPECT_EQ(encoded.at("event"), "message.created");
     EXPECT_EQ(encoded.at("version"), 2);
@@ -145,13 +143,13 @@ TEST(WsProtocol, RejectsUndispatchableFrames) {
     // A malformed frame is ordinary client input, so decoding must fail cleanly
     // rather than throw — the dispatcher turns nullopt into an error event.
     const char* bad[] = {
-        "",                        // empty
-        "not json",                // unparseable
-        "[]",                      // not an object
-        "42",                      // not an object
-        R"({"data":{"a":1}})",     // no event name
-        R"({"type":"","data":{}})", // empty event name
-        R"({"type":123})",         // non-string event name
+        "",                          // empty
+        "not json",                  // unparseable
+        "[]",                        // not an object
+        "42",                        // not an object
+        R"({"data":{"a":1}})",       // no event name
+        R"({"type":"","data":{}})",  // empty event name
+        R"({"type":123})",           // non-string event name
     };
     for (const char* text : bad) {
         EXPECT_FALSE(rtc::realtime::protocol::decode(text).has_value()) << text;
@@ -169,9 +167,8 @@ TEST(WsProtocol, IgnoresANonObjectPayload) {
 TEST(WsProtocol, RoundTripsThroughEncodeAndDecode) {
     const nlohmann::json payload{{"conversation_id", 9}, {"content", "round trip"}};
     for (const Version version : {Version::kV1, Version::kV2}) {
-        const auto frame = rtc::realtime::protocol::decode(
-            rtc::realtime::protocol::encode(version, "message.send", payload,
-                                            Envelope{"req", "corr"}));
+        const auto frame = rtc::realtime::protocol::decode(rtc::realtime::protocol::encode(
+            version, "message.send", payload, Envelope{"req", "corr"}));
         ASSERT_TRUE(frame.has_value());
         EXPECT_EQ(frame->event, "message.send");
         EXPECT_EQ(frame->payload, payload);

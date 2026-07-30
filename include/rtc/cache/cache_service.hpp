@@ -3,11 +3,10 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/cache/cache_store.hpp"
 
@@ -20,7 +19,7 @@ namespace rtc::cache {
 // read-through `remember` helper. Invalidation is explicit and lives next to
 // the writes that require it, keeping cache coherence a service-layer concern.
 class CacheService {
-public:
+  public:
     explicit CacheService(ICacheStore& store) noexcept : store_(store) {}
 
     // Reads a JSON value; records a hit or miss. Returns nullopt on miss or on
@@ -28,7 +27,9 @@ public:
     [[nodiscard]] std::optional<nlohmann::json> get(std::string_view ns, std::string_view key);
 
     // Stores a JSON value with a TTL.
-    void put(std::string_view ns, std::string_view key, const nlohmann::json& value,
+    void put(std::string_view ns,
+             std::string_view key,
+             const nlohmann::json& value,
              std::chrono::seconds ttl);
 
     // Evicts a single entry.
@@ -37,8 +38,10 @@ public:
     // Read-through cache: returns the cached value, or computes it via `loader`,
     // stores it under `ttl`, and returns it. `loader` returns a JSON value.
     template <typename Loader>
-    [[nodiscard]] nlohmann::json remember(std::string_view ns, std::string_view key,
-                                          std::chrono::seconds ttl, Loader&& loader) {
+    [[nodiscard]] nlohmann::json remember(std::string_view ns,
+                                          std::string_view key,
+                                          std::chrono::seconds ttl,
+                                          Loader&& loader) {
         if (auto cached = get(ns, key)) {
             return *cached;
         }
@@ -58,7 +61,7 @@ public:
     // Builds a fully-qualified key "rtc:<ns>:<key>".
     [[nodiscard]] static std::string make_key(std::string_view ns, std::string_view key);
 
-private:
+  private:
     ICacheStore& store_;
     std::atomic<std::uint64_t> hits_{0};
     std::atomic<std::uint64_t> misses_{0};

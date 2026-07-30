@@ -1,21 +1,23 @@
-#include <string>
-#include <vector>
+#include "rtc/services/search_service.hpp"
 
 #include <gtest/gtest.h>
+
+#include <string>
+#include <vector>
 
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/features/feature_flags.hpp"
 #include "rtc/repositories/message_search_repository.hpp"
-#include "rtc/services/search_service.hpp"
 
 namespace {
 
 // Records the query it was given and returns canned hits, so the service's own
 // behaviour (validation, gating, envelope shape) is tested in isolation from SQL.
 class FakeMessageSearchRepository final : public rtc::repositories::IMessageSearchRepository {
-public:
+  public:
     [[nodiscard]] std::vector<rtc::repositories::MessageSearchHit> search(
-        std::int64_t actor_id, const rtc::repositories::MessageSearchQuery& query,
+        std::int64_t actor_id,
+        const rtc::repositories::MessageSearchQuery& query,
         const rtc::dto::Pagination& page) override {
         last_actor_id = actor_id;
         last_query = query;
@@ -24,7 +26,7 @@ public:
     }
 
     [[nodiscard]] std::int64_t count(std::int64_t,
-                                    const rtc::repositories::MessageSearchQuery&) override {
+                                     const rtc::repositories::MessageSearchQuery&) override {
         return total;
     }
 
@@ -38,8 +40,9 @@ public:
     int last_limit = 0;
 };
 
-[[nodiscard]] rtc::repositories::MessageSearchHit make_hit(std::int64_t id, double rank,
-                                                          bool fuzzy = false) {
+[[nodiscard]] rtc::repositories::MessageSearchHit make_hit(std::int64_t id,
+                                                           double rank,
+                                                           bool fuzzy = false) {
     rtc::repositories::MessageSearchHit hit;
     hit.message.id = id;
     hit.message.conversation_id = 5;

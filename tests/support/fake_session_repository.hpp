@@ -15,7 +15,7 @@ namespace rtc::testing {
 
 // In-memory ISessionRepository for service/controller tests.
 class FakeSessionRepository final : public repositories::ISessionRepository {
-public:
+  public:
     models::Session create(const repositories::NewSession& input) override {
         models::Session s;
         s.id = input.id;
@@ -32,14 +32,16 @@ public:
 
     std::optional<models::Session> find_by_id(std::string_view id) override {
         for (const auto& s : sessions_)
-            if (s.id == id) return s;
+            if (s.id == id)
+                return s;
         return std::nullopt;
     }
 
     std::vector<models::Session> list_active_for_user(std::int64_t user_id) override {
         std::vector<models::Session> out;
         for (const auto& s : sessions_)
-            if (s.user_id == user_id && s.is_active()) out.push_back(s);
+            if (s.user_id == user_id && s.is_active())
+                out.push_back(s);
         return out;
     }
 
@@ -82,15 +84,17 @@ public:
 
     std::int64_t delete_expired() override {
         const auto before = sessions_.size();
-        sessions_.erase(std::remove_if(sessions_.begin(), sessions_.end(),
-                                       [](const auto& s) { return s.is_expired() || s.is_revoked(); }),
-                        sessions_.end());
+        sessions_.erase(
+            std::remove_if(sessions_.begin(),
+                           sessions_.end(),
+                           [](const auto& s) { return s.is_expired() || s.is_revoked(); }),
+            sessions_.end());
         return static_cast<std::int64_t>(before - sessions_.size());
     }
 
     [[nodiscard]] std::size_t count() const noexcept { return sessions_.size(); }
 
-private:
+  private:
     std::vector<models::Session> sessions_;
 };
 

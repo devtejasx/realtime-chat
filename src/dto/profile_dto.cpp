@@ -13,7 +13,9 @@ using rtc::errors::ValidationException;
 // absent, `set` stays false; if present and null, `set` is true with a nullopt
 // value (clear); if present and a string, `set` is true with that value. Any
 // other JSON type is a validation error.
-void read_field(const nlohmann::json& body, const char* field, bool& set,
+void read_field(const nlohmann::json& body,
+                const char* field,
+                bool& set,
                 std::optional<std::string>& value) {
     const auto it = body.find(field);
     if (it == body.end()) {

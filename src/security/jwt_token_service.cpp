@@ -1,11 +1,11 @@
 #include "rtc/security/jwt_token_service.hpp"
 
+#include <jwt-cpp/jwt.h>
+
 #include <charconv>
 #include <chrono>
 #include <string>
 #include <utility>
-
-#include <jwt-cpp/jwt.h>
 
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/utils/random.hpp"
@@ -35,11 +35,11 @@ JwtTokenService::JwtTokenService(Options options) : options_(std::move(options))
 }
 
 std::int64_t JwtTokenService::ttl_for(TokenType type) const noexcept {
-    return type == TokenType::kAccess ? options_.access_ttl_seconds
-                                      : options_.refresh_ttl_seconds;
+    return type == TokenType::kAccess ? options_.access_ttl_seconds : options_.refresh_ttl_seconds;
 }
 
-std::string JwtTokenService::issue(std::int64_t user_id, std::string_view username,
+std::string JwtTokenService::issue(std::int64_t user_id,
+                                   std::string_view username,
                                    TokenType type) const {
     const auto issued_at = std::chrono::system_clock::now();
     const auto expires_at = issued_at + std::chrono::seconds(ttl_for(type));

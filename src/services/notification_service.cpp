@@ -36,14 +36,14 @@ models::Notification NotificationService::create(std::int64_t user_id,
     metrics_.increment("rtc_notifications_total");
 
     // In-app delivery over WebSocket to the recipient's live sessions.
-    broadcaster_.publish({user_id}, realtime::events::kNotification,
+    broadcaster_.publish({user_id},
+                         realtime::events::kNotification,
                          dto::NotificationResponse::from(notification).to_json());
 
     // External push happens off the request path.
     const auto [title, body] = push_text(type);
-    executor_.submit([this, user_id, title, body, payload] {
-        push_.send(user_id, title, body, payload);
-    });
+    executor_.submit(
+        [this, user_id, title, body, payload] { push_.send(user_id, title, body, payload); });
     return notification;
 }
 

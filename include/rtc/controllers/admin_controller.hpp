@@ -55,7 +55,7 @@ namespace rtc::controllers {
 // whole system, so the breadth is intrinsic; naming each member at the call site
 // is what keeps the wiring readable and mis-ordering impossible.
 class AdminController {
-public:
+  public:
     struct Dependencies {
         middlewares::AuthMiddleware* auth_guard = nullptr;
         services::AuthorizationService* authorization = nullptr;
@@ -72,16 +72,15 @@ public:
         events::IEventPublisher* publisher = nullptr;
     };
 
-    explicit AdminController(Dependencies dependencies) noexcept
-        : deps_(dependencies) {}
+    explicit AdminController(Dependencies dependencies) noexcept : deps_(dependencies) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     // Authenticates and enforces `permission` in one step. Returns the caller's
     // user id. Used at the top of every handler so no route can forget either half.
     [[nodiscard]] std::int64_t authorize(const crow::request& req,
-                                        security::Permission permission) const;
+                                         security::Permission permission) const;
 
     void register_user_routes(http::App& app);
     void register_group_routes(http::App& app);

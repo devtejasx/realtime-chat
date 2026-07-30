@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <exception>
-
 #include <nlohmann/json.hpp>
 #include <pqxx/transaction>
 
@@ -65,21 +64,20 @@ HealthController::CheckResult HealthController::scheduler_check() const {
 void HealthController::register_routes(http::App& app) {
     CROW_ROUTE(app, "/health")
     ([this]() {
-        return http::json_response(200, nlohmann::json{
-                                            {"status", "ok"},
-                                            {"service", "realtime-chat"},
-                                            {"version", RTC_VERSION},
-                                            {"environment", config_.app_env},
-                                        });
+        return http::json_response(200,
+                                   nlohmann::json{
+                                       {"status", "ok"},
+                                       {"service", "realtime-chat"},
+                                       {"version", RTC_VERSION},
+                                       {"environment", config_.app_env},
+                                   });
     });
 
     // Liveness — the process is up. Deliberately dependency-free: a probe that
     // consulted the database would convert a database outage into a restart loop
     // across every replica.
     CROW_ROUTE(app, "/health/live")
-    ([]() {
-        return http::json_response(200, nlohmann::json{{"status", "alive"}});
-    });
+    ([]() { return http::json_response(200, nlohmann::json{{"status", "alive"}}); });
 
     // Startup — has bootstrap finished? Migrations dominate the startup time on a
     // large database, and a startupProbe pointed here keeps liveness/readiness

@@ -13,14 +13,14 @@ namespace rtc::controllers {
 //   POST   /api/notifications/read-all   — mark all read
 //   DELETE /api/notifications/<id>       — delete one
 class NotificationController {
-public:
+  public:
     NotificationController(services::NotificationService& notifications,
                            middlewares::AuthMiddleware& auth_guard) noexcept
         : notifications_(notifications), auth_guard_(auth_guard) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     services::NotificationService& notifications_;
     middlewares::AuthMiddleware& auth_guard_;
 };

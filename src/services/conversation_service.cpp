@@ -26,8 +26,7 @@ models::Conversation ConversationService::require_conversation(std::int64_t conv
     return *conversation;
 }
 
-void ConversationService::require_participant(std::int64_t conversation_id,
-                                              std::int64_t user_id) {
+void ConversationService::require_participant(std::int64_t conversation_id, std::int64_t user_id) {
     if (!conversations_.is_participant(conversation_id, user_id)) {
         // Hide existence from non-members.
         throw NotFoundException("Conversation not found");
@@ -89,19 +88,20 @@ models::Conversation ConversationService::create(std::int64_t actor_id,
 
     const auto participants = conversations_.list_participants(conversation.id);
     const auto ids = conversations_.list_participant_ids(conversation.id);
-    broadcaster_.publish(ids, realtime::events::kConversationCreated,
+    broadcaster_.publish(ids,
+                         realtime::events::kConversationCreated,
                          dto::ConversationResponse::from(conversation, participants).to_json());
     publisher().publish(events::ConversationCreated{
         .conversation_id = conversation.id,
         .actor_id = actor_id,
         .is_group = conversation.is_group(),
         .participant_ids = ids,
-    }.to_event());
+    }
+                            .to_event());
     return conversation;
 }
 
-models::Conversation ConversationService::get(std::int64_t actor_id,
-                                              std::int64_t conversation_id) {
+models::Conversation ConversationService::get(std::int64_t actor_id, std::int64_t conversation_id) {
     auto conversation = require_conversation(conversation_id);
     require_participant(conversation_id, actor_id);
     return conversation;
@@ -138,27 +138,29 @@ void ConversationService::remove(std::int64_t actor_id, std::int64_t conversatio
     }
     const auto ids = conversations_.list_participant_ids(conversation_id);
     conversations_.remove(conversation_id);
-    broadcaster_.publish(ids, realtime::events::kConversationDeleted,
+    broadcaster_.publish(ids,
+                         realtime::events::kConversationDeleted,
                          nlohmann::json{{"conversation_id", conversation_id}});
     publisher().publish(events::ConversationDeleted{
         .conversation_id = conversation_id,
         .actor_id = actor_id,
-    }.to_event());
+    }
+                            .to_event());
 }
 
-models::Conversation ConversationService::rename_group(
-    std::int64_t actor_id, std::int64_t conversation_id,
-    const dto::RenameGroupRequest& request) {
+models::Conversation ConversationService::rename_group(std::int64_t actor_id,
+                                                       std::int64_t conversation_id,
+                                                       const dto::RenameGroupRequest& request) {
     const auto conversation = require_conversation(conversation_id);
     require_owner(conversation, actor_id);
     const std::string name = validation::validate_group_name(request.name);
     conversations_.rename(conversation_id, name);
     auto updated = require_conversation(conversation_id);
-    broadcaster_.publish(conversations_.list_participant_ids(conversation_id),
-                         realtime::events::kConversationCreated,
-                         dto::ConversationResponse::from(
-                             updated, conversations_.list_participants(conversation_id))
-                             .to_json());
+    broadcaster_.publish(
+        conversations_.list_participant_ids(conversation_id),
+        realtime::events::kConversationCreated,
+        dto::ConversationResponse::from(updated, conversations_.list_participants(conversation_id))
+            .to_json());
     return updated;
 }
 
@@ -175,18 +177,21 @@ models::ConversationParticipant ConversationService::add_member(std::int64_t act
         throw errors::InternalException("Failed to load newly added participant");
     }
     broadcaster_.publish(
-        conversations_.list_participant_ids(conversation_id), realtime::events::kMemberAdded,
+        conversations_.list_participant_ids(conversation_id),
+        realtime::events::kMemberAdded,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", user_id}});
     notifications_.added_to_group(conversation_id, user_id, actor_id);
     publisher().publish(events::MemberAdded{
         .conversation_id = conversation_id,
         .member_id = user_id,
         .actor_id = actor_id,
-    }.to_event());
+    }
+                            .to_event());
     return *participant;
 }
 
-void ConversationService::remove_member(std::int64_t actor_id, std::int64_t conversation_id,
+void ConversationService::remove_member(std::int64_t actor_id,
+                                        std::int64_t conversation_id,
                                         std::int64_t target_user_id) {
     const auto conversation = require_conversation(conversation_id);
     require_owner(conversation, actor_id);
@@ -196,14 +201,16 @@ void ConversationService::remove_member(std::int64_t actor_id, std::int64_t conv
     const auto ids = conversations_.list_participant_ids(conversation_id);
     conversations_.remove_participant(conversation_id, target_user_id);
     broadcaster_.publish(
-        ids, realtime::events::kMemberRemoved,
+        ids,
+        realtime::events::kMemberRemoved,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", target_user_id}});
     notifications_.removed_from_group(conversation_id, target_user_id, actor_id);
     publisher().publish(events::MemberRemoved{
         .conversation_id = conversation_id,
         .member_id = target_user_id,
         .actor_id = actor_id,
-    }.to_event());
+    }
+                            .to_event());
 }
 
 void ConversationService::leave(std::int64_t actor_id, std::int64_t conversation_id) {
@@ -216,8 +223,8 @@ void ConversationService::leave(std::int64_t actor_id, std::int64_t conversation
         // Owner is leaving: hand off to the earliest-joined remaining member,
         // or delete the group if the owner was the last member.
         const auto members = conversations_.list_participants(conversation_id);
-        auto successor = std::find_if(members.begin(), members.end(),
-                                      [&](const auto& p) { return p.user_id != actor_id; });
+        auto successor = std::find_if(
+            members.begin(), members.end(), [&](const auto& p) { return p.user_id != actor_id; });
         if (successor != members.end()) {
             conversations_.transfer_ownership(conversation_id, successor->user_id);
             conversations_.remove_participant(conversation_id, actor_id);
@@ -229,7 +236,8 @@ void ConversationService::leave(std::int64_t actor_id, std::int64_t conversation
     }
 
     broadcaster_.publish(
-        ids, realtime::events::kMemberRemoved,
+        ids,
+        realtime::events::kMemberRemoved,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", actor_id}});
 }
 

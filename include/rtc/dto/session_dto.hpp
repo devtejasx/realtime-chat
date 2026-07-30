@@ -1,8 +1,7 @@
 #pragma once
 
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/dto/user_dto.hpp"  // opt_to_json
 #include "rtc/models/session.hpp"

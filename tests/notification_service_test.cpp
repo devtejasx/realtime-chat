@@ -12,7 +12,7 @@
 namespace {
 
 class NotificationServiceTest : public ::testing::Test {
-protected:
+  protected:
     rtc::testing::FakeNotificationRepository repo_;
     rtc::testing::RecordingBroadcaster broadcaster_;
     rtc::notifications::NullPushProvider push_;

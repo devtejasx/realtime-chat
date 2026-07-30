@@ -15,10 +15,11 @@ namespace rtc::controllers {
 //   GET    /api/attachments/<id>/thumbnail— download thumbnail (images)
 //   DELETE /api/attachments/<id>          — delete (owner)
 class AttachmentController {
-public:
+  public:
     AttachmentController(services::AttachmentService& attachments,
                          middlewares::AuthMiddleware& auth_guard,
-                         ratelimit::RateLimiter& rate_limiter, const config::Config& config) noexcept
+                         ratelimit::RateLimiter& rate_limiter,
+                         const config::Config& config) noexcept
         : attachments_(attachments),
           auth_guard_(auth_guard),
           rate_limiter_(rate_limiter),
@@ -26,7 +27,7 @@ public:
 
     void register_routes(http::App& app);
 
-private:
+  private:
     services::AttachmentService& attachments_;
     middlewares::AuthMiddleware& auth_guard_;
     ratelimit::RateLimiter& rate_limiter_;

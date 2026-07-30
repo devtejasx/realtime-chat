@@ -6,9 +6,9 @@
 #include <vector>
 
 #include "rtc/models/session.hpp"
+#include "rtc/repositories/session_repository.hpp"
 #include "rtc/security/token.hpp"
 #include "rtc/security/token_service.hpp"
-#include "rtc/repositories/session_repository.hpp"
 
 namespace rtc::services {
 
@@ -17,7 +17,7 @@ namespace rtc::services {
 // stored only as a hash, and rotation replaces it on every refresh — so a
 // stolen-then-rotated token is rejected on reuse (replay protection).
 class SessionService {
-public:
+  public:
     SessionService(repositories::ISessionRepository& repository,
                    const security::ITokenService& token_service,
                    std::int64_t refresh_ttl_seconds) noexcept
@@ -26,7 +26,8 @@ public:
           refresh_ttl_seconds_(refresh_ttl_seconds) {}
 
     // Persists a session for a just-issued refresh token; returns the session id.
-    [[nodiscard]] std::string record(std::int64_t user_id, const std::string& refresh_token,
+    [[nodiscard]] std::string record(std::int64_t user_id,
+                                     const std::string& refresh_token,
                                      std::optional<std::string> user_agent,
                                      std::optional<std::string> ip);
 
@@ -45,7 +46,7 @@ public:
     // Maintenance: purge expired/revoked sessions. Returns count removed.
     std::int64_t cleanup_expired();
 
-private:
+  private:
     repositories::ISessionRepository& repository_;
     const security::ITokenService& token_service_;
     std::int64_t refresh_ttl_seconds_;

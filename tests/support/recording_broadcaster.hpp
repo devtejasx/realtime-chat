@@ -1,10 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/realtime/event_broadcaster.hpp"
 
@@ -13,14 +12,15 @@ namespace rtc::testing {
 // IEventBroadcaster that records every published event, so service tests can
 // assert that the correct real-time notifications were emitted (and to whom).
 class RecordingBroadcaster final : public realtime::IEventBroadcaster {
-public:
+  public:
     struct Event {
         std::vector<std::int64_t> user_ids;
         std::string type;
         nlohmann::json data;
     };
 
-    void publish(const std::vector<std::int64_t>& user_ids, std::string_view type,
+    void publish(const std::vector<std::int64_t>& user_ids,
+                 std::string_view type,
                  const nlohmann::json& data) override {
         events_.push_back(Event{user_ids, std::string(type), data});
     }
@@ -31,7 +31,7 @@ public:
 
     [[nodiscard]] const Event& last() const { return events_.back(); }
 
-private:
+  private:
     std::vector<Event> events_;
 };
 

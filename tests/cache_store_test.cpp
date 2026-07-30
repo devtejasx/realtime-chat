@@ -1,9 +1,9 @@
-#include "rtc/cache/in_memory_cache_store.hpp"
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "rtc/cache/in_memory_cache_store.hpp"
 
 namespace {
 

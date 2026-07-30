@@ -16,7 +16,7 @@ using rtc::errors::NotFoundException;
 using rtc::errors::ValidationException;
 
 class ReactionServiceTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         conversation_id_ = conversations_.create_or_get_direct(alice_, bob_).id;
         rtc::repositories::NewMessage m;
@@ -37,8 +37,8 @@ protected:
     rtc::testing::FakeConversationRepository conversations_;
     rtc::testing::RecordingBroadcaster broadcaster_;
     rtc::notifications::NullNotificationDispatcher notifications_;
-    rtc::services::ReactionService service_{reactions_, messages_, conversations_, broadcaster_,
-                                            notifications_};
+    rtc::services::ReactionService service_{
+        reactions_, messages_, conversations_, broadcaster_, notifications_};
 };
 
 TEST_F(ReactionServiceTest, ReactPersistsAndBroadcasts) {

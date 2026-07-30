@@ -1,17 +1,16 @@
-#include "rtc/repositories/pg_user_repository.hpp"
+#include <gtest/gtest.h>
 
 #include <cstdlib>
 #include <ctime>
 #include <memory>
-#include <string>
-
-#include <gtest/gtest.h>
 #include <pqxx/transaction>
+#include <string>
 
 #include "rtc/config/config.hpp"
 #include "rtc/database/connection_pool.hpp"
 #include "rtc/database/migration_runner.hpp"
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/repositories/pg_user_repository.hpp"
 #include "rtc/utils/env.hpp"
 
 namespace {
@@ -23,7 +22,7 @@ using rtc::errors::ConflictException;
 // docker-compose. When the flag is absent or the database is unreachable, the
 // test is skipped so the default `ctest` run stays green without infrastructure.
 class UserRepositoryDbTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         if (rtc::utils::get_env_or("RTC_RUN_DB_TESTS", "0") != "1") {
             GTEST_SKIP() << "Set RTC_RUN_DB_TESTS=1 to run database integration tests";

@@ -8,7 +8,8 @@
 
 namespace rtc::services {
 
-std::string SessionService::record(std::int64_t user_id, const std::string& refresh_token,
+std::string SessionService::record(std::int64_t user_id,
+                                   const std::string& refresh_token,
                                    std::optional<std::string> user_agent,
                                    std::optional<std::string> ip) {
     repositories::NewSession session;
@@ -62,6 +63,8 @@ std::int64_t SessionService::revoke_others(std::int64_t user_id,
     return repository_.revoke_all_except(user_id, keep_session_id);
 }
 
-std::int64_t SessionService::cleanup_expired() { return repository_.delete_expired(); }
+std::int64_t SessionService::cleanup_expired() {
+    return repository_.delete_expired();
+}
 
 }  // namespace rtc::services

@@ -3,11 +3,10 @@
 #include <chrono>
 #include <cstddef>
 #include <optional>
-#include <string>
-
 #include <pqxx/result>
 #include <pqxx/row>
 #include <pqxx/transaction>
+#include <string>
 
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/utils/time.hpp"
@@ -24,12 +23,14 @@ constexpr const char* kColumns =
     "EXTRACT(EPOCH FROM created_at)::bigint  AS created_epoch";
 
 [[nodiscard]] std::optional<std::string> read_opt_string(const pqxx::field& field) {
-    if (field.is_null()) return std::nullopt;
+    if (field.is_null())
+        return std::nullopt;
     return field.as<std::string>();
 }
 
 [[nodiscard]] std::optional<std::int64_t> read_opt_int(const pqxx::field& field) {
-    if (field.is_null()) return std::nullopt;
+    if (field.is_null())
+        return std::nullopt;
     return field.as<std::int64_t>();
 }
 
@@ -87,9 +88,17 @@ bool PgAuditLogRepository::append(const NewAuditLog& input) {
             "        COALESCE(to_timestamp($12), now())) "
             "ON CONFLICT (event_id) DO NOTHING "
             "RETURNING id",
-            input.event_id, input.event_type, input.actor_id, input.actor_username,
-            input.target_type, input.target_id, input.ip, input.user_agent,
-            input.correlation_id, input.trace_id, input.metadata.dump(),
+            input.event_id,
+            input.event_type,
+            input.actor_id,
+            input.actor_username,
+            input.target_type,
+            input.target_id,
+            input.ip,
+            input.user_agent,
+            input.correlation_id,
+            input.trace_id,
+            input.metadata.dump(),
             input.occurred_at.time_since_epoch().count() == 0
                 ? std::optional<std::int64_t>{}
                 : std::optional<std::int64_t>{utils::to_unix_seconds(input.occurred_at)});
@@ -105,11 +114,18 @@ std::vector<models::AuditLog> PgAuditLogRepository::search(const AuditLogFilter&
                                 " AND ($8::bigint IS NULL OR id < $8)"
                                 " AND ($9::bigint IS NULL OR id > $9)"
                                 " ORDER BY occurred_at DESC, id DESC LIMIT $10 OFFSET $11";
-        const auto result =
-            txn.exec_params(sql, filter.actor_id, filter.event_type, filter.target_type,
-                            filter.target_id, filter.correlation_id, filter.from_epoch,
-                            filter.to_epoch, page.before_id, page.after_id, page.limit,
-                            page.offset);
+        const auto result = txn.exec_params(sql,
+                                            filter.actor_id,
+                                            filter.event_type,
+                                            filter.target_type,
+                                            filter.target_id,
+                                            filter.correlation_id,
+                                            filter.from_epoch,
+                                            filter.to_epoch,
+                                            page.before_id,
+                                            page.after_id,
+                                            page.limit,
+                                            page.offset);
 
         std::vector<models::AuditLog> out;
         out.reserve(static_cast<std::size_t>(result.size()));
@@ -124,9 +140,13 @@ std::int64_t PgAuditLogRepository::count(const AuditLogFilter& filter) {
     return with_transaction([&](pqxx::work& txn) -> std::int64_t {
         const std::string sql =
             std::string("SELECT COUNT(*) AS total FROM audit_logs") + kFilterPredicate;
-        const auto row = txn.exec_params1(sql, filter.actor_id, filter.event_type,
-                                          filter.target_type, filter.target_id,
-                                          filter.correlation_id, filter.from_epoch,
+        const auto row = txn.exec_params1(sql,
+                                          filter.actor_id,
+                                          filter.event_type,
+                                          filter.target_type,
+                                          filter.target_id,
+                                          filter.correlation_id,
+                                          filter.from_epoch,
                                           filter.to_epoch);
         return row["total"].as<std::int64_t>();
     });
@@ -147,11 +167,16 @@ std::vector<std::pair<std::string, std::int64_t>> PgAuditLogRepository::counts_b
     const AuditLogFilter& filter) {
     using Row = std::pair<std::string, std::int64_t>;
     return with_transaction([&](pqxx::work& txn) -> std::vector<Row> {
-        const std::string sql = std::string("SELECT event_type, COUNT(*) AS total FROM audit_logs") +
-                                kFilterPredicate + " GROUP BY event_type ORDER BY total DESC";
-        const auto result = txn.exec_params(sql, filter.actor_id, filter.event_type,
-                                            filter.target_type, filter.target_id,
-                                            filter.correlation_id, filter.from_epoch,
+        const std::string sql =
+            std::string("SELECT event_type, COUNT(*) AS total FROM audit_logs") + kFilterPredicate +
+            " GROUP BY event_type ORDER BY total DESC";
+        const auto result = txn.exec_params(sql,
+                                            filter.actor_id,
+                                            filter.event_type,
+                                            filter.target_type,
+                                            filter.target_id,
+                                            filter.correlation_id,
+                                            filter.from_epoch,
                                             filter.to_epoch);
         std::vector<Row> out;
         out.reserve(static_cast<std::size_t>(result.size()));

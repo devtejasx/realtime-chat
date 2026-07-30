@@ -24,7 +24,7 @@ namespace rtc::services {
 // mirrors messaging visibility: the owner always, plus participants of the
 // conversation once the attachment is linked to a message.
 class AttachmentService final : public IAttachmentLinker {
-public:
+  public:
     struct Options {
         std::int64_t max_upload_bytes = 25 * 1024 * 1024;
         int thumbnail_max_dimension = 256;
@@ -46,8 +46,10 @@ public:
     AttachmentService(repositories::IAttachmentRepository& attachments,
                       repositories::IMessageRepository& messages,
                       repositories::IConversationRepository& conversations,
-                      storage::IFileStorage& storage, media::IImageProcessor& image_processor,
-                      jobs::BackgroundExecutor& executor, metrics::MetricsRegistry& metrics,
+                      storage::IFileStorage& storage,
+                      media::IImageProcessor& image_processor,
+                      jobs::BackgroundExecutor& executor,
+                      metrics::MetricsRegistry& metrics,
                       Options options) noexcept
         : attachments_(attachments),
           messages_(messages),
@@ -82,11 +84,13 @@ public:
     // Fetches a message's attachments (for message serialisation).
     [[nodiscard]] std::vector<models::Attachment> for_message(std::int64_t message_id);
 
-private:
+  private:
     [[nodiscard]] models::Attachment require_attachment(std::int64_t id);
     void authorize_view(std::int64_t actor_id, const models::Attachment& attachment);
-    void schedule_image_processing(std::int64_t attachment_id, std::string bytes,
-                                   std::string content_type, std::string base_key);
+    void schedule_image_processing(std::int64_t attachment_id,
+                                   std::string bytes,
+                                   std::string content_type,
+                                   std::string base_key);
 
     repositories::IAttachmentRepository& attachments_;
     repositories::IMessageRepository& messages_;

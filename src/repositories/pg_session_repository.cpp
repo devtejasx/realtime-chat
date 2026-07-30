@@ -1,11 +1,10 @@
 #include "rtc/repositories/pg_session_repository.hpp"
 
 #include <chrono>
-#include <string>
-
 #include <pqxx/result>
 #include <pqxx/row>
 #include <pqxx/transaction>
+#include <string>
 
 namespace rtc::repositories {
 namespace {
@@ -44,12 +43,17 @@ constexpr const char* kColumns =
 models::Session PgSessionRepository::create(const NewSession& input) {
     return with_transaction([&](pqxx::work& txn) -> models::Session {
         const std::string sql =
-            std::string("INSERT INTO sessions "
-                        "(id, user_id, refresh_token_hash, user_agent, ip, expires_at) "
-                        "VALUES ($1,$2,$3,$4,$5, now() + make_interval(secs => $6)) RETURNING ") +
+            std::string(
+                "INSERT INTO sessions "
+                "(id, user_id, refresh_token_hash, user_agent, ip, expires_at) "
+                "VALUES ($1,$2,$3,$4,$5, now() + make_interval(secs => $6)) RETURNING ") +
             kColumns;
-        return map_row(txn.exec_params(sql, input.id, input.user_id, input.refresh_token_hash,
-                                       input.user_agent, input.ip,
+        return map_row(txn.exec_params(sql,
+                                       input.id,
+                                       input.user_id,
+                                       input.refresh_token_hash,
+                                       input.user_agent,
+                                       input.ip,
                                        static_cast<double>(input.ttl_seconds))
                            .front());
     });
@@ -59,7 +63,8 @@ std::optional<models::Session> PgSessionRepository::find_by_id(std::string_view 
     return with_transaction([&](pqxx::work& txn) -> std::optional<models::Session> {
         const auto result = txn.exec_params(
             std::string("SELECT ") + kColumns + " FROM sessions WHERE id = $1", std::string(id));
-        if (result.empty()) return std::nullopt;
+        if (result.empty())
+            return std::nullopt;
         return map_row(result.front());
     });
 }
@@ -84,17 +89,18 @@ void PgSessionRepository::rotate(std::string_view id, std::string_view new_hash)
     with_transaction([&](pqxx::work& txn) {
         txn.exec_params(
             "UPDATE sessions SET refresh_token_hash = $2, last_used_at = now() WHERE id = $1",
-            std::string(id), std::string(new_hash));
+            std::string(id),
+            std::string(new_hash));
     });
 }
 
 bool PgSessionRepository::revoke(std::string_view id, std::int64_t user_id) {
     return with_transaction([&](pqxx::work& txn) -> bool {
-        return txn
-                   .exec_params(
-                       "UPDATE sessions SET revoked_at = now() "
-                       "WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL",
-                       std::string(id), user_id)
+        return txn.exec_params(
+                      "UPDATE sessions SET revoked_at = now() "
+                      "WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL",
+                      std::string(id),
+                      user_id)
                    .affected_rows() > 0;
     });
 }
@@ -102,10 +108,9 @@ bool PgSessionRepository::revoke(std::string_view id, std::int64_t user_id) {
 std::int64_t PgSessionRepository::revoke_all(std::int64_t user_id) {
     return with_transaction([&](pqxx::work& txn) -> std::int64_t {
         return static_cast<std::int64_t>(
-            txn.exec_params(
-                   "UPDATE sessions SET revoked_at = now() "
-                   "WHERE user_id = $1 AND revoked_at IS NULL",
-                   user_id)
+            txn.exec_params("UPDATE sessions SET revoked_at = now() "
+                            "WHERE user_id = $1 AND revoked_at IS NULL",
+                            user_id)
                 .affected_rows());
     });
 }
@@ -114,10 +119,10 @@ std::int64_t PgSessionRepository::revoke_all_except(std::int64_t user_id,
                                                     std::string_view keep_id) {
     return with_transaction([&](pqxx::work& txn) -> std::int64_t {
         return static_cast<std::int64_t>(
-            txn.exec_params(
-                   "UPDATE sessions SET revoked_at = now() "
-                   "WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL",
-                   user_id, std::string(keep_id))
+            txn.exec_params("UPDATE sessions SET revoked_at = now() "
+                            "WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL",
+                            user_id,
+                            std::string(keep_id))
                 .affected_rows());
     });
 }

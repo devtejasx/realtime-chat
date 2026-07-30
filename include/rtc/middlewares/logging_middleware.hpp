@@ -1,11 +1,11 @@
 #pragma once
 
-#include <chrono>
-#include <string>
-
 #include <crow/common.h>  // crow::HTTPMethod, crow::method_name
 #include <crow/http_request.h>
 #include <crow/http_response.h>
+
+#include <chrono>
+#include <string>
 
 #include "rtc/logging/logger.hpp"
 #include "rtc/utils/random.hpp"
@@ -39,15 +39,22 @@ struct LoggingMiddleware {
         res.set_header("X-Request-Id", ctx.request_id);
 
         const auto elapsed = std::chrono::steady_clock::now() - ctx.start;
-        const auto micros =
-            std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+        const auto micros = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
         // 5xx responses are logged at error level so they surface in alerting.
         if (res.code >= 500) {
-            RTC_LOG_ERROR("[{}] <-- {} {} {} ({} us)", ctx.request_id,
-                          crow::method_name(req.method), req.url, res.code, micros);
+            RTC_LOG_ERROR("[{}] <-- {} {} {} ({} us)",
+                          ctx.request_id,
+                          crow::method_name(req.method),
+                          req.url,
+                          res.code,
+                          micros);
         } else {
-            RTC_LOG_INFO("[{}] <-- {} {} {} ({} us)", ctx.request_id,
-                         crow::method_name(req.method), req.url, res.code, micros);
+            RTC_LOG_INFO("[{}] <-- {} {} {} ({} us)",
+                         ctx.request_id,
+                         crow::method_name(req.method),
+                         req.url,
+                         res.code,
+                         micros);
         }
     }
 };

@@ -45,7 +45,7 @@ struct TracerOptions {
 // The tracer never throws out of `submit` and never propagates exporter errors:
 // instrumentation must not be able to fail the operation it measures.
 class Tracer {
-public:
+  public:
     Tracer(Resource resource, std::unique_ptr<ISpanExporter> exporter, TracerOptions options);
     ~Tracer();
 
@@ -58,7 +58,8 @@ public:
     // Starts a span parented to `parent` when it is valid, otherwise a root
     // span. Returns an inert Span when tracing is disabled or the sampler
     // declines, which callers can use unconditionally.
-    [[nodiscard]] Span start_span(std::string name, SpanKind kind = SpanKind::kInternal,
+    [[nodiscard]] Span start_span(std::string name,
+                                  SpanKind kind = SpanKind::kInternal,
                                   const SpanContext* parent = nullptr);
 
     // Starts a span parented to the current thread's active span (see
@@ -76,7 +77,7 @@ public:
     [[nodiscard]] std::uint64_t spans_exported() const noexcept { return exported_.load(); }
     [[nodiscard]] std::uint64_t spans_dropped() const noexcept { return dropped_.load(); }
 
-private:
+  private:
     void exporter_loop();
     void drain_once();
     [[nodiscard]] bool should_sample(std::string_view trace_id) const noexcept;

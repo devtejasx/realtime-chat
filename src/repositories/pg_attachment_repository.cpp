@@ -1,11 +1,10 @@
 #include "rtc/repositories/pg_attachment_repository.hpp"
 
 #include <chrono>
-#include <string>
-
 #include <pqxx/result>
 #include <pqxx/row>
 #include <pqxx/transaction>
+#include <string>
 
 namespace rtc::repositories {
 namespace {
@@ -52,14 +51,20 @@ constexpr const char* kColumns =
 models::Attachment PgAttachmentRepository::create(const NewAttachment& input) {
     return with_transaction([&](pqxx::work& txn) -> models::Attachment {
         const std::string sql =
-            std::string("INSERT INTO attachments (owner_id, storage_backend, storage_key, "
-                        "original_filename, content_type, kind, byte_size, checksum) "
-                        "VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING ") +
+            std::string(
+                "INSERT INTO attachments (owner_id, storage_backend, storage_key, "
+                "original_filename, content_type, kind, byte_size, checksum) "
+                "VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING ") +
             kColumns;
-        const auto result = txn.exec_params(
-            sql, input.owner_id, input.storage_backend, input.storage_key,
-            input.original_filename, input.content_type,
-            std::string(models::to_string(input.kind)), input.byte_size, input.checksum);
+        const auto result = txn.exec_params(sql,
+                                            input.owner_id,
+                                            input.storage_backend,
+                                            input.storage_key,
+                                            input.original_filename,
+                                            input.content_type,
+                                            std::string(models::to_string(input.kind)),
+                                            input.byte_size,
+                                            input.checksum);
         return map_row(result.front());
     });
 }
@@ -68,18 +73,18 @@ std::optional<models::Attachment> PgAttachmentRepository::find_by_id(std::int64_
     return with_transaction([&](pqxx::work& txn) -> std::optional<models::Attachment> {
         const auto result = txn.exec_params(
             std::string("SELECT ") + kColumns + " FROM attachments WHERE id = $1", id);
-        if (result.empty()) return std::nullopt;
+        if (result.empty())
+            return std::nullopt;
         return map_row(result.front());
     });
 }
 
-std::vector<models::Attachment> PgAttachmentRepository::list_for_message(
-    std::int64_t message_id) {
+std::vector<models::Attachment> PgAttachmentRepository::list_for_message(std::int64_t message_id) {
     return with_transaction([&](pqxx::work& txn) -> std::vector<models::Attachment> {
-        const auto result = txn.exec_params(
-            std::string("SELECT ") + kColumns +
-                " FROM attachments WHERE message_id = $1 ORDER BY id ASC",
-            message_id);
+        const auto result =
+            txn.exec_params(std::string("SELECT ") + kColumns +
+                                " FROM attachments WHERE message_id = $1 ORDER BY id ASC",
+                            message_id);
         std::vector<models::Attachment> out;
         out.reserve(result.size());
         for (const auto& row : result) {
@@ -89,9 +94,9 @@ std::vector<models::Attachment> PgAttachmentRepository::list_for_message(
     });
 }
 
-std::size_t PgAttachmentRepository::link_to_message(
-    const std::vector<std::int64_t>& attachment_ids, std::int64_t message_id,
-    std::int64_t owner_id) {
+std::size_t PgAttachmentRepository::link_to_message(const std::vector<std::int64_t>& attachment_ids,
+                                                    std::int64_t message_id,
+                                                    std::int64_t owner_id) {
     if (attachment_ids.empty()) {
         return 0;
     }
@@ -102,14 +107,17 @@ std::size_t PgAttachmentRepository::link_to_message(
             const auto result = txn.exec_params(
                 "UPDATE attachments SET message_id = $2 "
                 "WHERE id = $1 AND owner_id = $3 AND message_id IS NULL",
-                id, message_id, owner_id);
+                id,
+                message_id,
+                owner_id);
             linked += result.affected_rows();
         }
         return linked;
     });
 }
 
-void PgAttachmentRepository::update_media_meta(std::int64_t id, std::optional<int> width,
+void PgAttachmentRepository::update_media_meta(std::int64_t id,
+                                               std::optional<int> width,
                                                std::optional<int> height,
                                                std::optional<std::string> thumbnail_key) {
     with_transaction([&](pqxx::work& txn) {
@@ -119,7 +127,10 @@ void PgAttachmentRepository::update_media_meta(std::int64_t id, std::optional<in
             "height = COALESCE($3, height), "
             "thumbnail_key = COALESCE($4, thumbnail_key) "
             "WHERE id = $1",
-            id, width, height, thumbnail_key);
+            id,
+            width,
+            height,
+            thumbnail_key);
     });
 }
 

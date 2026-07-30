@@ -16,7 +16,7 @@ namespace rtc::config {
 // configuration throws rtc::errors::ConfigException and aborts startup, which
 // is the correct fail-fast behaviour for a backend service.
 class Config {
-public:
+  public:
     // HTTP server
     std::uint16_t chat_port = 8080;
 
@@ -30,8 +30,8 @@ public:
 
     // JWT
     std::string jwt_secret = "dev-insecure-secret-change-me-in-production";
-    std::int64_t jwt_access_ttl_seconds = 900;            // 15 minutes
-    std::int64_t jwt_refresh_ttl_seconds = 1'209'600;     // 14 days
+    std::int64_t jwt_access_ttl_seconds = 900;         // 15 minutes
+    std::int64_t jwt_refresh_ttl_seconds = 1'209'600;  // 14 days
     std::string jwt_issuer = "realtime-chat";
 
     // WebSocket heartbeat (Phase 2). Interval between server pings and the
@@ -53,8 +53,8 @@ public:
     // File uploads / attachments.
     std::string upload_dir = "uploads";
     std::string upload_public_base_url = "/api/attachments";
-    std::int64_t max_upload_bytes = 25 * 1024 * 1024;   // 25 MiB
-    std::int64_t max_request_bytes = 1 * 1024 * 1024;   // 1 MiB (JSON bodies)
+    std::int64_t max_upload_bytes = 25 * 1024 * 1024;  // 25 MiB
+    std::int64_t max_request_bytes = 1 * 1024 * 1024;  // 1 MiB (JSON bodies)
 
     // Rate limiting (fixed window). Zero disables a given limit.
     bool rate_limit_enabled = true;

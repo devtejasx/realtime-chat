@@ -11,13 +11,12 @@ namespace rtc::controllers {
 // ratio, uptime, memory) are registered as callbacks on the registry by the
 // composition root, so this controller only renders.
 class MetricsController {
-public:
-    explicit MetricsController(metrics::MetricsRegistry& registry) noexcept
-        : registry_(registry) {}
+  public:
+    explicit MetricsController(metrics::MetricsRegistry& registry) noexcept : registry_(registry) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     metrics::MetricsRegistry& registry_;
 };
 

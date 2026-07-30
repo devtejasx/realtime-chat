@@ -3,11 +3,10 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
-
-#include <nlohmann/json.hpp>
 
 #include "rtc/utils/time.hpp"
 
@@ -97,11 +96,11 @@ inline constexpr std::array<std::string_view, kEventTypeCount> kEventTypeNames{{
 // by the typed builders in event_types.hpp.
 struct DomainEvent {
     EventType type = EventType::kAdminAction;
-    std::string event_id;                    // unique id, for de-duplication
+    std::string event_id;  // unique id, for de-duplication
     utils::TimePoint occurred_at{};
-    std::optional<std::int64_t> actor_id;    // the user who caused it, if any
-    std::string correlation_id;              // request id, ties event -> request
-    std::string trace_id;                    // W3C trace id, ties event -> trace
+    std::optional<std::int64_t> actor_id;  // the user who caused it, if any
+    std::string correlation_id;            // request id, ties event -> request
+    std::string trace_id;                  // W3C trace id, ties event -> trace
     nlohmann::json payload = nlohmann::json::object();
 
     // Builds an event, stamping a fresh id and the current time, and adopting
@@ -109,7 +108,8 @@ struct DomainEvent {
     // present. That means an event published while handling a request is
     // automatically correlated with that request's trace, with no plumbing at
     // the call site.
-    [[nodiscard]] static DomainEvent make(EventType type, nlohmann::json payload,
+    [[nodiscard]] static DomainEvent make(EventType type,
+                                          nlohmann::json payload,
                                           std::optional<std::int64_t> actor_id = std::nullopt);
 
     [[nodiscard]] std::string_view name() const noexcept { return to_string(type); }

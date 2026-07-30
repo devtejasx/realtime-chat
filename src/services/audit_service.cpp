@@ -160,9 +160,11 @@ bool AuditService::record(const events::DomainEvent& event) {
     return written;
 }
 
-bool AuditService::record_admin_action(std::int64_t actor_id, const std::string& action,
+bool AuditService::record_admin_action(std::int64_t actor_id,
+                                       const std::string& action,
                                        const std::string& target_type,
-                                       const std::string& target_id, nlohmann::json details,
+                                       const std::string& target_id,
+                                       nlohmann::json details,
                                        std::optional<std::string> ip,
                                        std::optional<std::string> user_agent) {
     repositories::NewAuditLog row;

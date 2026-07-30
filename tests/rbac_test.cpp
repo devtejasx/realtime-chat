@@ -89,8 +89,8 @@ TEST(Rbac, GrantsAreCumulativeUpTheHierarchy) {
             const auto permission = static_cast<Permission>(i);
             if (has_permission(ordered[lower], permission)) {
                 EXPECT_TRUE(has_permission(ordered[lower + 1], permission))
-                    << "role " << rtc::security::to_string(ordered[lower + 1])
-                    << " is missing " << rtc::security::to_string(permission);
+                    << "role " << rtc::security::to_string(ordered[lower + 1]) << " is missing "
+                    << rtc::security::to_string(permission);
             }
         }
     }

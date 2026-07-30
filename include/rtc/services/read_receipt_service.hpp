@@ -13,7 +13,7 @@ namespace rtc::services {
 // per-participant read marker in sync, and broadcasts updates. Invoked by the
 // WebSocket handlers (mark_delivered / mark_read events) and reusable by REST.
 class ReadReceiptService {
-public:
+  public:
     ReadReceiptService(repositories::IReadReceiptRepository& receipts,
                        repositories::IConversationRepository& conversations,
                        repositories::IMessageRepository& messages,
@@ -29,10 +29,11 @@ public:
 
     // Marks all messages in `conversation_id` up to `up_to_message_id` as read
     // for `actor_id`, advances the read marker, and broadcasts a read update.
-    void mark_read(std::int64_t actor_id, std::int64_t conversation_id,
+    void mark_read(std::int64_t actor_id,
+                   std::int64_t conversation_id,
                    std::int64_t up_to_message_id);
 
-private:
+  private:
     repositories::IReadReceiptRepository& receipts_;
     repositories::IConversationRepository& conversations_;
     repositories::IMessageRepository& messages_;

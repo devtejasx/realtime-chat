@@ -13,14 +13,14 @@ namespace rtc::controllers {
 //   PATCH  /api/messages/<id>   — edit (author only)
 //   DELETE /api/messages/<id>   — soft-delete (author or group owner)
 class MessageController {
-public:
+  public:
     MessageController(services::MessageService& messages,
                       middlewares::AuthMiddleware& auth_guard) noexcept
         : messages_(messages), auth_guard_(auth_guard) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     services::MessageService& messages_;
     middlewares::AuthMiddleware& auth_guard_;
 };

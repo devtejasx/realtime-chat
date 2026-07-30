@@ -1,8 +1,7 @@
 #include "rtc/realtime/session_manager.hpp"
 
-#include <gtest/gtest.h>
-
 #include <crow/websocket.h>
+#include <gtest/gtest.h>
 
 namespace {
 

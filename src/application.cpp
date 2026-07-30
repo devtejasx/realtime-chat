@@ -3,9 +3,8 @@
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
-#include <utility>
-
 #include <pqxx/transaction>
+#include <utility>
 
 #include "rtc/cache/in_memory_cache_store.hpp"
 #include "rtc/cache/redis_cache_store.hpp"
@@ -15,14 +14,14 @@
 #include "rtc/realtime/redis_cluster_bus.hpp"
 #include "rtc/repositories/pg_attachment_repository.hpp"
 #include "rtc/repositories/pg_audit_log_repository.hpp"
-#include "rtc/repositories/pg_message_search_repository.hpp"
-#include "rtc/repositories/pg_user_admin_repository.hpp"
 #include "rtc/repositories/pg_conversation_repository.hpp"
 #include "rtc/repositories/pg_message_repository.hpp"
+#include "rtc/repositories/pg_message_search_repository.hpp"
 #include "rtc/repositories/pg_notification_repository.hpp"
 #include "rtc/repositories/pg_reaction_repository.hpp"
 #include "rtc/repositories/pg_read_receipt_repository.hpp"
 #include "rtc/repositories/pg_session_repository.hpp"
+#include "rtc/repositories/pg_user_admin_repository.hpp"
 #include "rtc/repositories/pg_user_repository.hpp"
 #include "rtc/security/bcrypt_password_hasher.hpp"
 #include "rtc/security/jwt_token_service.hpp"
@@ -81,7 +80,8 @@ namespace {
             });
     } catch (const std::exception& ex) {
         RTC_LOG_WARN("Could not create '{}' span exporter ({}); falling back to logging",
-                     config.tracing_exporter, ex.what());
+                     config.tracing_exporter,
+                     ex.what());
         return std::make_unique<tracing::LoggingSpanExporter>();
     }
 }
@@ -89,8 +89,8 @@ namespace {
 // Chooses the cluster bus: Redis Pub/Sub when multi-instance fan-out is enabled
 // and compiled in, otherwise the no-op bus (which is the *correct* choice for a
 // single replica, not merely a fallback).
-[[nodiscard]] std::unique_ptr<realtime::IClusterBus> make_cluster_bus(
-    const config::Config& config, std::string node_id) {
+[[nodiscard]] std::unique_ptr<realtime::IClusterBus> make_cluster_bus(const config::Config& config,
+                                                                      std::string node_id) {
     if (config.cluster_enabled && realtime::RedisClusterBus::available()) {
         try {
             RTC_LOG_INFO("Cluster fan-out via Redis Pub/Sub at {}", config.redis_url);
@@ -117,12 +117,16 @@ Application::Application(config::Config config)
       migrations_dir_(utils::get_env_or("MIGRATIONS_DIR", "migrations")),
       node_id_(realtime::make_node_id()) {}
 
-Application::~Application() { stop(); }
+Application::~Application() {
+    stop();
+}
 
 void Application::bootstrap() {
     logging::init(config_.log_level, config_.log_format);
-    RTC_LOG_INFO("Starting realtime-chat {} in '{}' environment (node '{}')", RTC_VERSION,
-                 config_.app_env, node_id_);
+    RTC_LOG_INFO("Starting realtime-chat {} in '{}' environment (node '{}')",
+                 RTC_VERSION,
+                 config_.app_env,
+                 node_id_);
     RTC_LOG_INFO("Database target: {}", config_.database_connection_string_redacted());
 
     // Observability first: migrations and wiring are themselves worth tracing, and
@@ -143,7 +147,8 @@ void Application::bootstrap() {
 void Application::wire_observability() {
     features_ = std::make_unique<features::FeatureFlags>();
     features_->load_from_env();
-    RTC_LOG_INFO("Feature flags: {} of {} enabled", features_->enabled_names().size(),
+    RTC_LOG_INFO("Feature flags: {} of {} enabled",
+                 features_->enabled_names().size(),
                  features::kFeatureCount);
 
     tracer_ = std::make_unique<tracing::Tracer>(
@@ -176,8 +181,7 @@ void Application::wire_cluster_bus() {
 void Application::wire_event_subscribers() {
     // Audit persistence. Its own interest check consults the audit feature flag,
     // so switching the flag off stops the writes without unsubscribing.
-    audit_subscriber_ =
-        std::make_unique<events::AuditLogSubscriber>(*audit_service_, *features_);
+    audit_subscriber_ = std::make_unique<events::AuditLogSubscriber>(*audit_service_, *features_);
     event_bus_->subscribe(*audit_subscriber_);
 
     // A counter per domain event type. Cheap, and it makes the event bus itself
@@ -237,8 +241,7 @@ void Application::wire_object_graph() {
     session_repository_ = std::make_unique<repositories::PgSessionRepository>(*pool_);
     audit_log_repository_ = std::make_unique<repositories::PgAuditLogRepository>(*pool_);
     user_admin_repository_ = std::make_unique<repositories::PgUserAdminRepository>(*pool_);
-    message_search_repository_ =
-        std::make_unique<repositories::PgMessageSearchRepository>(*pool_);
+    message_search_repository_ = std::make_unique<repositories::PgMessageSearchRepository>(*pool_);
 
     // Realtime + presence.
     connection_manager_ = std::make_unique<realtime::ConnectionManager>();
@@ -248,8 +251,7 @@ void Application::wire_object_graph() {
     // Domain event bus. Asynchronous: dispatching on the worker pool keeps audit
     // writes and other subscriber side effects off the request's critical path.
     domain_event_dispatcher_ = std::make_unique<events::EventDispatcher>();
-    event_bus_ = std::make_unique<events::InProcessEventBus>(*domain_event_dispatcher_,
-                                                             *executor_);
+    event_bus_ = std::make_unique<events::InProcessEventBus>(*domain_event_dispatcher_, *executor_);
 
     // Notifications (event-driven sink + dispatcher).
     notification_service_ = std::make_unique<services::NotificationService>(
@@ -261,31 +263,45 @@ void Application::wire_object_graph() {
     user_service_ = std::make_unique<services::UserService>(*user_repository_, *password_hasher_);
     auth_service_ = std::make_unique<services::AuthService>(*user_service_, *token_service_);
     attachment_service_ = std::make_unique<services::AttachmentService>(
-        *attachment_repository_, *message_repository_, *conversation_repository_, *file_storage_,
-        *image_processor_, *executor_, *metrics_,
+        *attachment_repository_,
+        *message_repository_,
+        *conversation_repository_,
+        *file_storage_,
+        *image_processor_,
+        *executor_,
+        *metrics_,
         services::AttachmentService::Options{config_.max_upload_bytes, 256});
-    conversation_service_ = std::make_unique<services::ConversationService>(
-        *conversation_repository_, *user_repository_, *connection_manager_,
-        *notification_dispatcher_);
-    message_service_ = std::make_unique<services::MessageService>(
-        *message_repository_, *conversation_repository_, *connection_manager_,
-        *notification_dispatcher_, *attachment_service_);
+    conversation_service_ =
+        std::make_unique<services::ConversationService>(*conversation_repository_,
+                                                        *user_repository_,
+                                                        *connection_manager_,
+                                                        *notification_dispatcher_);
+    message_service_ = std::make_unique<services::MessageService>(*message_repository_,
+                                                                  *conversation_repository_,
+                                                                  *connection_manager_,
+                                                                  *notification_dispatcher_,
+                                                                  *attachment_service_);
     // Domain events: producers publish, subscribers react. Wiring this here (and
     // not in the service constructors) is what keeps the bus an additive change.
     conversation_service_->set_event_publisher(*event_bus_);
     message_service_->set_event_publisher(*event_bus_);
-    read_receipt_service_ = std::make_unique<services::ReadReceiptService>(
-        *read_receipt_repository_, *conversation_repository_, *message_repository_,
-        *connection_manager_);
-    reaction_service_ = std::make_unique<services::ReactionService>(
-        *reaction_repository_, *message_repository_, *conversation_repository_,
-        *connection_manager_, *notification_dispatcher_);
+    read_receipt_service_ =
+        std::make_unique<services::ReadReceiptService>(*read_receipt_repository_,
+                                                       *conversation_repository_,
+                                                       *message_repository_,
+                                                       *connection_manager_);
+    reaction_service_ = std::make_unique<services::ReactionService>(*reaction_repository_,
+                                                                    *message_repository_,
+                                                                    *conversation_repository_,
+                                                                    *connection_manager_,
+                                                                    *notification_dispatcher_);
     session_service_ = std::make_unique<services::SessionService>(
         *session_repository_, *token_service_, config_.jwt_refresh_ttl_seconds);
 
     // Authorisation, audit and search.
     authorization_service_ = std::make_unique<services::AuthorizationService>(
-        *user_admin_repository_, *cache_store_,
+        *user_admin_repository_,
+        *cache_store_,
         services::AuthorizationService::Options{
             std::chrono::seconds(config_.authz_cache_ttl_seconds)});
     audit_service_ =
@@ -298,14 +314,17 @@ void Application::wire_object_graph() {
     // ban takes effect on the target's next request rather than at token expiry.
     auth_guard_->set_authorization_service(*authorization_service_);
 
-    event_dispatcher_ = std::make_unique<realtime::EventDispatcher>(
-        *connection_manager_, *presence_service_, *conversation_service_, *message_service_,
-        *read_receipt_service_);
+    event_dispatcher_ = std::make_unique<realtime::EventDispatcher>(*connection_manager_,
+                                                                    *presence_service_,
+                                                                    *conversation_service_,
+                                                                    *message_service_,
+                                                                    *read_receipt_service_);
     event_dispatcher_->set_feature_flags(*features_);
     event_dispatcher_->set_event_publisher(*event_bus_);
 
     heartbeat_monitor_ = std::make_unique<realtime::HeartbeatMonitor>(
-        *connection_manager_, std::chrono::seconds(config_.ws_heartbeat_interval_seconds),
+        *connection_manager_,
+        std::chrono::seconds(config_.ws_heartbeat_interval_seconds),
         std::chrono::seconds(config_.ws_heartbeat_timeout_seconds));
 
     // Controllers.
@@ -316,14 +335,13 @@ void Application::wire_object_graph() {
     auth_controller_ = std::make_unique<controllers::AuthController>(
         *auth_service_, *user_service_, *session_service_, *auth_guard_);
     auth_controller_->set_event_publisher(*event_bus_);
-    user_controller_ =
-        std::make_unique<controllers::UserController>(*user_service_, *auth_guard_);
+    user_controller_ = std::make_unique<controllers::UserController>(*user_service_, *auth_guard_);
     conversation_controller_ =
         std::make_unique<controllers::ConversationController>(*conversation_service_, *auth_guard_);
     message_controller_ =
         std::make_unique<controllers::MessageController>(*message_service_, *auth_guard_);
-    websocket_controller_ = std::make_unique<controllers::WebSocketController>(*token_service_,
-                                                                               *event_dispatcher_);
+    websocket_controller_ =
+        std::make_unique<controllers::WebSocketController>(*token_service_, *event_dispatcher_);
     attachment_controller_ = std::make_unique<controllers::AttachmentController>(
         *attachment_service_, *auth_guard_, *rate_limiter_, config_);
     reaction_controller_ =
@@ -336,8 +354,8 @@ void Application::wire_object_graph() {
     search_controller_ =
         std::make_unique<controllers::SearchController>(*search_service_, *auth_guard_);
     docs_controller_ = std::make_unique<controllers::DocsController>(config_);
-    admin_controller_ = std::make_unique<controllers::AdminController>(
-        controllers::AdminController::Dependencies{
+    admin_controller_ =
+        std::make_unique<controllers::AdminController>(controllers::AdminController::Dependencies{
             .auth_guard = auth_guard_.get(),
             .authorization = authorization_service_.get(),
             .audit = audit_service_.get(),
@@ -407,9 +425,8 @@ void Application::register_metrics() {
                                       [this] { return metrics_->uptime_seconds(); });
     metrics_->register_gauge_callback("rtc_process_memory_bytes",
                                       [] { return process_memory_bytes(); });
-    metrics_->register_gauge_callback("rtc_background_jobs_pending", [this] {
-        return static_cast<double>(executor_->pending());
-    });
+    metrics_->register_gauge_callback("rtc_background_jobs_pending",
+                                      [this] { return static_cast<double>(executor_->pending()); });
 
     // --- Phase 5 instrumentation ---
     metrics_->register_gauge_callback("rtc_event_bus_published_total", [this] {

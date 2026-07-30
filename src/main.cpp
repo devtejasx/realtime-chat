@@ -29,7 +29,8 @@ int main(int argc, char** argv) {
         rtc::Application app(std::move(config));
         return migrate_only ? app.migrate() : app.run();
     } catch (const rtc::errors::ConfigException& ex) {
-        RTC_LOG_CRITICAL("Configuration error: {}{}", ex.message(),
+        RTC_LOG_CRITICAL("Configuration error: {}{}",
+                         ex.message(),
                          ex.has_details() ? " (" + ex.details() + ")" : "");
         return 78;  // EX_CONFIG
     } catch (const rtc::errors::AppException& ex) {

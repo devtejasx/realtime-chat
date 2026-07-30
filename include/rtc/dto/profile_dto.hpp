@@ -1,9 +1,8 @@
 #pragma once
 
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
-
-#include <nlohmann/json.hpp>
 
 namespace rtc::dto {
 

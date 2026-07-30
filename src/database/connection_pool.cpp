@@ -10,7 +10,9 @@ namespace rtc::database {
 // ---------------------------------------------------------------------------
 // PooledConnection
 // ---------------------------------------------------------------------------
-PooledConnection::~PooledConnection() { return_to_pool(); }
+PooledConnection::~PooledConnection() {
+    return_to_pool();
+}
 
 PooledConnection& PooledConnection::operator=(PooledConnection&& other) noexcept {
     if (this != &other) {

@@ -8,7 +8,7 @@ using rtc::services::PresenceService;
 
 TEST(PresenceServiceTest, FirstConnectTransitionsOnline) {
     PresenceService presence;
-    EXPECT_TRUE(presence.on_connect(1));   // offline -> online
+    EXPECT_TRUE(presence.on_connect(1));  // offline -> online
     EXPECT_TRUE(presence.is_online(1));
     EXPECT_EQ(presence.online_count(), 1U);
 }
@@ -26,7 +26,7 @@ TEST(PresenceServiceTest, OfflineOnlyWhenLastSessionCloses) {
     presence.on_connect(1);
     EXPECT_FALSE(presence.on_disconnect(1));  // one session remains
     EXPECT_TRUE(presence.is_online(1));
-    EXPECT_TRUE(presence.on_disconnect(1));    // last session -> offline
+    EXPECT_TRUE(presence.on_disconnect(1));  // last session -> offline
     EXPECT_FALSE(presence.is_online(1));
 }
 

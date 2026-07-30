@@ -22,7 +22,7 @@ namespace rtc::realtime {
 // reconnects with backoff on failure, so a Redis restart degrades delivery
 // temporarily instead of permanently.
 class RedisClusterBus final : public IClusterBus {
-public:
+  public:
     RedisClusterBus(const std::string& uri, std::string node_id);
     ~RedisClusterBus() override;
 
@@ -42,7 +42,7 @@ public:
     // True when the binary was compiled with Redis support.
     [[nodiscard]] static bool available() noexcept;
 
-private:
+  private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

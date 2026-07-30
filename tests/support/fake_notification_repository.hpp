@@ -2,9 +2,8 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <vector>
-
 #include <nlohmann/json.hpp>
+#include <vector>
 
 #include "rtc/models/notification.hpp"
 #include "rtc/repositories/notification_repository.hpp"
@@ -14,8 +13,9 @@ namespace rtc::testing {
 
 // In-memory INotificationRepository.
 class FakeNotificationRepository final : public repositories::INotificationRepository {
-public:
-    models::Notification create(std::int64_t user_id, models::NotificationType type,
+  public:
+    models::Notification create(std::int64_t user_id,
+                                models::NotificationType type,
                                 const nlohmann::json& payload) override {
         models::Notification n;
         n.id = next_id_++;
@@ -27,12 +27,15 @@ public:
         return n;
     }
 
-    std::vector<models::Notification> list_for_user(std::int64_t user_id, const dto::Pagination&,
+    std::vector<models::Notification> list_for_user(std::int64_t user_id,
+                                                    const dto::Pagination&,
                                                     bool unread_only) override {
         std::vector<models::Notification> out;
         for (const auto& n : notifications_) {
-            if (n.user_id != user_id) continue;
-            if (unread_only && n.is_read()) continue;
+            if (n.user_id != user_id)
+                continue;
+            if (unread_only && n.is_read())
+                continue;
             out.push_back(n);
         }
         return out;
@@ -41,7 +44,8 @@ public:
     std::int64_t unread_count(std::int64_t user_id) override {
         std::int64_t count = 0;
         for (const auto& n : notifications_)
-            if (n.user_id == user_id && !n.is_read()) ++count;
+            if (n.user_id == user_id && !n.is_read())
+                ++count;
         return count;
     }
 
@@ -67,7 +71,8 @@ public:
     bool remove(std::int64_t id, std::int64_t user_id) override {
         const auto before = notifications_.size();
         notifications_.erase(
-            std::remove_if(notifications_.begin(), notifications_.end(),
+            std::remove_if(notifications_.begin(),
+                           notifications_.end(),
                            [&](const auto& n) { return n.id == id && n.user_id == user_id; }),
             notifications_.end());
         return notifications_.size() != before;
@@ -75,7 +80,7 @@ public:
 
     [[nodiscard]] std::size_t count() const noexcept { return notifications_.size(); }
 
-private:
+  private:
     std::vector<models::Notification> notifications_;
     std::int64_t next_id_ = 1;
 };

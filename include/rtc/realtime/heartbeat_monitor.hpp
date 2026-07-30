@@ -18,8 +18,9 @@ namespace rtc::realtime {
 // intermediaries keep the socket warm. Runs on its own thread with an
 // interruptible sleep, so shutdown is immediate.
 class HeartbeatMonitor {
-public:
-    HeartbeatMonitor(ConnectionManager& connections, std::chrono::seconds interval,
+  public:
+    HeartbeatMonitor(ConnectionManager& connections,
+                     std::chrono::seconds interval,
                      std::chrono::seconds timeout);
     ~HeartbeatMonitor();
 
@@ -29,7 +30,7 @@ public:
     void start();
     void stop();
 
-private:
+  private:
     void run();
 
     ConnectionManager& connections_;

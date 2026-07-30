@@ -10,7 +10,9 @@ namespace rtc::jobs {
 BackgroundExecutor::BackgroundExecutor(std::size_t worker_count)
     : worker_count_(worker_count == 0 ? 1 : worker_count) {}
 
-BackgroundExecutor::~BackgroundExecutor() { stop(); }
+BackgroundExecutor::~BackgroundExecutor() {
+    stop();
+}
 
 void BackgroundExecutor::start() {
     bool expected = false;
@@ -35,8 +37,8 @@ void BackgroundExecutor::stop() {
         }
     }
     workers_.clear();
-    RTC_LOG_INFO("Background executor stopped ({} completed, {} failed)", completed_.load(),
-                 failed_.load());
+    RTC_LOG_INFO(
+        "Background executor stopped ({} completed, {} failed)", completed_.load(), failed_.load());
 }
 
 void BackgroundExecutor::submit(Task task) {

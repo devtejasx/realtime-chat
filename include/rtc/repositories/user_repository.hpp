@@ -33,7 +33,7 @@ struct ProfileUpdate {
 // Persistence boundary for User aggregates. Depends only on the domain model,
 // so services can be unit-tested against an in-memory fake implementation.
 class IUserRepository {
-public:
+  public:
     virtual ~IUserRepository() = default;
 
     // Inserts a new user and returns it with id and timestamps populated.
@@ -44,8 +44,7 @@ public:
     [[nodiscard]] virtual std::optional<models::User> find_by_id(std::int64_t id) = 0;
     [[nodiscard]] virtual std::optional<models::User> find_by_username(
         std::string_view username) = 0;
-    [[nodiscard]] virtual std::optional<models::User> find_by_email(
-        std::string_view email) = 0;
+    [[nodiscard]] virtual std::optional<models::User> find_by_email(std::string_view email) = 0;
 
     // Finds a user by either username or email (case-insensitive); used by login.
     [[nodiscard]] virtual std::optional<models::User> find_by_identifier(

@@ -1,11 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
-
-#include <nlohmann/json.hpp>
 
 namespace rtc::realtime::protocol {
 
@@ -88,8 +87,10 @@ struct Envelope {
 //
 // `event` is the canonical event name from rtc/realtime/events.hpp. Returns the
 // JSON text ready to hand to the socket.
-[[nodiscard]] std::string encode(Version version, std::string_view event,
-                                 const nlohmann::json& payload, const Envelope& envelope = {});
+[[nodiscard]] std::string encode(Version version,
+                                 std::string_view event,
+                                 const nlohmann::json& payload,
+                                 const Envelope& envelope = {});
 
 // Parses an inbound client frame.
 //

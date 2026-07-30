@@ -28,7 +28,7 @@ namespace rtc::events {
 // Thread-safe. Subscription uses a unique lock (rare, bootstrap only) and
 // dispatch a shared lock, so concurrent publishes never serialise on each other.
 class EventDispatcher {
-public:
+  public:
     EventDispatcher() = default;
 
     EventDispatcher(const EventDispatcher&) = delete;
@@ -45,7 +45,7 @@ public:
     [[nodiscard]] std::uint64_t dispatched_count() const noexcept;
     [[nodiscard]] std::uint64_t handler_failure_count() const noexcept;
 
-private:
+  private:
     mutable std::shared_mutex mutex_;
     std::vector<IEventSubscriber*> subscribers_;
     // Atomic, not mutex-guarded: dispatch() holds only a *shared* lock, so

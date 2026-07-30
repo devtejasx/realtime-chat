@@ -18,14 +18,14 @@ namespace rtc::controllers {
 //   DELETE /api/conversations/<id>/members/<uid>    — remove member (owner)
 //   POST   /api/conversations/<id>/leave            — leave
 class ConversationController {
-public:
+  public:
     ConversationController(services::ConversationService& conversations,
                            middlewares::AuthMiddleware& auth_guard) noexcept
         : conversations_(conversations), auth_guard_(auth_guard) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     services::ConversationService& conversations_;
     middlewares::AuthMiddleware& auth_guard_;
 };

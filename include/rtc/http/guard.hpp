@@ -1,9 +1,9 @@
 #pragma once
 
+#include <crow/http_response.h>
+
 #include <exception>
 #include <utility>
-
-#include <crow/http_response.h>
 
 #include "rtc/errors/error_mapper.hpp"
 #include "rtc/errors/exceptions.hpp"
@@ -20,7 +20,9 @@ template <typename Fn>
     try {
         return std::forward<Fn>(fn)();
     } catch (const errors::AppException& ex) {
-        RTC_LOG_WARN("Request failed [{}]: {}{}", ex.code(), ex.message(),
+        RTC_LOG_WARN("Request failed [{}]: {}{}",
+                     ex.code(),
+                     ex.message(),
                      ex.has_details() ? " (" + ex.details() + ")" : "");
         return errors::ErrorMapper::to_response(ex);
     } catch (const std::exception& ex) {

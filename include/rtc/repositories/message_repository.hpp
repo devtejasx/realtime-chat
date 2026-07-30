@@ -31,7 +31,7 @@ struct MessageFilter {
 
 // Persistence boundary for messages.
 class IMessageRepository {
-public:
+  public:
     virtual ~IMessageRepository() = default;
 
     // Inserts a message and atomically advances the conversation's

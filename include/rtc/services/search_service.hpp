@@ -1,9 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/dto/pagination.hpp"
 #include "rtc/features/feature_flags.hpp"
@@ -19,7 +18,7 @@ namespace rtc::services {
 // PostgreSQL does both far better than post-processing in C++ could, and doing it
 // in the database avoids shipping rows only to discard them.
 class SearchService {
-public:
+  public:
     // Bounds on the search term. A one-character term matches almost everything
     // and is pure load with no useful result, so it is rejected rather than
     // served; the upper bound stops a pathological query being sent to the parser.
@@ -45,7 +44,7 @@ public:
     // Validates and normalises a raw term (trims, checks length).
     [[nodiscard]] static std::string validate_term(const std::string& raw);
 
-private:
+  private:
     repositories::IMessageSearchRepository& messages_;
     const features::FeatureFlags& flags_;
 };

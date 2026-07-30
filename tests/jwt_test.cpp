@@ -1,8 +1,7 @@
-#include "rtc/security/jwt_token_service.hpp"
-
 #include <gtest/gtest.h>
 
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/security/jwt_token_service.hpp"
 #include "rtc/security/token.hpp"
 
 namespace {
@@ -59,8 +58,8 @@ TEST(JwtTokenServiceTest, RejectsTokenSignedWithDifferentSecret) {
     const auto issuer = make_service();
     const std::string token = issuer.issue(1, "erin", TokenType::kAccess);
 
-    JwtTokenService other(JwtTokenService::Options{
-        .secret = "a-completely-different-secret", .issuer = "realtime-chat-test"});
+    JwtTokenService other(JwtTokenService::Options{.secret = "a-completely-different-secret",
+                                                   .issuer = "realtime-chat-test"});
     EXPECT_THROW(other.verify(token, TokenType::kAccess), AuthenticationException);
 }
 

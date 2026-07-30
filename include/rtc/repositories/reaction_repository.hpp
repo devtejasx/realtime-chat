@@ -11,12 +11,13 @@ namespace rtc::repositories {
 
 // Persistence boundary for message reactions.
 class IReactionRepository {
-public:
+  public:
     virtual ~IReactionRepository() = default;
 
     // Adds or changes the caller's reaction on a message (one per user). Returns
     // the resulting reaction.
-    [[nodiscard]] virtual models::Reaction upsert(std::int64_t message_id, std::int64_t user_id,
+    [[nodiscard]] virtual models::Reaction upsert(std::int64_t message_id,
+                                                  std::int64_t user_id,
                                                   std::string_view emoji) = 0;
 
     // Removes the caller's reaction. Returns true if one was removed.

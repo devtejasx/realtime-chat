@@ -21,12 +21,12 @@ namespace rtc::controllers {
 // routes still exist but return 404, so the endpoints can be switched off without
 // a rebuild or an nginx change.
 class DocsController {
-public:
+  public:
     explicit DocsController(const config::Config& config) noexcept : config_(config) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     // Reconstructs the caller-visible origin ("http://host:port") from the request
     // so Swagger UI's "Try it out" targets this deployment rather than a hardcoded
     // localhost. Honours X-Forwarded-Proto/Host when behind a reverse proxy.

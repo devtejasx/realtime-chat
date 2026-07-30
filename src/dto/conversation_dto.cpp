@@ -25,7 +25,8 @@ using rtc::errors::ValidationException;
 }
 
 [[nodiscard]] std::optional<std::string> to_opt_iso(const std::optional<utils::TimePoint>& tp) {
-    if (!tp) return std::nullopt;
+    if (!tp)
+        return std::nullopt;
     return utils::to_iso8601(*tp);
 }
 

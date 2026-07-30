@@ -1,9 +1,8 @@
 #include "rtc/controllers/notification_controller.hpp"
 
 #include <cstdint>
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/dto/notification_dto.hpp"
 #include "rtc/dto/pagination.hpp"
@@ -21,16 +20,15 @@ void NotificationController::register_routes(http::App& app) {
                 const char* unread = req.url_params.get("unread");
                 const bool unread_only = unread != nullptr && std::string(unread) == "true";
 
-                const auto notifications =
-                    notifications_.list(claims.user_id, page, unread_only);
+                const auto notifications = notifications_.list(claims.user_id, page, unread_only);
                 nlohmann::json items = nlohmann::json::array();
                 for (const auto& notification : notifications) {
                     items.push_back(dto::NotificationResponse::from(notification).to_json());
                 }
                 return http::json_response(
-                    200, nlohmann::json{{"notifications", items},
-                                        {"unread_count", notifications_.unread_count(
-                                                             claims.user_id)}});
+                    200,
+                    nlohmann::json{{"notifications", items},
+                                   {"unread_count", notifications_.unread_count(claims.user_id)}});
             });
         });
 

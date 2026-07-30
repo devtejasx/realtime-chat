@@ -19,7 +19,7 @@ namespace rtc::services {
 // first, broadcast second — and enforces membership/authorship rules. The same
 // methods back both the REST controllers and the WebSocket handlers.
 class MessageService {
-public:
+  public:
     MessageService(repositories::IMessageRepository& messages,
                    repositories::IConversationRepository& conversations,
                    realtime::IEventBroadcaster& broadcaster,
@@ -56,7 +56,8 @@ public:
                                                     const dto::Pagination& page);
 
     // Edits a message; only its author may edit. Broadcasts the update.
-    [[nodiscard]] models::Message edit(std::int64_t actor_id, std::int64_t message_id,
+    [[nodiscard]] models::Message edit(std::int64_t actor_id,
+                                       std::int64_t message_id,
                                        const dto::UpdateMessageRequest& request);
 
     // Soft-deletes a message; the author or the group owner may delete.
@@ -65,7 +66,7 @@ public:
     // Fetches a single message the actor may see.
     [[nodiscard]] models::Message get(std::int64_t actor_id, std::int64_t message_id);
 
-private:
+  private:
     [[nodiscard]] models::Message require_message(std::int64_t message_id);
     void require_participant(std::int64_t conversation_id, std::int64_t user_id);
 

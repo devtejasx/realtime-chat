@@ -78,8 +78,8 @@ std::int64_t InMemoryCacheStore::incr(std::string_view key, Seconds ttl_on_creat
         return 1;
     }
     std::int64_t current = 0;
-    std::from_chars(it->second.value.data(), it->second.value.data() + it->second.value.size(),
-                    current);
+    std::from_chars(
+        it->second.value.data(), it->second.value.data() + it->second.value.size(), current);
     current += 1;
     it->second.value = std::to_string(current);
     return current;

@@ -20,7 +20,7 @@ namespace rtc::events {
 // swallowing them here would hide an audit outage, which is the last thing you
 // want to be quiet about.
 class AuditLogSubscriber final : public IEventSubscriber {
-public:
+  public:
     AuditLogSubscriber(services::AuditService& audit, const features::FeatureFlags& flags) noexcept
         : audit_(audit), flags_(flags) {}
 
@@ -30,11 +30,9 @@ public:
 
     void handle(const DomainEvent& event) override { (void) audit_.record(event); }
 
-    [[nodiscard]] std::string_view subscriber_name() const noexcept override {
-        return "audit_log";
-    }
+    [[nodiscard]] std::string_view subscriber_name() const noexcept override { return "audit_log"; }
 
-private:
+  private:
     services::AuditService& audit_;
     const features::FeatureFlags& flags_;
 };

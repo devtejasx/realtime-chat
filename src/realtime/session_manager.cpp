@@ -5,7 +5,8 @@
 namespace rtc::realtime {
 
 std::shared_ptr<Session> SessionManager::add(crow::websocket::connection* conn,
-                                             std::int64_t user_id, std::string username,
+                                             std::int64_t user_id,
+                                             std::string username,
                                              protocol::Version version) {
     auto session = std::make_shared<Session>(conn, user_id, std::move(username), 0, version);
     std::lock_guard<std::mutex> lock(mutex_);

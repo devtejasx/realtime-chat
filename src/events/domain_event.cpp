@@ -16,7 +16,8 @@ std::optional<EventType> parse_event_type(std::string_view name) noexcept {
     return std::nullopt;
 }
 
-DomainEvent DomainEvent::make(EventType type, nlohmann::json payload,
+DomainEvent DomainEvent::make(EventType type,
+                              nlohmann::json payload,
                               std::optional<std::int64_t> actor_id) {
     DomainEvent event;
     event.type = type;

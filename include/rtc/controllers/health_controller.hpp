@@ -39,7 +39,7 @@ namespace rtc::controllers {
 // and all existing callers are unchanged, and any probe with nothing wired
 // degrades gracefully rather than reporting a false failure.
 class HealthController {
-public:
+  public:
     explicit HealthController(const config::Config& config) noexcept : config_(config) {}
 
     // Wires the data-store probes used by /health/ready.
@@ -68,7 +68,7 @@ public:
 
     void register_routes(http::App& app);
 
-private:
+  private:
     struct CheckResult {
         bool healthy = true;
         const char* detail = "up";

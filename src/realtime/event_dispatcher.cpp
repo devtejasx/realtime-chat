@@ -2,9 +2,8 @@
 
 #include <chrono>
 #include <exception>
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/dto/message_dto.hpp"
 #include "rtc/errors/exceptions.hpp"
@@ -38,8 +37,10 @@ bool EventDispatcher::enabled(features::Feature feature) const noexcept {
     return flags_ == nullptr || flags_->is_enabled(feature);
 }
 
-void EventDispatcher::on_open(crow::websocket::connection& conn, std::int64_t user_id,
-                              const std::string& username, protocol::Version version) {
+void EventDispatcher::on_open(crow::websocket::connection& conn,
+                              std::int64_t user_id,
+                              const std::string& username,
+                              protocol::Version version) {
     auto session = connections_.register_session(&conn, user_id, username, version);
     session->last_activity_ms.store(now_ms(), std::memory_order_relaxed);
 
@@ -58,7 +59,8 @@ void EventDispatcher::on_open(crow::websocket::connection& conn, std::int64_t us
                     .user_id = user_id,
                     .username = username,
                     .session_count = connections_.sessions().sessions_for_user(user_id).size(),
-                }.to_event());
+                }
+                                        .to_event());
             }
         }
     } catch (const std::exception& ex) {
@@ -67,7 +69,8 @@ void EventDispatcher::on_open(crow::websocket::connection& conn, std::int64_t us
 
     // The ready frame tells the client which protocol it actually got, so a
     // client that asked for v2 can verify it rather than assume.
-    connections_.send_event(&conn, realtime::events::kReady,
+    connections_.send_event(&conn,
+                            realtime::events::kReady,
                             nlohmann::json{{"user_id", user_id},
                                            {"username", username},
                                            {"protocol_version", protocol::to_number(version)}});
@@ -103,8 +106,8 @@ void EventDispatcher::on_message(crow::websocket::connection& conn, const std::s
 
     try {
         if (type == realtime::events::kClientPing) {
-            connections_.send_event(&conn, realtime::events::kPong, nlohmann::json::object(),
-                                    envelope);
+            connections_.send_event(
+                &conn, realtime::events::kPong, nlohmann::json::object(), envelope);
         } else if (type == realtime::events::kClientSendMessage) {
             handle_send_message(user_id, payload);
         } else if (type == realtime::events::kClientTypingStart) {
@@ -143,20 +146,21 @@ void EventDispatcher::on_close(crow::websocket::connection& conn) {
     }
     try {
         if (enabled(features::Feature::kPresence) && presence_.on_disconnect(session->user_id)) {
-            connections_.publish(conversations_.peer_ids(session->user_id),
-                                 realtime::events::kPresenceUpdate,
-                                 nlohmann::json{{"user_id", session->user_id},
-                                                {"status", "offline"}});
+            connections_.publish(
+                conversations_.peer_ids(session->user_id),
+                realtime::events::kPresenceUpdate,
+                nlohmann::json{{"user_id", session->user_id}, {"status", "offline"}});
             if (publisher_ != nullptr) {
                 publisher_->publish(::rtc::events::UserOffline{
                     .user_id = session->user_id,
                     .username = session->username,
-                }.to_event());
+                }
+                                        .to_event());
             }
         }
     } catch (const std::exception& ex) {
-        RTC_LOG_WARN("ws on_close side effects failed for user {}: {}", session->user_id,
-                     ex.what());
+        RTC_LOG_WARN(
+            "ws on_close side effects failed for user {}: {}", session->user_id, ex.what());
     }
 }
 
@@ -166,8 +170,10 @@ void EventDispatcher::handle_send_message(std::int64_t user_id, const nlohmann::
     (void) messages_.send(user_id, request);  // persists then broadcasts to all participants
 }
 
-void EventDispatcher::handle_typing(crow::websocket::connection& conn, std::int64_t user_id,
-                                    const std::string& username, const nlohmann::json& data,
+void EventDispatcher::handle_typing(crow::websocket::connection& conn,
+                                    std::int64_t user_id,
+                                    const std::string& username,
+                                    const nlohmann::json& data,
                                     bool starting) {
     const std::int64_t conversation_id = require_int(data, "conversation_id");
     // Authorize membership (throws if the user isn't a participant), then fan out
@@ -176,9 +182,8 @@ void EventDispatcher::handle_typing(crow::websocket::connection& conn, std::int6
     connections_.broadcast_to_room(
         conversation_id,
         starting ? realtime::events::kTypingStart : realtime::events::kTypingStop,
-        nlohmann::json{{"conversation_id", conversation_id},
-                       {"user_id", user_id},
-                       {"username", username}},
+        nlohmann::json{
+            {"conversation_id", conversation_id}, {"user_id", user_id}, {"username", username}},
         &conn);
 }
 
@@ -187,15 +192,18 @@ void EventDispatcher::handle_mark_delivered(std::int64_t user_id, const nlohmann
 }
 
 void EventDispatcher::handle_mark_read(std::int64_t user_id, const nlohmann::json& data) {
-    receipts_.mark_read(user_id, require_int(data, "conversation_id"),
-                        require_int(data, "up_to_message_id"));
+    receipts_.mark_read(
+        user_id, require_int(data, "conversation_id"), require_int(data, "up_to_message_id"));
 }
 
-void EventDispatcher::send_error(crow::websocket::connection& conn, std::string_view code,
+void EventDispatcher::send_error(crow::websocket::connection& conn,
+                                 std::string_view code,
                                  std::string_view message,
                                  const protocol::Envelope& envelope) {
-    connections_.send_event(&conn, realtime::events::kError,
-                            nlohmann::json{{"code", code}, {"message", message}}, envelope);
+    connections_.send_event(&conn,
+                            realtime::events::kError,
+                            nlohmann::json{{"code", code}, {"message", message}},
+                            envelope);
 }
 
 }  // namespace rtc::realtime

@@ -22,9 +22,8 @@ void InProcessEventBus::publish(DomainEvent event) noexcept {
         // the time a worker picks this up, so the task must own everything it
         // touches. dispatcher_ outlives the executor (destruction order in the
         // composition root), so capturing the reference is safe.
-        executor_->submit([this, moved = std::move(event)]() mutable {
-            dispatcher_.dispatch(moved);
-        });
+        executor_->submit(
+            [this, moved = std::move(event)]() mutable { dispatcher_.dispatch(moved); });
     } catch (const std::exception& ex) {
         dropped_.fetch_add(1, std::memory_order_relaxed);
         RTC_LOG_WARN("Dropped domain event '{}': {}", to_string(event.type), ex.what());

@@ -1,8 +1,7 @@
-#include "rtc/docs/openapi.hpp"
-
+#include <nlohmann/json.hpp>
 #include <string>
 
-#include <nlohmann/json.hpp>
+#include "rtc/docs/openapi.hpp"
 
 namespace rtc::docs {
 namespace {
@@ -1114,7 +1113,9 @@ constexpr const char* kOpenApiJson = R"OPENAPI({
 
 }  // namespace
 
-std::string_view openapi_json() noexcept { return kOpenApiJson; }
+std::string_view openapi_json() noexcept {
+    return kOpenApiJson;
+}
 
 std::string openapi_json_for(std::string_view base_url) {
     if (base_url.empty()) {
@@ -1170,7 +1171,8 @@ std::string swagger_ui_html(std::string_view spec_url) {
   <script>
     window.addEventListener('load', function () {
       window.ui = SwaggerUIBundle({
-        url: ')HTML" + std::string(spec_url) +
+        url: ')HTML" +
+           std::string(spec_url) +
            R"HTML(',
         dom_id: '#swagger-ui',
         deepLinking: true,

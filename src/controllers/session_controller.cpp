@@ -1,8 +1,7 @@
 #include "rtc/controllers/session_controller.hpp"
 
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/dto/session_dto.hpp"
 #include "rtc/http/guard.hpp"
@@ -28,14 +27,13 @@ void SessionController::register_routes(http::App& app) {
         });
 
     CROW_ROUTE(app, "/api/sessions/<string>")
-        .methods(crow::HTTPMethod::Delete)(
-            [this](const crow::request& req, const std::string& id) {
-                return http::run_guarded([&] {
-                    const auto claims = auth_guard_.authenticate(req);
-                    const bool revoked = sessions_.revoke(claims.user_id, id);
-                    return http::json_response(200, nlohmann::json{{"revoked", revoked}});
-                });
+        .methods(crow::HTTPMethod::Delete)([this](const crow::request& req, const std::string& id) {
+            return http::run_guarded([&] {
+                const auto claims = auth_guard_.authenticate(req);
+                const bool revoked = sessions_.revoke(claims.user_id, id);
+                return http::json_response(200, nlohmann::json{{"revoked", revoked}});
             });
+        });
 }
 
 }  // namespace rtc::controllers

@@ -20,12 +20,12 @@ namespace rtc::testing {
 // uniqueness enforced with a ConflictException, and identifier lookup across
 // username and email.
 class FakeUserRepository final : public repositories::IUserRepository {
-public:
+  public:
     [[nodiscard]] models::User create(const repositories::NewUser& input) override {
         if (find_by_username(input.username) || find_by_email(input.email)) {
             const bool email_conflict = find_by_email(input.email).has_value();
-            throw rtc::errors::ConflictException(
-                email_conflict ? "Email is already registered" : "Username is already taken");
+            throw rtc::errors::ConflictException(email_conflict ? "Email is already registered"
+                                                                : "Username is already taken");
         }
         models::User user;
         user.id = next_id_++;
@@ -40,29 +40,32 @@ public:
 
     [[nodiscard]] std::optional<models::User> find_by_id(std::int64_t id) override {
         for (const auto& user : users_) {
-            if (user.id == id) return user;
+            if (user.id == id)
+                return user;
         }
         return std::nullopt;
     }
 
-    [[nodiscard]] std::optional<models::User> find_by_username(
-        std::string_view username) override {
+    [[nodiscard]] std::optional<models::User> find_by_username(std::string_view username) override {
         for (const auto& user : users_) {
-            if (iequals(user.username, username)) return user;
+            if (iequals(user.username, username))
+                return user;
         }
         return std::nullopt;
     }
 
     [[nodiscard]] std::optional<models::User> find_by_email(std::string_view email) override {
         for (const auto& user : users_) {
-            if (iequals(user.email, email)) return user;
+            if (iequals(user.email, email))
+                return user;
         }
         return std::nullopt;
     }
 
     [[nodiscard]] std::optional<models::User> find_by_identifier(
         std::string_view identifier) override {
-        if (auto by_name = find_by_username(identifier)) return by_name;
+        if (auto by_name = find_by_username(identifier))
+            return by_name;
         return find_by_email(identifier);
     }
 
@@ -78,9 +81,12 @@ public:
                                               const repositories::ProfileUpdate& update) override {
         for (auto& user : users_) {
             if (user.id == id) {
-                if (update.display_name_set) user.display_name = update.display_name;
-                if (update.bio_set) user.bio = update.bio;
-                if (update.avatar_url_set) user.avatar_url = update.avatar_url;
+                if (update.display_name_set)
+                    user.display_name = update.display_name;
+                if (update.bio_set)
+                    user.bio = update.bio;
+                if (update.avatar_url_set)
+                    user.avatar_url = update.avatar_url;
                 user.updated_at = utils::now();
                 return user;
             }
@@ -90,7 +96,7 @@ public:
 
     [[nodiscard]] std::size_t count() const noexcept { return users_.size(); }
 
-private:
+  private:
     static bool iequals(std::string_view a, std::string_view b) {
         return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char x, char y) {
             return std::tolower(static_cast<unsigned char>(x)) ==

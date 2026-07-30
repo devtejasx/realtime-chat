@@ -13,14 +13,14 @@ namespace rtc::controllers {
 //
 // (Logout of the current session and all sessions live on the auth controller.)
 class SessionController {
-public:
+  public:
     SessionController(services::SessionService& sessions,
                       middlewares::AuthMiddleware& auth_guard) noexcept
         : sessions_(sessions), auth_guard_(auth_guard) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     services::SessionService& sessions_;
     middlewares::AuthMiddleware& auth_guard_;
 };

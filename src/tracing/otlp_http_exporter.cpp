@@ -1,12 +1,5 @@
 #include "rtc/tracing/otlp_http_exporter.hpp"
 
-#include <atomic>
-#include <cstdint>
-#include <exception>
-#include <istream>
-#include <system_error>
-#include <utility>
-
 #include <asio/buffer.hpp>
 #include <asio/connect.hpp>
 #include <asio/error.hpp>
@@ -15,6 +8,12 @@
 #include <asio/read_until.hpp>
 #include <asio/streambuf.hpp>
 #include <asio/write.hpp>
+#include <atomic>
+#include <cstdint>
+#include <exception>
+#include <istream>
+#include <system_error>
+#include <utility>
 
 #include "rtc/logging/logger.hpp"
 
@@ -43,7 +42,8 @@ struct FormatDefaults {
 // Returns false on timeout, in which case the socket is closed to cancel the
 // outstanding operation. This is how the exporter stays bounded without pulling
 // in coroutines or a steady_timer per call.
-[[nodiscard]] bool run_bounded(asio::io_context& io, std::chrono::milliseconds timeout,
+[[nodiscard]] bool run_bounded(asio::io_context& io,
+                               std::chrono::milliseconds timeout,
                                tcp::socket& socket) {
     io.restart();
     io.run_for(timeout);
@@ -121,7 +121,8 @@ struct OtlpHttpSpanExporter::Impl {
 
         std::error_code resolve_ec;
         tcp::resolver::results_type endpoints;
-        resolver.async_resolve(endpoint.host, endpoint.port,
+        resolver.async_resolve(endpoint.host,
+                               endpoint.port,
                                [&](const std::error_code& ec, tcp::resolver::results_type r) {
                                    resolve_ec = ec;
                                    endpoints = std::move(r);
@@ -131,10 +132,10 @@ struct OtlpHttpSpanExporter::Impl {
         }
 
         std::error_code connect_ec;
-        asio::async_connect(socket, endpoints,
-                            [&](const std::error_code& ec, const tcp::endpoint&) {
-                                connect_ec = ec;
-                            });
+        asio::async_connect(
+            socket, endpoints, [&](const std::error_code& ec, const tcp::endpoint&) {
+                connect_ec = ec;
+            });
         if (!run_bounded(io, options.timeout, socket) || connect_ec) {
             return false;
         }
@@ -153,7 +154,8 @@ struct OtlpHttpSpanExporter::Impl {
                                     body;
 
         std::error_code write_ec;
-        asio::async_write(socket, asio::buffer(request),
+        asio::async_write(socket,
+                          asio::buffer(request),
                           [&](const std::error_code& ec, std::size_t) { write_ec = ec; });
         if (!run_bounded(io, options.timeout, socket) || write_ec) {
             return false;
@@ -163,8 +165,10 @@ struct OtlpHttpSpanExporter::Impl {
         // The rest of the response is irrelevant and deliberately not drained.
         asio::streambuf response;
         std::error_code read_ec;
-        asio::async_read_until(socket, response, "\r\n",
-                               [&](const std::error_code& ec, std::size_t) { read_ec = ec; });
+        asio::async_read_until(
+            socket, response, "\r\n", [&](const std::error_code& ec, std::size_t) {
+                read_ec = ec;
+            });
         if (!run_bounded(io, options.timeout, socket)) {
             return false;
         }
@@ -177,8 +181,11 @@ struct OtlpHttpSpanExporter::Impl {
         int status = 0;
         stream >> http_version >> status;
         if (status < 200 || status >= 300) {
-            RTC_LOG_WARN("Trace collector rejected batch: HTTP {} from {}:{}{}", status,
-                         endpoint.host, endpoint.port, endpoint.target);
+            RTC_LOG_WARN("Trace collector rejected batch: HTTP {} from {}:{}{}",
+                         status,
+                         endpoint.host,
+                         endpoint.port,
+                         endpoint.target);
             return false;
         }
         return true;
@@ -198,14 +205,19 @@ OtlpHttpSpanExporter::OtlpHttpSpanExporter(Options options)
         RTC_LOG_WARN("Invalid trace collector endpoint '{}'; spans will not be exported",
                      impl_->options.endpoint);
     } else {
-        RTC_LOG_INFO("Trace exporter: {} -> {}:{}{}", impl_->label, impl_->endpoint.host,
-                     impl_->endpoint.port, impl_->endpoint.target);
+        RTC_LOG_INFO("Trace exporter: {} -> {}:{}{}",
+                     impl_->label,
+                     impl_->endpoint.host,
+                     impl_->endpoint.port,
+                     impl_->endpoint.target);
     }
 }
 
 OtlpHttpSpanExporter::~OtlpHttpSpanExporter() = default;
 
-std::string_view OtlpHttpSpanExporter::name() const noexcept { return impl_->label; }
+std::string_view OtlpHttpSpanExporter::name() const noexcept {
+    return impl_->label;
+}
 
 void OtlpHttpSpanExporter::export_spans(const Resource& resource,
                                         const std::vector<SpanData>& spans) {
@@ -232,7 +244,10 @@ void OtlpHttpSpanExporter::export_spans(const Resource& resource,
     const auto failures = impl_->consecutive_failures.fetch_add(1, std::memory_order_relaxed) + 1;
     if (failures == 1 || failures % 100 == 0) {
         RTC_LOG_WARN("Dropped {} span(s): trace collector {}:{} unreachable ({} consecutive)",
-                     spans.size(), impl_->endpoint.host, impl_->endpoint.port, failures);
+                     spans.size(),
+                     impl_->endpoint.host,
+                     impl_->endpoint.port,
+                     failures);
     }
 }
 

@@ -2,12 +2,11 @@
 
 #include <algorithm>
 #include <fstream>
+#include <pqxx/transaction>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <pqxx/transaction>
 
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/logging/logger.hpp"
@@ -47,8 +46,8 @@ void MigrationRunner::ensure_bookkeeping_table() {
 bool MigrationRunner::is_applied(const std::string& version) {
     PooledConnection lease = pool_.acquire();
     pqxx::work txn(lease.get());
-    const auto row = txn.exec_params1(
-        "SELECT COUNT(*) FROM schema_migrations WHERE version = $1", version);
+    const auto row =
+        txn.exec_params1("SELECT COUNT(*) FROM schema_migrations WHERE version = $1", version);
     txn.commit();
     return row[0].as<int>() > 0;
 }
@@ -77,8 +76,9 @@ int MigrationRunner::run() {
             files.push_back(entry.path());
         }
     }
-    std::sort(files.begin(), files.end(),
-              [](const fs::path& a, const fs::path& b) { return a.filename() < b.filename(); });
+    std::sort(files.begin(), files.end(), [](const fs::path& a, const fs::path& b) {
+        return a.filename() < b.filename();
+    });
 
     int applied_count = 0;
     for (const auto& file : files) {

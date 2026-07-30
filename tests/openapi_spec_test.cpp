@@ -1,10 +1,10 @@
+#include <gtest/gtest.h>
+
 #include <cstddef>
 #include <functional>
+#include <nlohmann/json.hpp>
 #include <set>
 #include <string>
-
-#include <gtest/gtest.h>
-#include <nlohmann/json.hpp>
 
 #include "rtc/docs/openapi.hpp"
 #include "rtc/http/api_version.hpp"
@@ -20,7 +20,8 @@ const nlohmann::json& spec() {
 TEST(OpenApi, DocumentIsValidJson) {
     // The spec is a raw string literal, so a stray brace or an unescaped quote is
     // caught here rather than by a confused Swagger UI at runtime.
-    const auto parsed = nlohmann::json::parse(rtc::docs::openapi_json(), nullptr,
+    const auto parsed = nlohmann::json::parse(rtc::docs::openapi_json(),
+                                              nullptr,
                                               /*allow_exceptions=*/false);
     ASSERT_FALSE(parsed.is_discarded()) << "openapi_json() is not parseable JSON";
     EXPECT_TRUE(parsed.is_object());
@@ -126,14 +127,14 @@ TEST(OpenApi, DocumentsEveryRegisteredRoute) {
 
     const auto& paths = spec().at("paths");
     for (const std::string& path : registered) {
-        EXPECT_TRUE(paths.contains(path)) << "route is not documented in the OpenAPI spec: "
-                                          << path;
+        EXPECT_TRUE(paths.contains(path))
+            << "route is not documented in the OpenAPI spec: " << path;
     }
 }
 
 TEST(OpenApi, EveryDocumentedPathHasAtLeastOneOperation) {
-    static const std::set<std::string> kMethods = {"get",     "post",  "put",  "patch",
-                                                   "delete",  "head",  "options"};
+    static const std::set<std::string> kMethods = {
+        "get", "post", "put", "patch", "delete", "head", "options"};
     for (const auto& [path, item] : spec().at("paths").items()) {
         bool has_operation = false;
         for (const auto& [key, _] : item.items()) {
@@ -147,8 +148,7 @@ TEST(OpenApi, EveryDocumentedPathHasAtLeastOneOperation) {
 }
 
 TEST(OpenApi, EveryOperationDeclaresResponsesAndATag) {
-    static const std::set<std::string> kMethods = {"get",    "post",  "put",
-                                                   "patch",  "delete"};
+    static const std::set<std::string> kMethods = {"get", "post", "put", "patch", "delete"};
     for (const auto& [path, item] : spec().at("paths").items()) {
         for (const auto& [method, operation] : item.items()) {
             if (kMethods.count(method) == 0U) {
@@ -165,8 +165,7 @@ TEST(OpenApi, EveryOperationDeclaresResponsesAndATag) {
 
 TEST(OpenApi, OperationIdsAreUnique) {
     // Duplicate operationIds break generated clients.
-    static const std::set<std::string> kMethods = {"get",   "post",  "put",
-                                                   "patch", "delete"};
+    static const std::set<std::string> kMethods = {"get", "post", "put", "patch", "delete"};
     std::set<std::string> seen;
     for (const auto& [path, item] : spec().at("paths").items()) {
         for (const auto& [method, operation] : item.items()) {
@@ -184,8 +183,13 @@ TEST(OpenApi, DocumentsTheCanonicalErrorEnvelope) {
     EXPECT_TRUE(schema.at("properties").contains("error"));
     const auto& codes = schema.at("properties").at("error").at("properties").at("code").at("enum");
     // Each of these is produced by rtc::errors::code_for or the version middleware.
-    for (const char* code : {"validation_error", "authentication_error", "authorization_error",
-                             "not_found", "conflict", "rate_limited", "internal_error",
+    for (const char* code : {"validation_error",
+                             "authentication_error",
+                             "authorization_error",
+                             "not_found",
+                             "conflict",
+                             "rate_limited",
+                             "internal_error",
                              "unsupported_api_version"}) {
         bool found = false;
         for (const auto& entry : codes) {

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <chrono>
-
 #include <crow/http_request.h>
 #include <crow/http_response.h>
+
+#include <chrono>
 
 #include "rtc/metrics/metrics_registry.hpp"
 
@@ -40,7 +40,7 @@ struct MetricsMiddleware {
         }
     }
 
-private:
+  private:
     metrics::MetricsRegistry* registry_ = nullptr;
 };
 

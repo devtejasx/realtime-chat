@@ -21,7 +21,7 @@ using rtc::errors::ValidationException;
 using rtc::models::ConversationType;
 
 class ConversationServiceTest : public ::testing::Test {
-protected:
+  protected:
     std::int64_t make_user(const std::string& name) {
         return users_.create({name, name + "@example.com", "hash"}).id;
     }
@@ -45,8 +45,8 @@ protected:
     rtc::testing::FakeUserRepository users_;
     rtc::testing::RecordingBroadcaster broadcaster_;
     rtc::notifications::NullNotificationDispatcher notifications_;
-    rtc::services::ConversationService service_{conversations_, users_, broadcaster_,
-                                                notifications_};
+    rtc::services::ConversationService service_{
+        conversations_, users_, broadcaster_, notifications_};
 };
 
 TEST_F(ConversationServiceTest, CreatesDirectConversationAndBroadcasts) {

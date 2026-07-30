@@ -19,7 +19,7 @@ namespace {
 // filter would return a *wider* result set than asked for, which is the wrong
 // failure direction for anything scoped by permissions.
 [[nodiscard]] std::optional<std::int64_t> optional_int_param(const crow::request& req,
-                                                            const char* name) {
+                                                             const char* name) {
     const char* raw = req.url_params.get(name);
     if (raw == nullptr) {
         return std::nullopt;

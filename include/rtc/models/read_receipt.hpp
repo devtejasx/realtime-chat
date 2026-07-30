@@ -30,9 +30,12 @@ enum class ReceiptState {
 
 [[nodiscard]] constexpr std::optional<ReceiptState> receipt_state_from_string(
     std::string_view value) noexcept {
-    if (value == "sent") return ReceiptState::kSent;
-    if (value == "delivered") return ReceiptState::kDelivered;
-    if (value == "read") return ReceiptState::kRead;
+    if (value == "sent")
+        return ReceiptState::kSent;
+    if (value == "delivered")
+        return ReceiptState::kDelivered;
+    if (value == "read")
+        return ReceiptState::kRead;
     return std::nullopt;
 }
 

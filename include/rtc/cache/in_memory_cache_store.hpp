@@ -20,7 +20,7 @@ namespace rtc::cache {
 // Expiry is lazy on access, with an explicit purge_expired() for the background
 // cleanup job. For multi-instance deployments, swap in the Redis store.
 class InMemoryCacheStore final : public ICacheStore {
-public:
+  public:
     // The optional-TTL defaults are restated here (and in RedisCacheStore)
     // deliberately. A default argument on a virtual function is *not* inherited
     // through the override: it applies only at the static type of the call, so
@@ -45,7 +45,7 @@ public:
     std::size_t purge_expired() override;
     [[nodiscard]] std::string_view backend_name() const override { return "memory"; }
 
-private:
+  private:
     using Clock = std::chrono::steady_clock;
 
     struct StringEntry {

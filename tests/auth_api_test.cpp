@@ -1,10 +1,10 @@
-#include <memory>
-#include <string>
-
 #include <crow/http_request.h>
 #include <crow/http_response.h>
 #include <gtest/gtest.h>
+
+#include <memory>
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/config/config.hpp"
 #include "rtc/controllers/auth_controller.hpp"
@@ -27,7 +27,7 @@ using nlohmann::json;
 // persistence/hashing so no database or network socket is required. This is the
 // Register/Login API coverage plus the health and protected-route checks.
 class AuthApiTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         health_ = std::make_unique<rtc::controllers::HealthController>(config_);
         auth_ = std::make_unique<rtc::controllers::AuthController>(
@@ -37,7 +37,8 @@ protected:
         app_.validate();
     }
 
-    crow::response do_request(crow::HTTPMethod method, const std::string& url,
+    crow::response do_request(crow::HTTPMethod method,
+                              const std::string& url,
                               const std::string& body = {},
                               const std::string& authorization = {}) {
         crow::request req;
@@ -55,7 +56,8 @@ protected:
         return res;
     }
 
-    std::string register_body(const std::string& username, const std::string& email,
+    std::string register_body(const std::string& username,
+                              const std::string& email,
                               const std::string& password) {
         return json{{"username", username}, {"email", email}, {"password", password}}.dump();
     }
@@ -63,9 +65,8 @@ protected:
     rtc::config::Config config_{};
     rtc::testing::FakeUserRepository repo_;
     rtc::testing::FakePasswordHasher hasher_;
-    rtc::security::JwtTokenService token_service_{
-        rtc::security::JwtTokenService::Options{.secret = "api-test-secret",
-                                                .issuer = "realtime-chat-test"}};
+    rtc::security::JwtTokenService token_service_{rtc::security::JwtTokenService::Options{
+        .secret = "api-test-secret", .issuer = "realtime-chat-test"}};
     rtc::services::UserService user_service_{repo_, hasher_};
     rtc::services::AuthService auth_service_{user_service_, token_service_};
     rtc::testing::FakeSessionRepository session_repo_;
@@ -87,7 +88,8 @@ TEST_F(AuthApiTest, HealthReturnsOk) {
 }
 
 TEST_F(AuthApiTest, RegisterReturns201WithTokens) {
-    const auto res = do_request(crow::HTTPMethod::Post, "/api/auth/register",
+    const auto res = do_request(crow::HTTPMethod::Post,
+                                "/api/auth/register",
                                 register_body("alice", "alice@example.com", "password123"));
     ASSERT_EQ(res.code, 201);
     const auto body = json::parse(res.body);
@@ -98,9 +100,11 @@ TEST_F(AuthApiTest, RegisterReturns201WithTokens) {
 }
 
 TEST_F(AuthApiTest, RegisterDuplicateReturns409) {
-    do_request(crow::HTTPMethod::Post, "/api/auth/register",
+    do_request(crow::HTTPMethod::Post,
+               "/api/auth/register",
                register_body("alice", "alice@example.com", "password123"));
-    const auto res = do_request(crow::HTTPMethod::Post, "/api/auth/register",
+    const auto res = do_request(crow::HTTPMethod::Post,
+                                "/api/auth/register",
                                 register_body("alice", "other@example.com", "password123"));
     ASSERT_EQ(res.code, 409);
     EXPECT_EQ(json::parse(res.body)["error"]["code"], "conflict");
@@ -113,24 +117,29 @@ TEST_F(AuthApiTest, RegisterInvalidBodyReturns400) {
 }
 
 TEST_F(AuthApiTest, RegisterShortPasswordReturns400) {
-    const auto res = do_request(crow::HTTPMethod::Post, "/api/auth/register",
+    const auto res = do_request(crow::HTTPMethod::Post,
+                                "/api/auth/register",
                                 register_body("alice", "alice@example.com", "short"));
     ASSERT_EQ(res.code, 400);
 }
 
 TEST_F(AuthApiTest, LoginReturns200WithTokens) {
-    do_request(crow::HTTPMethod::Post, "/api/auth/register",
+    do_request(crow::HTTPMethod::Post,
+               "/api/auth/register",
                register_body("bob", "bob@example.com", "password123"));
-    const auto res = do_request(crow::HTTPMethod::Post, "/api/auth/login",
+    const auto res = do_request(crow::HTTPMethod::Post,
+                                "/api/auth/login",
                                 json{{"identifier", "bob"}, {"password", "password123"}}.dump());
     ASSERT_EQ(res.code, 200);
     EXPECT_TRUE(json::parse(res.body)["tokens"].contains("access_token"));
 }
 
 TEST_F(AuthApiTest, LoginWrongPasswordReturns401) {
-    do_request(crow::HTTPMethod::Post, "/api/auth/register",
+    do_request(crow::HTTPMethod::Post,
+               "/api/auth/register",
                register_body("bob", "bob@example.com", "password123"));
-    const auto res = do_request(crow::HTTPMethod::Post, "/api/auth/login",
+    const auto res = do_request(crow::HTTPMethod::Post,
+                                "/api/auth/login",
                                 json{{"identifier", "bob"}, {"password", "nope"}}.dump());
     ASSERT_EQ(res.code, 401);
     EXPECT_EQ(json::parse(res.body)["error"]["code"], "authentication_error");
@@ -142,7 +151,8 @@ TEST_F(AuthApiTest, ProtectedRouteRejectsMissingToken) {
 }
 
 TEST_F(AuthApiTest, ProtectedRouteAcceptsValidToken) {
-    const auto reg = do_request(crow::HTTPMethod::Post, "/api/auth/register",
+    const auto reg = do_request(crow::HTTPMethod::Post,
+                                "/api/auth/register",
                                 register_body("carol", "carol@example.com", "password123"));
     const auto token = json::parse(reg.body)["tokens"]["access_token"].get<std::string>();
 

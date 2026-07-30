@@ -23,7 +23,7 @@ struct NewSession {
 // Persistence boundary for sessions (the source of truth for validation and
 // revocation across instances).
 class ISessionRepository {
-public:
+  public:
     virtual ~ISessionRepository() = default;
 
     [[nodiscard]] virtual models::Session create(const NewSession& input) = 0;

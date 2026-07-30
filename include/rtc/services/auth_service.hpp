@@ -11,7 +11,7 @@ namespace rtc::services {
 // with raw DTOs; validation, hashing, persistence and token minting are all
 // coordinated here, keeping the HTTP layer thin.
 class AuthService {
-public:
+  public:
     AuthService(UserService& user_service, const security::ITokenService& token_service) noexcept
         : user_service_(user_service), token_service_(token_service) {}
 
@@ -21,7 +21,7 @@ public:
     // Validates + normalizes the request, verifies credentials, and issues tokens.
     [[nodiscard]] dto::AuthResponse login(dto::LoginRequest request);
 
-private:
+  private:
     [[nodiscard]] dto::AuthResponse build_response(const models::User& user) const;
 
     UserService& user_service_;

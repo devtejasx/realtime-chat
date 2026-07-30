@@ -24,7 +24,7 @@ struct Thumbnail {
 // touching the attachment service. Thumbnail generation runs on the background
 // executor, never on the request thread.
 class IImageProcessor {
-public:
+  public:
     virtual ~IImageProcessor() = default;
 
     [[nodiscard]] virtual bool supports(std::string_view content_type) const = 0;
@@ -33,8 +33,9 @@ public:
     [[nodiscard]] virtual std::optional<ImageInfo> probe(const std::string& bytes) const = 0;
 
     // Produces a thumbnail no larger than `max_dimension` on its longest side.
-    [[nodiscard]] virtual std::optional<Thumbnail> make_thumbnail(
-        const std::string& bytes, std::string_view content_type, int max_dimension) const = 0;
+    [[nodiscard]] virtual std::optional<Thumbnail> make_thumbnail(const std::string& bytes,
+                                                                  std::string_view content_type,
+                                                                  int max_dimension) const = 0;
 };
 
 // Default processor: validates that a content type is a supported image but does
@@ -42,14 +43,15 @@ public:
 // upload pipeline fully functional with zero image-library dependencies; swap in
 // a real processor to enable dimensions and thumbnails.
 class NoopImageProcessor final : public IImageProcessor {
-public:
+  public:
     [[nodiscard]] bool supports(std::string_view content_type) const override {
         return content_type.rfind("image/", 0) == 0;
     }
     [[nodiscard]] std::optional<ImageInfo> probe(const std::string&) const override {
         return std::nullopt;
     }
-    [[nodiscard]] std::optional<Thumbnail> make_thumbnail(const std::string&, std::string_view,
+    [[nodiscard]] std::optional<Thumbnail> make_thumbnail(const std::string&,
+                                                          std::string_view,
                                                           int) const override {
         return std::nullopt;
     }

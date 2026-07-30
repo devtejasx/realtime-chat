@@ -1,11 +1,10 @@
 #include "rtc/repositories/pg_read_receipt_repository.hpp"
 
 #include <chrono>
-#include <string>
-
 #include <pqxx/result>
 #include <pqxx/row>
 #include <pqxx/transaction>
+#include <string>
 
 namespace rtc::repositories {
 namespace {
@@ -41,9 +40,10 @@ models::ReadReceipt PgReadReceiptRepository::upsert_state(std::int64_t message_i
         // On conflict, only advance when the incoming rank exceeds the stored
         // rank, so a late "delivered" can never overwrite a "read".
         const std::string sql =
-            std::string("INSERT INTO read_receipts (message_id, user_id, state) "
-                        "VALUES ($1, $2, $3) "
-                        "ON CONFLICT (message_id, user_id) DO UPDATE SET state = CASE WHEN ") +
+            std::string(
+                "INSERT INTO read_receipts (message_id, user_id, state) "
+                "VALUES ($1, $2, $3) "
+                "ON CONFLICT (message_id, user_id) DO UPDATE SET state = CASE WHEN ") +
             rank_sql("EXCLUDED.state") + " > " + rank_sql("read_receipts.state") +
             " THEN EXCLUDED.state ELSE read_receipts.state END, updated_at = now() RETURNING " +
             kColumns;
@@ -66,7 +66,9 @@ void PgReadReceiptRepository::mark_conversation_read(std::int64_t conversation_i
             "ON CONFLICT (message_id, user_id) "
             "DO UPDATE SET state = 'read', updated_at = now() "
             "WHERE read_receipts.state <> 'read'",
-            conversation_id, user_id, up_to_message_id);
+            conversation_id,
+            user_id,
+            up_to_message_id);
     });
 }
 
@@ -74,7 +76,8 @@ std::vector<models::ReadReceipt> PgReadReceiptRepository::list_for_message(
     std::int64_t message_id) {
     return with_transaction([&](pqxx::work& txn) -> std::vector<models::ReadReceipt> {
         const auto result = txn.exec_params(
-            std::string("SELECT ") + kColumns + " FROM read_receipts WHERE message_id = $1", message_id);
+            std::string("SELECT ") + kColumns + " FROM read_receipts WHERE message_id = $1",
+            message_id);
         std::vector<models::ReadReceipt> out;
         out.reserve(result.size());
         for (const auto& row : result) {

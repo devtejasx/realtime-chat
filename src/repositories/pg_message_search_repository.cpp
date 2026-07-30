@@ -4,12 +4,11 @@
 #include <cstddef>
 #include <exception>
 #include <optional>
-#include <string>
-#include <utility>
-
 #include <pqxx/result>
 #include <pqxx/row>
 #include <pqxx/transaction>
+#include <string>
+#include <utility>
 
 #include "rtc/logging/logger.hpp"
 #include "rtc/tracing/scoped_span.hpp"
@@ -49,7 +48,8 @@ constexpr const char* kVisibilityAndFilters =
     "   AND ($6::bigint IS NULL OR m.created_at <= to_timestamp($6)) ";
 
 [[nodiscard]] std::optional<utils::TimePoint> read_opt_time(const pqxx::field& field) {
-    if (field.is_null()) return std::nullopt;
+    if (field.is_null())
+        return std::nullopt;
     return Clock::from_time_t(field.as<std::time_t>());
 }
 
@@ -96,8 +96,8 @@ bool PgMessageSearchRepository::fuzzy_available() {
 }
 
 std::vector<MessageSearchHit> PgMessageSearchRepository::search(std::int64_t actor_id,
-                                                               const MessageSearchQuery& query,
-                                                               const dto::Pagination& page) {
+                                                                const MessageSearchQuery& query,
+                                                                const dto::Pagination& page) {
     const bool want_fuzzy = query.fuzzy && fuzzy_available();
     auto scope = tracing::db_scope("message.search");
     scope.span().set_attribute("rtc.search.fuzzy", want_fuzzy);
@@ -126,9 +126,16 @@ std::vector<MessageSearchHit> PgMessageSearchRepository::search(std::int64_t act
             "   AND m.search_vector @@ websearch_to_tsquery('english', $2) "
             " ORDER BY rank DESC, m.id DESC LIMIT $8 OFFSET $9";
 
-        auto result = txn.exec_params(sql, actor_id, query.term, query.conversation_id,
-                                      query.sender_id, query.from_epoch, query.to_epoch,
-                                      query.highlight, page.limit, page.offset);
+        auto result = txn.exec_params(sql,
+                                      actor_id,
+                                      query.term,
+                                      query.conversation_id,
+                                      query.sender_id,
+                                      query.from_epoch,
+                                      query.to_epoch,
+                                      query.highlight,
+                                      page.limit,
+                                      page.offset);
 
         // Fuzzy fallback, deliberately only when the exact search found nothing.
         // Running both always would be slower and would let low-similarity noise
@@ -143,9 +150,16 @@ std::vector<MessageSearchHit> PgMessageSearchRepository::search(std::int64_t act
                 kVisibilityAndFilters +
                 "   AND similarity(m.content, $2) >= $10 "
                 " ORDER BY rank DESC, m.id DESC LIMIT $8 OFFSET $9";
-            result = txn.exec_params(fuzzy_sql, actor_id, query.term, query.conversation_id,
-                                     query.sender_id, query.from_epoch, query.to_epoch,
-                                     query.highlight, page.limit, page.offset,
+            result = txn.exec_params(fuzzy_sql,
+                                     actor_id,
+                                     query.term,
+                                     query.conversation_id,
+                                     query.sender_id,
+                                     query.from_epoch,
+                                     query.to_epoch,
+                                     query.highlight,
+                                     page.limit,
+                                     page.offset,
                                      kFuzzySimilarityThreshold);
         }
 
@@ -170,8 +184,13 @@ std::int64_t PgMessageSearchRepository::count(std::int64_t actor_id,
         // agrees with the page that was returned.
         const std::string sql = std::string("SELECT COUNT(*) AS total") + kVisibilityAndFilters +
                                 "   AND m.search_vector @@ websearch_to_tsquery('english', $2)";
-        const auto row = txn.exec_params(sql, actor_id, query.term, query.conversation_id,
-                                         query.sender_id, query.from_epoch, query.to_epoch)
+        const auto row = txn.exec_params(sql,
+                                         actor_id,
+                                         query.term,
+                                         query.conversation_id,
+                                         query.sender_id,
+                                         query.from_epoch,
+                                         query.to_epoch)
                              .front();
         return row["total"].as<std::int64_t>();
     });

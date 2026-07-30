@@ -18,7 +18,7 @@ namespace rtc::cache {
 //
 // All methods must be thread-safe. A TTL of zero means "no expiry".
 class ICacheStore {
-public:
+  public:
     using Seconds = std::chrono::seconds;
 
     virtual ~ICacheStore() = default;

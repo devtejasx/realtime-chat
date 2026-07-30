@@ -12,7 +12,13 @@ namespace rtc::models {
 // The supported reaction emoji. Reactions are restricted to this set so clients
 // can rely on a fixed, renderable palette (and to bound stored values).
 inline constexpr std::array<std::string_view, 7> kAllowedReactions = {
-    "👍", "❤️", "😂", "😮", "😢", "👏", "🔥",
+    "👍",
+    "❤️",
+    "😂",
+    "😮",
+    "😢",
+    "👏",
+    "🔥",
 };
 
 [[nodiscard]] inline bool is_allowed_reaction(std::string_view emoji) noexcept {

@@ -17,7 +17,7 @@ namespace rtc::testing {
 // idempotency on event_id (the real table has a UNIQUE constraint and an
 // ON CONFLICT DO NOTHING insert), and newest-first ordering.
 class FakeAuditLogRepository final : public repositories::IAuditLogRepository {
-public:
+  public:
     bool append(const repositories::NewAuditLog& input) override {
         if (!seen_event_ids_.insert(input.event_id).second) {
             return false;  // duplicate; matches ON CONFLICT DO NOTHING
@@ -41,8 +41,8 @@ public:
         return true;
     }
 
-    [[nodiscard]] std::vector<models::AuditLog> search(
-        const repositories::AuditLogFilter& filter, const dto::Pagination& page) override {
+    [[nodiscard]] std::vector<models::AuditLog> search(const repositories::AuditLogFilter& filter,
+                                                       const dto::Pagination& page) override {
         std::vector<models::AuditLog> matched;
         for (const auto& row : rows) {
             if (matches(filter, row)) {
@@ -54,8 +54,8 @@ public:
 
         std::vector<models::AuditLog> out;
         const auto offset = static_cast<std::size_t>(page.offset);
-        for (std::size_t i = offset; i < matched.size() && out.size() < static_cast<std::size_t>(
-                                                                            page.limit);
+        for (std::size_t i = offset;
+             i < matched.size() && out.size() < static_cast<std::size_t>(page.limit);
              ++i) {
             out.push_back(matched[i]);
         }
@@ -88,9 +88,9 @@ public:
             if (!matches(filter, row)) {
                 continue;
             }
-            const auto existing = std::find_if(
-                out.begin(), out.end(),
-                [&row](const auto& entry) { return entry.first == row.event_type; });
+            const auto existing = std::find_if(out.begin(), out.end(), [&row](const auto& entry) {
+                return entry.first == row.event_type;
+            });
             if (existing == out.end()) {
                 out.emplace_back(row.event_type, 1);
             } else {
@@ -102,14 +102,19 @@ public:
 
     std::vector<models::AuditLog> rows;
 
-private:
+  private:
     [[nodiscard]] static bool matches(const repositories::AuditLogFilter& filter,
                                       const models::AuditLog& row) {
-        if (filter.actor_id && row.actor_id != filter.actor_id) return false;
-        if (filter.event_type && row.event_type != *filter.event_type) return false;
-        if (filter.target_type && row.target_type != filter.target_type) return false;
-        if (filter.target_id && row.target_id != filter.target_id) return false;
-        if (filter.correlation_id && row.correlation_id != filter.correlation_id) return false;
+        if (filter.actor_id && row.actor_id != filter.actor_id)
+            return false;
+        if (filter.event_type && row.event_type != *filter.event_type)
+            return false;
+        if (filter.target_type && row.target_type != filter.target_type)
+            return false;
+        if (filter.target_id && row.target_id != filter.target_id)
+            return false;
+        if (filter.correlation_id && row.correlation_id != filter.correlation_id)
+            return false;
         return true;
     }
 

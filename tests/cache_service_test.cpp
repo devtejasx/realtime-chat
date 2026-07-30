@@ -1,8 +1,8 @@
 #include "rtc/cache/cache_service.hpp"
 
-#include <chrono>
-
 #include <gtest/gtest.h>
+
+#include <chrono>
 
 #include "rtc/cache/in_memory_cache_store.hpp"
 

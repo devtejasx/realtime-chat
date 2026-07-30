@@ -39,8 +39,7 @@ security::Role AuthorizationService::role_of(std::int64_t user_id) {
     return role;
 }
 
-bool AuthorizationService::has_permission(std::int64_t user_id,
-                                          security::Permission permission) {
+bool AuthorizationService::has_permission(std::int64_t user_id, security::Permission permission) {
     return security::has_permission(role_of(user_id), permission);
 }
 

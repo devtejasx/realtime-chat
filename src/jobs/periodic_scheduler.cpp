@@ -6,7 +6,9 @@
 
 namespace rtc::jobs {
 
-PeriodicScheduler::~PeriodicScheduler() { stop(); }
+PeriodicScheduler::~PeriodicScheduler() {
+    stop();
+}
 
 void PeriodicScheduler::start() {
     bool expected = false;
@@ -14,8 +16,8 @@ void PeriodicScheduler::start() {
         return;
     }
     thread_ = std::thread([this] { run(); });
-    RTC_LOG_INFO("Periodic scheduler started ({} task(s), every {}s)", tasks_.size(),
-                 interval_.count());
+    RTC_LOG_INFO(
+        "Periodic scheduler started ({} task(s), every {}s)", tasks_.size(), interval_.count());
 }
 
 void PeriodicScheduler::stop() {

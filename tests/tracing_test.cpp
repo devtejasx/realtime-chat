@@ -1,9 +1,9 @@
+#include <gtest/gtest.h>
+
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
-
-#include <gtest/gtest.h>
-#include <nlohmann/json.hpp>
 
 #include "rtc/tracing/otlp_http_exporter.hpp"
 #include "rtc/tracing/scoped_span.hpp"
@@ -18,7 +18,7 @@ using rtc::tracing::SpanStatus;
 
 // Captures exported batches in memory so span content can be asserted on.
 class CapturingExporter final : public rtc::tracing::ISpanExporter {
-public:
+  public:
     void export_spans(const rtc::tracing::Resource& resource,
                       const std::vector<SpanData>& spans) override {
         last_resource = resource;
@@ -58,8 +58,8 @@ struct TracerFixture {
 // --- W3C trace context ----------------------------------------------------
 
 TEST(TraceContext, ParsesAValidTraceparent) {
-    const auto parsed = rtc::tracing::parse_traceparent(
-        "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
+    const auto parsed =
+        rtc::tracing::parse_traceparent("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
     ASSERT_TRUE(parsed.has_value());
     EXPECT_EQ(parsed->trace_id, "0af7651916cd43dd8448eb211c80319c");
     EXPECT_EQ(parsed->span_id, "b7ad6b7169203331");
@@ -68,8 +68,8 @@ TEST(TraceContext, ParsesAValidTraceparent) {
 }
 
 TEST(TraceContext, ReadsTheSampledFlag) {
-    const auto unsampled = rtc::tracing::parse_traceparent(
-        "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00");
+    const auto unsampled =
+        rtc::tracing::parse_traceparent("00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00");
     ASSERT_TRUE(unsampled.has_value());
     EXPECT_FALSE(unsampled->sampled);
 }
@@ -90,12 +90,12 @@ TEST(TraceContext, RejectsMalformedHeaders) {
         "not-a-traceparent",
         "00-tooshort-b7ad6b7169203331-01",
         "00-0af7651916cd43dd8448eb211c80319c-tooshort-01",
-        "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331",          // missing flags
-        "ff-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",       // forbidden version
-        "00-00000000000000000000000000000000-b7ad6b7169203331-01",       // all-zero trace id
-        "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01",       // all-zero span id
-        "00-0AF7651916CD43DD8448EB211C80319C-b7ad6b7169203331-01",       // uppercase
-        "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-zz",       // bad flags
+        "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331",     // missing flags
+        "ff-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",  // forbidden version
+        "00-00000000000000000000000000000000-b7ad6b7169203331-01",  // all-zero trace id
+        "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01",  // all-zero span id
+        "00-0AF7651916CD43DD8448EB211C80319C-b7ad6b7169203331-01",  // uppercase
+        "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-zz",  // bad flags
     };
     for (const char* header : bad) {
         EXPECT_FALSE(rtc::tracing::parse_traceparent(header).has_value()) << header;
@@ -171,7 +171,9 @@ TEST(Tracer, ParentsASpanToAnInboundContext) {
     parent.span_id = "b7ad6b7169203331";
     parent.sampled = true;
 
-    { auto span = fixture.tracer->start_span("child", SpanKind::kServer, &parent); }
+    {
+        auto span = fixture.tracer->start_span("child", SpanKind::kServer, &parent);
+    }
     fixture.flush();
 
     ASSERT_EQ(fixture.exporter->captured.size(), 1U);
@@ -225,7 +227,9 @@ TEST(Tracer, RecordsAnErrorWithItsMessage) {
 
 TEST(Tracer, ExportsResourceAttributes) {
     TracerFixture fixture;
-    { auto span = fixture.tracer->start_span("x"); }
+    {
+        auto span = fixture.tracer->start_span("x");
+    }
     fixture.flush();
     EXPECT_EQ(fixture.exporter->last_resource.service_name, "test-service");
     EXPECT_EQ(fixture.exporter->last_resource.service_instance_id, "node-1");
@@ -278,7 +282,9 @@ TEST(ScopedSpan, ActivatesAndRestoresTheThreadContext) {
 TEST(ScopedSpan, DbScopeAppliesSemanticConventionsWithoutSql) {
     TracerFixture fixture;
     rtc::tracing::set_tracer(fixture.tracer.get());
-    { auto scope = rtc::tracing::db_scope("insert_message"); }
+    {
+        auto scope = rtc::tracing::db_scope("insert_message");
+    }
     rtc::tracing::set_tracer(nullptr);
     fixture.flush();
 
@@ -326,8 +332,8 @@ TEST(SpanExporter, EncodesOtlpJson) {
     EXPECT_EQ(encoded.at("traceId"), span.trace_id);
     EXPECT_EQ(encoded.at("spanId"), span.span_id);
     EXPECT_EQ(encoded.at("parentSpanId"), span.parent_span_id);
-    EXPECT_EQ(encoded.at("kind"), 2);                        // SPAN_KIND_SERVER
-    EXPECT_EQ(encoded.at("status").at("code"), 1);           // STATUS_CODE_OK
+    EXPECT_EQ(encoded.at("kind"), 2);               // SPAN_KIND_SERVER
+    EXPECT_EQ(encoded.at("status").at("code"), 1);  // STATUS_CODE_OK
     // OTLP/JSON requires 64-bit values as strings.
     EXPECT_TRUE(encoded.at("startTimeUnixNano").is_string());
     EXPECT_TRUE(encoded.at("endTimeUnixNano").is_string());
@@ -363,8 +369,8 @@ TEST(SpanExporter, ZipkinOmitsKindForInternalSpans) {
     span.trace_id = "0af7651916cd43dd8448eb211c80319c";
     span.span_id = "b7ad6b7169203331";
 
-    const auto json = nlohmann::json::parse(
-        rtc::tracing::to_zipkin_json(rtc::tracing::Resource{}, {span}));
+    const auto json =
+        nlohmann::json::parse(rtc::tracing::to_zipkin_json(rtc::tracing::Resource{}, {span}));
     EXPECT_FALSE(json.at(0).contains("kind"));
 }
 
@@ -396,8 +402,8 @@ TEST(OtlpEndpoint, AppliesZipkinDefaults) {
 }
 
 TEST(OtlpEndpoint, HonoursAnExplicitPortWithoutAPath) {
-    const auto parsed = rtc::tracing::parse_endpoint("10.0.0.5:9999",
-                                                     rtc::tracing::TraceWireFormat::kOtlpHttpJson);
+    const auto parsed =
+        rtc::tracing::parse_endpoint("10.0.0.5:9999", rtc::tracing::TraceWireFormat::kOtlpHttpJson);
     EXPECT_TRUE(parsed.valid);
     EXPECT_EQ(parsed.host, "10.0.0.5");
     EXPECT_EQ(parsed.port, "9999");

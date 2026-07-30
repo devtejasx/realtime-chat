@@ -16,13 +16,13 @@
 // Interpretation matters here. These numbers are dominated by round-trip latency to
 // the database, not by CPU, so they are only comparable *between runs against the
 // same database*. Use them to detect a query regression, not to compare machines.
+#include <benchmark/benchmark.h>
+
 #include <cstdint>
 #include <exception>
 #include <memory>
-#include <string>
-
-#include <benchmark/benchmark.h>
 #include <pqxx/transaction>
+#include <string>
 
 #include "rtc/config/config.hpp"
 #include "rtc/database/connection_pool.hpp"
@@ -190,7 +190,9 @@ void BM_DbAuditAppend(benchmark::State& state) {
         txn.exec_params(
             "INSERT INTO audit_logs (event_id, event_type, metadata) "
             "VALUES ($1, $2, $3::jsonb) ON CONFLICT (event_id) DO NOTHING",
-            "bench-" + std::to_string(counter++), "bench.event", "{}");
+            "bench-" + std::to_string(counter++),
+            "bench.event",
+            "{}");
         txn.commit();
     }
     state.SetItemsProcessed(state.iterations());

@@ -27,8 +27,9 @@ crow::response ErrorMapper::to_response(const std::exception&) {
 }
 
 crow::response ErrorMapper::internal_error_response() {
-    return build(500, make_error_body(code_for(ErrorType::kInternal),
-                                      "An unexpected internal error occurred"));
+    return build(
+        500,
+        make_error_body(code_for(ErrorType::kInternal), "An unexpected internal error occurred"));
 }
 
 }  // namespace rtc::errors

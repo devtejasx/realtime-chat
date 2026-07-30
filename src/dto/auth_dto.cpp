@@ -51,8 +51,7 @@ LoginRequest LoginRequest::from_json(const nlohmann::json& body) {
     } else if (body.contains("email")) {
         request.identifier = require_string(body, "email");
     } else {
-        throw ValidationException("Missing login identifier",
-                                  "field=identifier|username|email");
+        throw ValidationException("Missing login identifier", "field=identifier|username|email");
     }
     request.password = require_string(body, "password");
     return request;

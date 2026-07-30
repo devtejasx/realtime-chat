@@ -23,7 +23,7 @@ struct Resource {
 // ever called from the tracer's single exporter thread, so they may block (that
 // is precisely why the export happens off the request path).
 class ISpanExporter {
-public:
+  public:
     virtual ~ISpanExporter() = default;
 
     // Ships a batch. Must not throw: a failed export is a diagnostics problem,
@@ -40,7 +40,7 @@ public:
 // dependency), which makes it the right default in development and a useful
 // fallback when no collector is reachable.
 class LoggingSpanExporter final : public ISpanExporter {
-public:
+  public:
     void export_spans(const Resource& resource, const std::vector<SpanData>& spans) override;
     [[nodiscard]] std::string_view name() const noexcept override { return "logging"; }
 };
@@ -48,7 +48,7 @@ public:
 // Discards everything. Used when tracing is disabled so the rest of the
 // pipeline needs no null checks.
 class NullSpanExporter final : public ISpanExporter {
-public:
+  public:
     void export_spans(const Resource&, const std::vector<SpanData>&) override {}
     [[nodiscard]] std::string_view name() const noexcept override { return "null"; }
 };

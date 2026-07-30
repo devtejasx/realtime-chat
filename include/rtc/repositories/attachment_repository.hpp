@@ -23,7 +23,7 @@ struct NewAttachment {
 
 // Persistence boundary for attachments.
 class IAttachmentRepository {
-public:
+  public:
     virtual ~IAttachmentRepository() = default;
 
     [[nodiscard]] virtual models::Attachment create(const NewAttachment& input) = 0;
@@ -35,10 +35,12 @@ public:
     // `owner_id` to a message. Attachments already linked or owned by someone
     // else are ignored. Returns the number linked.
     virtual std::size_t link_to_message(const std::vector<std::int64_t>& attachment_ids,
-                                        std::int64_t message_id, std::int64_t owner_id) = 0;
+                                        std::int64_t message_id,
+                                        std::int64_t owner_id) = 0;
 
     // Records post-processing results (dimensions and/or a generated thumbnail).
-    virtual void update_media_meta(std::int64_t id, std::optional<int> width,
+    virtual void update_media_meta(std::int64_t id,
+                                   std::optional<int> width,
                                    std::optional<int> height,
                                    std::optional<std::string> thumbnail_key) = 0;
 

@@ -42,7 +42,9 @@ Span& Span::operator=(Span&& other) noexcept {
     return *this;
 }
 
-Span::~Span() { end(); }
+Span::~Span() {
+    end();
+}
 
 Span& Span::set_attribute(std::string key, std::string value) {
     if (is_recording()) {

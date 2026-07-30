@@ -31,9 +31,10 @@ std::optional<std::string> AuthMiddleware::extract_bearer_token(const crow::requ
         return std::nullopt;
     }
     const bool scheme_matches = std::equal(
-        kBearerPrefix.begin(), kBearerPrefix.end() - 1, view.begin(),
-        [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) ==
-                                    std::tolower(static_cast<unsigned char>(b)); });
+        kBearerPrefix.begin(), kBearerPrefix.end() - 1, view.begin(), [](char a, char b) {
+            return std::tolower(static_cast<unsigned char>(a)) ==
+                   std::tolower(static_cast<unsigned char>(b));
+        });
     if (!scheme_matches || view[kBearerPrefix.size() - 1] != ' ') {
         return std::nullopt;
     }
@@ -44,8 +45,7 @@ std::optional<std::string> AuthMiddleware::extract_bearer_token(const crow::requ
     return std::string(token);
 }
 
-security::TokenClaims AuthMiddleware::authenticate_token_only(
-    const crow::request& request) const {
+security::TokenClaims AuthMiddleware::authenticate_token_only(const crow::request& request) const {
     const auto token = extract_bearer_token(request);
     if (!token) {
         throw rtc::errors::AuthenticationException("Missing or malformed Authorization header");

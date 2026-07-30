@@ -14,7 +14,7 @@ using rtc::dto::UpdateProfileRequest;
 using rtc::errors::ValidationException;
 
 class UserProfileTest : public ::testing::Test {
-protected:
+  protected:
     std::int64_t make_user() {
         RegisterRequest r;
         r.username = "alice";

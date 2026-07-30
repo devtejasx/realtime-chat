@@ -1,10 +1,10 @@
 #include "rtc/controllers/attachment_controller.hpp"
 
+#include <crow/multipart.h>
+
 #include <chrono>
 #include <cstdint>
 #include <string>
-
-#include <crow/multipart.h>
 
 #include "rtc/dto/attachment_dto.hpp"
 #include "rtc/errors/exceptions.hpp"
@@ -21,8 +21,8 @@ namespace {
 // absence is detected by inspecting the result, not by a null check.
 [[nodiscard]] std::string part_filename(const crow::multipart::part& part) {
     const crow::multipart::header& disposition = part.get_header_object("Content-Disposition");
-    if (const auto it = disposition.params.find("filename"); it != disposition.params.end() &&
-                                                             !it->second.empty()) {
+    if (const auto it = disposition.params.find("filename");
+        it != disposition.params.end() && !it->second.empty()) {
         return it->second;
     }
     return "upload.bin";
@@ -39,9 +39,10 @@ void AttachmentController::register_routes(http::App& app) {
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
-                rate_limiter_.enforce(
-                    "upload", std::to_string(claims.user_id), config_.rate_limit_upload_max,
-                    std::chrono::seconds(config_.rate_limit_window_seconds));
+                rate_limiter_.enforce("upload",
+                                      std::to_string(claims.user_id),
+                                      config_.rate_limit_upload_max,
+                                      std::chrono::seconds(config_.rate_limit_window_seconds));
 
                 crow::multipart::message multipart(req);
                 const auto file = multipart.get_part_by_name("file");
@@ -63,8 +64,8 @@ void AttachmentController::register_routes(http::App& app) {
             });
         });
 
-    const auto download_handler = [this](const crow::request& req, std::int64_t id,
-                                         bool thumbnail) {
+    const auto download_handler = [this](
+                                      const crow::request& req, std::int64_t id, bool thumbnail) {
         return http::run_guarded([&] {
             const auto claims = auth_guard_.authenticate(req);
             const auto download = attachments_.download(claims.user_id, id, thumbnail);

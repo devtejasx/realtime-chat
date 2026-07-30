@@ -12,9 +12,9 @@ using rtc::errors::AuthenticationException;
 using rtc::security::JwtTokenService;
 
 class SessionServiceTest : public ::testing::Test {
-protected:
-    JwtTokenService tokens_{JwtTokenService::Options{.secret = "session-test-secret",
-                                                     .issuer = "realtime-chat-test"}};
+  protected:
+    JwtTokenService tokens_{
+        JwtTokenService::Options{.secret = "session-test-secret", .issuer = "realtime-chat-test"}};
     rtc::testing::FakeSessionRepository repo_;
     rtc::services::SessionService service_{repo_, tokens_, 1209600};
 };

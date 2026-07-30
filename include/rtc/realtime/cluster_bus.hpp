@@ -3,10 +3,9 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
-
-#include <nlohmann/json.hpp>
 
 namespace rtc::realtime {
 
@@ -46,7 +45,7 @@ inline constexpr std::string_view kNotification = "rtc:cluster:notification";
 // Implementations must be thread-safe. Handlers are invoked on the bus's own
 // subscriber thread, never on a request thread.
 class IClusterBus {
-public:
+  public:
     // Receives a decoded message body. `origin_node` is provided so a handler can
     // reason about provenance; self-originated messages are already filtered out
     // before the handler runs.
@@ -84,7 +83,7 @@ public:
 // path already reaches every connection, so the extra hop would be pure cost.
 // Selecting this is what makes Redis optional rather than required.
 class NullClusterBus final : public IClusterBus {
-public:
+  public:
     explicit NullClusterBus(std::string node_id) noexcept : node_id_(std::move(node_id)) {}
 
     void publish(std::string_view /*channel*/, const nlohmann::json& /*body*/) noexcept override {}
@@ -97,7 +96,7 @@ public:
     [[nodiscard]] std::uint64_t published_count() const noexcept override { return 0; }
     [[nodiscard]] std::uint64_t received_count() const noexcept override { return 0; }
 
-private:
+  private:
     std::string node_id_;
 };
 

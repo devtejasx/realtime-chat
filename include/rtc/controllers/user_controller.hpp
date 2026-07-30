@@ -15,14 +15,14 @@ namespace rtc::controllers {
 //
 // Only transport concerns live here; profile rules stay in UserService.
 class UserController {
-public:
+  public:
     UserController(services::UserService& user_service,
                    middlewares::AuthMiddleware& auth_guard) noexcept
         : user_service_(user_service), auth_guard_(auth_guard) {}
 
     void register_routes(http::App& app);
 
-private:
+  private:
     services::UserService& user_service_;
     middlewares::AuthMiddleware& auth_guard_;
 };

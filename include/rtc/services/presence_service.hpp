@@ -17,7 +17,7 @@ namespace rtc::services {
 // WebSocket I/O threads. Broadcasting presence changes is the caller's job
 // (the dispatcher decides who is interested); this service owns only the state.
 class PresenceService {
-public:
+  public:
     // Registers a new session for the user. Returns true if this made the user
     // transition offline -> online (i.e. their first live session).
     [[nodiscard]] bool on_connect(std::int64_t user_id);
@@ -33,9 +33,9 @@ public:
 
     [[nodiscard]] std::size_t online_count() const;
 
-private:
+  private:
     mutable std::mutex mutex_;
-    std::unordered_map<std::int64_t, int> sessions_;          // user_id -> live session count
+    std::unordered_map<std::int64_t, int> sessions_;  // user_id -> live session count
     std::unordered_map<std::int64_t, utils::TimePoint> last_seen_;
 };
 

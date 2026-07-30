@@ -24,8 +24,9 @@ const std::regex kEmailPattern(R"(^[^\s@]+@[^\s@]+\.[^\s@]+$)",
 }
 
 [[nodiscard]] std::string to_lower(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
     return value;
 }
 
@@ -43,24 +44,21 @@ std::string trim(std::string_view value) {
 
 void validate_username(std::string_view username) {
     if (username.size() < kUsernameMinLen || username.size() > kUsernameMaxLen) {
-        throw ValidationException(
-            "Username must be between 3 and 32 characters", "field=username");
+        throw ValidationException("Username must be between 3 and 32 characters", "field=username");
     }
     const auto uc = static_cast<unsigned char>(username.front());
     if (std::isalnum(uc) == 0) {
-        throw ValidationException("Username must start with a letter or digit",
-                                  "field=username");
+        throw ValidationException("Username must start with a letter or digit", "field=username");
     }
     if (!std::all_of(username.begin(), username.end(), is_valid_username_char)) {
-        throw ValidationException(
-            "Username may only contain letters, digits, '.', '_' and '-'", "field=username");
+        throw ValidationException("Username may only contain letters, digits, '.', '_' and '-'",
+                                  "field=username");
     }
 }
 
 void validate_email(std::string_view email) {
     if (email.empty() || email.size() > kEmailMaxLen) {
-        throw ValidationException("Email must be between 1 and 254 characters",
-                                  "field=email");
+        throw ValidationException("Email must be between 1 and 254 characters", "field=email");
     }
     if (!std::regex_match(email.begin(), email.end(), kEmailPattern)) {
         throw ValidationException("Email format is invalid", "field=email");
@@ -69,8 +67,7 @@ void validate_email(std::string_view email) {
 
 void validate_password(std::string_view password) {
     if (password.size() < kPasswordMinLen) {
-        throw ValidationException("Password must be at least 8 characters",
-                                  "field=password");
+        throw ValidationException("Password must be at least 8 characters", "field=password");
     }
     if (password.size() > kPasswordMaxLen) {
         throw ValidationException("Password must be at most 72 bytes", "field=password");
@@ -121,8 +118,7 @@ void normalize_optional(std::optional<std::string>& value) {
 std::string validate_group_name(std::string_view name) {
     std::string trimmed = trim(name);
     if (trimmed.size() < kGroupNameMinLen || trimmed.size() > kGroupNameMaxLen) {
-        throw ValidationException("Group name must be between 1 and 128 characters",
-                                  "field=name");
+        throw ValidationException("Group name must be between 1 and 128 characters", "field=name");
     }
     return trimmed;
 }
@@ -160,8 +156,7 @@ void validate_and_normalize(dto::UpdateProfileRequest& request) {
                 throw ValidationException("Avatar URL is too long", "field=avatar_url");
             }
             if (!is_http_url(*request.avatar_url)) {
-                throw ValidationException("Avatar URL must be an http(s) URL",
-                                          "field=avatar_url");
+                throw ValidationException("Avatar URL must be an http(s) URL", "field=avatar_url");
             }
         }
     }

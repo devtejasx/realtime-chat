@@ -1,10 +1,10 @@
+#include <gtest/gtest.h>
+
 #include <cstdlib>
 #include <ctime>
 #include <memory>
-#include <string>
-
-#include <gtest/gtest.h>
 #include <pqxx/transaction>
+#include <string>
 
 #include "rtc/config/config.hpp"
 #include "rtc/database/connection_pool.hpp"
@@ -21,7 +21,7 @@ namespace {
 // PostgreSQL instance. Opt-in via RTC_RUN_DB_TESTS=1; skipped otherwise so the
 // default suite needs no database.
 class MessagingIntegrationTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         if (rtc::utils::get_env_or("RTC_RUN_DB_TESTS", "0") != "1") {
             GTEST_SKIP() << "Set RTC_RUN_DB_TESTS=1 to run database integration tests";
@@ -30,8 +30,8 @@ protected:
             const auto config = rtc::config::Config::load_from_env();
             pool_ = std::make_unique<rtc::database::ConnectionPool>(
                 config.database_connection_string(), 2);
-            rtc::database::MigrationRunner(
-                *pool_, rtc::utils::get_env_or("MIGRATIONS_DIR", "migrations"))
+            rtc::database::MigrationRunner(*pool_,
+                                           rtc::utils::get_env_or("MIGRATIONS_DIR", "migrations"))
                 .run();
         } catch (const std::exception& ex) {
             GTEST_SKIP() << "Database unavailable: " << ex.what();
@@ -54,7 +54,8 @@ protected:
     std::int64_t make_user(const std::string& tag) {
         return users_
             ->create({"itmsg_" + tag + "_" + suffix_,
-                      "itmsg_" + tag + "_" + suffix_ + "@example.com", "hash"})
+                      "itmsg_" + tag + "_" + suffix_ + "@example.com",
+                      "hash"})
             .id;
     }
 

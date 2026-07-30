@@ -4,9 +4,9 @@
 // under the entire API's latency. Issuance runs once per login, so it matters far
 // less — the two are separated here rather than measured together, because a
 // combined figure would hide which one is on the hot path.
-#include <string>
-
 #include <benchmark/benchmark.h>
+
+#include <string>
 
 #include "rtc/security/jwt_token_service.hpp"
 
@@ -62,14 +62,12 @@ BENCHMARK(BM_JwtVerifyAccessToken);
 // /api/v1/auth/login is rate limited.
 void BM_JwtVerifyInvalidSignature(benchmark::State& state) {
     const auto service = make_service();
-    std::string tampered =
-        service.issue(42, "benchmark-user", rtc::security::TokenType::kAccess);
+    std::string tampered = service.issue(42, "benchmark-user", rtc::security::TokenType::kAccess);
     tampered.back() = tampered.back() == 'a' ? 'b' : 'a';
 
     for (auto _ : state) {
         try {
-            benchmark::DoNotOptimize(
-                service.verify(tampered, rtc::security::TokenType::kAccess));
+            benchmark::DoNotOptimize(service.verify(tampered, rtc::security::TokenType::kAccess));
         } catch (const std::exception&) {
             // Expected; the throw is the thing being measured.
         }
@@ -89,8 +87,7 @@ void BM_JwtVerifyWrongTokenType(benchmark::State& state) {
 
     for (auto _ : state) {
         try {
-            benchmark::DoNotOptimize(
-                service.verify(refresh, rtc::security::TokenType::kAccess));
+            benchmark::DoNotOptimize(service.verify(refresh, rtc::security::TokenType::kAccess));
         } catch (const std::exception&) {
         }
     }

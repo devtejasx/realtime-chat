@@ -1,10 +1,10 @@
 #pragma once
 
+#include <crow/websocket.h>
+
 #include <atomic>
 #include <cstdint>
 #include <string>
-
-#include <crow/websocket.h>
 
 #include "rtc/realtime/protocol.hpp"
 
@@ -35,8 +35,11 @@ struct Session {
     protocol::Version protocol_version = protocol::kDefaultVersion;
     std::atomic<std::int64_t> last_activity_ms{0};
 
-    Session(crow::websocket::connection* conn, std::int64_t uid, std::string uname,
-            std::int64_t now_ms, protocol::Version version = protocol::kDefaultVersion)
+    Session(crow::websocket::connection* conn,
+            std::int64_t uid,
+            std::string uname,
+            std::int64_t now_ms,
+            protocol::Version version = protocol::kDefaultVersion)
         : connection(conn),
           user_id(uid),
           username(std::move(uname)),

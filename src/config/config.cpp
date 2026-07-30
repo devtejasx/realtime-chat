@@ -58,7 +58,8 @@ template <typename T>
 }
 
 // Parses a signed 64-bit integer environment variable with the same semantics.
-[[nodiscard]] std::int64_t parse_int64_env(const char* name, std::int64_t fallback,
+[[nodiscard]] std::int64_t parse_int64_env(const char* name,
+                                           std::int64_t fallback,
                                            std::int64_t min_value) {
     const auto raw = rtc::utils::get_env(name);
     if (!raw || raw->empty()) {
@@ -84,7 +85,9 @@ template <typename T>
 // for the tracing sample ratio. std::from_chars for floating point is not
 // available in every standard library implementation this project supports, so
 // std::strtod is used with explicit whole-string validation.
-[[nodiscard]] double parse_double_env(const char* name, double fallback, double min_value,
+[[nodiscard]] double parse_double_env(const char* name,
+                                      double fallback,
+                                      double min_value,
                                       double max_value) {
     const auto raw = rtc::utils::get_env(name);
     if (!raw || raw->empty()) {
@@ -148,8 +151,7 @@ Config Config::load_from_env() {
     cfg.rate_limit_enabled = parse_bool_env("RATE_LIMIT_ENABLED", cfg.rate_limit_enabled);
     cfg.rate_limit_window_seconds =
         parse_int64_env("RATE_LIMIT_WINDOW_SECONDS", cfg.rate_limit_window_seconds, 1);
-    cfg.rate_limit_login_max =
-        parse_int64_env("RATE_LIMIT_LOGIN_MAX", cfg.rate_limit_login_max, 1);
+    cfg.rate_limit_login_max = parse_int64_env("RATE_LIMIT_LOGIN_MAX", cfg.rate_limit_login_max, 1);
     cfg.rate_limit_register_max =
         parse_int64_env("RATE_LIMIT_REGISTER_MAX", cfg.rate_limit_register_max, 1);
     cfg.rate_limit_message_max =

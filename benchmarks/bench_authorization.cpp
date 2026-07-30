@@ -5,10 +5,10 @@
 // these benchmarks is to show the gap between a cached decision and an uncached one
 // — that gap is the entire justification for AUTHZ_CACHE_TTL_SECONDS, and for
 // resolving roles from the database rather than trusting the JWT.
+#include <benchmark/benchmark.h>
+
 #include <cstdint>
 #include <string>
-
-#include <benchmark/benchmark.h>
 
 #include "rtc/cache/in_memory_cache_store.hpp"
 #include "rtc/repositories/user_admin_repository.hpp"
@@ -20,7 +20,7 @@ namespace {
 // A repository that counts lookups and can simulate query latency, so the cached
 // and uncached paths are distinguishable without a real database.
 class CountingUserAdminRepository final : public rtc::repositories::IUserAdminRepository {
-public:
+  public:
     explicit CountingUserAdminRepository(rtc::security::Role role) : role_(role) {}
 
     [[nodiscard]] std::optional<rtc::security::Role> find_role(std::int64_t) override {
@@ -44,7 +44,9 @@ public:
     [[nodiscard]] rtc::security::Role set_role(std::int64_t, rtc::security::Role) override {
         return role_;
     }
-    void set_banned(std::int64_t, bool, std::optional<std::string>,
+    void set_banned(std::int64_t,
+                    bool,
+                    std::optional<std::string>,
                     std::optional<std::int64_t>) override {}
     [[nodiscard]] std::vector<std::pair<rtc::security::Role, std::int64_t>> counts_by_role()
         override {
@@ -53,7 +55,7 @@ public:
 
     std::uint64_t lookups = 0;
 
-private:
+  private:
     rtc::security::Role role_;
 };
 
@@ -78,8 +80,8 @@ BENCHMARK(BM_ParseRole);
 
 void BM_CanAssignRole(benchmark::State& state) {
     for (auto _ : state) {
-        benchmark::DoNotOptimize(rtc::security::can_assign_role(
-            rtc::security::Role::kSuperAdmin, rtc::security::Role::kAdmin));
+        benchmark::DoNotOptimize(rtc::security::can_assign_role(rtc::security::Role::kSuperAdmin,
+                                                                rtc::security::Role::kAdmin));
     }
     state.SetItemsProcessed(state.iterations());
 }
@@ -90,7 +92,8 @@ void BM_AuthorizationRoleCached(benchmark::State& state) {
     CountingUserAdminRepository repository(rtc::security::Role::kAdmin);
     rtc::cache::InMemoryCacheStore cache;
     rtc::services::AuthorizationService service(
-        repository, cache,
+        repository,
+        cache,
         rtc::services::AuthorizationService::Options{std::chrono::seconds(3600)});
 
     // Warm the cache so the loop measures hits only.
@@ -112,7 +115,8 @@ void BM_AuthorizationRoleUncached(benchmark::State& state) {
     CountingUserAdminRepository repository(rtc::security::Role::kAdmin);
     rtc::cache::InMemoryCacheStore cache;
     rtc::services::AuthorizationService service(
-        repository, cache,
+        repository,
+        cache,
         rtc::services::AuthorizationService::Options{std::chrono::seconds(3600)});
 
     for (auto _ : state) {
@@ -131,7 +135,8 @@ void BM_AuthorizationRequireActiveCached(benchmark::State& state) {
     CountingUserAdminRepository repository(rtc::security::Role::kUser);
     rtc::cache::InMemoryCacheStore cache;
     rtc::services::AuthorizationService service(
-        repository, cache,
+        repository,
+        cache,
         rtc::services::AuthorizationService::Options{std::chrono::seconds(3600)});
 
     service.require_active(42);  // warm
@@ -148,7 +153,8 @@ void BM_AuthorizationRequirePermission(benchmark::State& state) {
     CountingUserAdminRepository repository(rtc::security::Role::kSuperAdmin);
     rtc::cache::InMemoryCacheStore cache;
     rtc::services::AuthorizationService service(
-        repository, cache,
+        repository,
+        cache,
         rtc::services::AuthorizationService::Options{std::chrono::seconds(3600)});
 
     service.require_permission(42, rtc::security::Permission::kViewAuditLogs);  // warm

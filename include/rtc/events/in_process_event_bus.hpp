@@ -28,7 +28,7 @@ namespace rtc::events {
 // publish() is noexcept per IEventPublisher: a publication failure (a full queue
 // during shutdown, say) is counted and dropped, never surfaced to the producer.
 class InProcessEventBus final : public IEventBus {
-public:
+  public:
     // Synchronous bus.
     explicit InProcessEventBus(EventDispatcher& dispatcher) noexcept : dispatcher_(dispatcher) {}
 
@@ -55,7 +55,7 @@ public:
 
     [[nodiscard]] const EventDispatcher& dispatcher() const noexcept { return dispatcher_; }
 
-private:
+  private:
     EventDispatcher& dispatcher_;
     jobs::BackgroundExecutor* executor_ = nullptr;
     std::atomic<std::uint64_t> published_{0};

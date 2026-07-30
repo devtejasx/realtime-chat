@@ -22,7 +22,7 @@ using rtc::errors::NotFoundException;
 using rtc::errors::ValidationException;
 
 class MessageServiceTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         // Two users in a direct conversation.
         conversation_id_ = conversations_.create_or_get_direct(alice_, bob_).id;
@@ -45,8 +45,8 @@ protected:
     rtc::testing::RecordingBroadcaster broadcaster_;
     rtc::notifications::NullNotificationDispatcher notifications_;
     rtc::services::NullAttachmentLinker attachments_;
-    rtc::services::MessageService service_{messages_, conversations_, broadcaster_, notifications_,
-                                           attachments_};
+    rtc::services::MessageService service_{
+        messages_, conversations_, broadcaster_, notifications_, attachments_};
 };
 
 TEST_F(MessageServiceTest, SendPersistsThenBroadcasts) {

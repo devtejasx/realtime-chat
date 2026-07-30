@@ -80,7 +80,7 @@ struct SpanData {
 // no-op. That is what lets call sites hold a Span unconditionally without
 // branching on whether tracing is enabled.
 class Span {
-public:
+  public:
     Span() noexcept = default;
     Span(Tracer& tracer, SpanData data) noexcept;
 
@@ -112,7 +112,7 @@ public:
     [[nodiscard]] const SpanContext& context() const noexcept { return context_; }
     [[nodiscard]] bool is_recording() const noexcept { return tracer_ != nullptr && !ended_; }
 
-private:
+  private:
     Tracer* tracer_ = nullptr;
     SpanData data_;
     SpanContext context_;

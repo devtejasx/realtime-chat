@@ -1,9 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/models/read_receipt.hpp"
 

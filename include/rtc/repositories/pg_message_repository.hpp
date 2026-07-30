@@ -12,7 +12,7 @@ namespace rtc::repositories {
 
 // PostgreSQL-backed IMessageRepository.
 class PgMessageRepository final : public database::BaseRepository, public IMessageRepository {
-public:
+  public:
     explicit PgMessageRepository(database::ConnectionPool& pool) noexcept
         : database::BaseRepository(pool) {}
 

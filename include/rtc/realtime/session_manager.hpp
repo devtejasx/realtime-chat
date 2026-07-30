@@ -21,9 +21,12 @@ namespace rtc::realtime {
 // thousands of concurrent sessions.
 class SessionManager {
 public:
-    // Registers a session. Returns the created Session.
+    // Registers a session. Returns the created Session. `version` is the wire
+    // protocol negotiated during the handshake; it defaults to the legacy version
+    // so existing callers (and tests) are unaffected.
     std::shared_ptr<Session> add(crow::websocket::connection* conn, std::int64_t user_id,
-                                 std::string username);
+                                 std::string username,
+                                 protocol::Version version = protocol::kDefaultVersion);
 
     // Removes and returns the session for `conn`, or nullptr if unknown.
     std::shared_ptr<Session> remove(crow::websocket::connection* conn);
@@ -33,6 +36,17 @@ public:
     // All live connections for a user (possibly empty).
     [[nodiscard]] std::vector<crow::websocket::connection*> connections_for_user(
         std::int64_t user_id) const;
+
+    // Sessions (not bare connections) for a user. The broadcast path needs these
+    // because encoding a frame depends on each peer's negotiated protocol version.
+    [[nodiscard]] std::vector<std::shared_ptr<Session>> sessions_for_user(
+        std::int64_t user_id) const;
+
+    // Batch connection -> session resolution under a single lock. Used by room
+    // broadcasts, which start from a set of connections: looking each one up
+    // separately would take and release the mutex once per recipient.
+    [[nodiscard]] std::vector<std::shared_ptr<Session>> sessions_for(
+        const std::vector<crow::websocket::connection*>& connections) const;
 
     // Snapshot of every live session (for the heartbeat sweep).
     [[nodiscard]] std::vector<std::shared_ptr<Session>> snapshot() const;

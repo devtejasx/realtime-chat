@@ -8,6 +8,7 @@
 #include <jwt-cpp/jwt.h>
 
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/utils/random.hpp"
 
 namespace rtc::security {
 namespace {
@@ -47,6 +48,20 @@ std::string JwtTokenService::issue(std::int64_t user_id, std::string_view userna
         .set_type("JWT")
         .set_issuer(options_.issuer)
         .set_subject(std::to_string(user_id))
+        // A unique token id.
+        //
+        // Without it, every claim in the payload is a function of (user, type,
+        // second): iat/exp have one-second resolution, so two tokens issued for the
+        // same user within the same second are *byte-identical*. That breaks
+        // refresh-token rotation in a way that only shows up under load — the
+        // rotated token equals the one it replaced, so the "old token is now
+        // rejected" property silently does not hold, and a stolen token stays valid
+        // through a rotation.
+        //
+        // Standard "jti" claim, so it is also the natural key for a future
+        // token-level denylist. Purely additive: verify() does not require it, so
+        // tokens issued before this change keep validating.
+        .set_id(utils::generate_hex_token(16))
         .set_payload_claim("username", jwt::claim(std::string(username)))
         .set_payload_claim("type", jwt::claim(std::string(to_string(type))))
         .set_issued_at(issued_at)

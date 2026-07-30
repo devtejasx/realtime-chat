@@ -21,13 +21,16 @@ public:
     RedisCacheStore(const RedisCacheStore&) = delete;
     RedisCacheStore& operator=(const RedisCacheStore&) = delete;
 
-    void set(std::string_view key, std::string_view value, Seconds ttl) override;
+    // Defaults restated for the same reason as in InMemoryCacheStore: a default
+    // argument on a virtual is bound at the static call type, not inherited.
+    void set(std::string_view key, std::string_view value, Seconds ttl = Seconds{0}) override;
     [[nodiscard]] std::optional<std::string> get(std::string_view key) override;
     bool del(std::string_view key) override;
     [[nodiscard]] bool exists(std::string_view key) override;
     void expire(std::string_view key, Seconds ttl) override;
 
-    [[nodiscard]] std::int64_t incr(std::string_view key, Seconds ttl_on_create) override;
+    [[nodiscard]] std::int64_t incr(std::string_view key,
+                                    Seconds ttl_on_create = Seconds{0}) override;
 
     void sadd(std::string_view key, std::string_view member) override;
     void srem(std::string_view key, std::string_view member) override;

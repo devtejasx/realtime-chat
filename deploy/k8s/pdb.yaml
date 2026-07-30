@@ -1,0 +1,27 @@
+---
+# PodDisruptionBudget — protects against *voluntary* disruption: node drains,
+# cluster upgrades, `kubectl drain`. It has no effect on involuntary disruption
+# (node failure, OOM kill), which is what the Deployment's replica count and
+# topology spread are for.
+#
+# minAvailable: 2 rather than a percentage.
+#
+# An absolute number states the actual availability requirement — always at least
+# two pods serving — and does not drift as the HPA scales between 3 and 20. A
+# percentage would allow more simultaneous evictions at high replica counts,
+# meaning the largest reconnect storms would happen exactly when the service is
+# busiest.
+#
+# Note this requires minReplicas >= 3 in the HPA: with minAvailable: 2 and only 2
+# replicas running, no eviction can ever be permitted and node drains hang.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: realtime-chat
+  labels:
+    app.kubernetes.io/name: realtime-chat
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: realtime-chat

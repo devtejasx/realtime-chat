@@ -15,21 +15,21 @@ namespace rtc::controllers {
 namespace {
 
 // Extracts the filename parameter from a multipart part's Content-Disposition.
+//
+// Crow's part::get_header_object returns `const header&`, yielding a shared
+// empty header when the key is absent rather than signalling the miss — so
+// absence is detected by inspecting the result, not by a null check.
 [[nodiscard]] std::string part_filename(const crow::multipart::part& part) {
-    if (const auto* header = part.get_header_object("Content-Disposition")) {
-        const auto it = header->params.find("filename");
-        if (it != header->params.end()) {
-            return it->second;
-        }
+    const crow::multipart::header& disposition = part.get_header_object("Content-Disposition");
+    if (const auto it = disposition.params.find("filename"); it != disposition.params.end() &&
+                                                             !it->second.empty()) {
+        return it->second;
     }
     return "upload.bin";
 }
 
 [[nodiscard]] std::string part_content_type(const crow::multipart::part& part) {
-    if (const auto* header = part.get_header_object("Content-Type")) {
-        return header->value;
-    }
-    return {};
+    return part.get_header_object("Content-Type").value;
 }
 
 }  // namespace

@@ -1,0 +1,91 @@
+---
+# Non-secret configuration.
+#
+# Only values that are safe in plaintext live here; credentials belong in the
+# Secret (see secret.yaml). Every key maps to an environment variable read by
+# rtc::config::Config or rtc::features::FeatureFlags.
+#
+# Changing a ConfigMap does NOT restart pods. The Deployment carries a checksum
+# annotation over this file so `kubectl apply` triggers a rolling restart when it
+# changes — otherwise a config edit would appear to do nothing until the next
+# unrelated deploy.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-chat-config
+  labels:
+    app.kubernetes.io/name: realtime-chat
+    app.kubernetes.io/component: backend
+data:
+  APP_ENV: "production"
+  CHAT_PORT: "8080"
+
+  LOG_LEVEL: "info"
+  # Structured output so a log shipper can index fields rather than regex them.
+  LOG_FORMAT: "json"
+
+  DB_HOST: "postgres.realtime-chat.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "realtime_chat"
+  # Sized against max_connections: pool_size * replicas must stay comfortably
+  # below the server limit, or a scale-up exhausts connections instead of adding
+  # capacity. 8 * 3 replicas = 24, against a default max_connections of 100.
+  DB_POOL_SIZE: "8"
+
+  # Redis is required for more than one replica: it backs both the shared cache
+  # and the cross-instance WebSocket fan-out.
+  REDIS_ENABLED: "true"
+  REDIS_URL: "tcp://redis.realtime-chat.svc.cluster.local:6379"
+  CLUSTER_ENABLED: "true"
+
+  JWT_ISSUER: "realtime-chat"
+  JWT_ACCESS_TTL_SECONDS: "900"
+  JWT_REFRESH_TTL_SECONDS: "1209600"
+
+  # Worst-case delay before a ban or demotion takes effect.
+  AUTHZ_CACHE_TTL_SECONDS: "30"
+
+  WS_HEARTBEAT_INTERVAL_SECONDS: "30"
+  WS_HEARTBEAT_TIMEOUT_SECONDS: "90"
+
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_WINDOW_SECONDS: "60"
+  RATE_LIMIT_LOGIN_MAX: "10"
+  RATE_LIMIT_REGISTER_MAX: "5"
+  RATE_LIMIT_MESSAGE_MAX: "120"
+  RATE_LIMIT_UPLOAD_MAX: "30"
+
+  # Tighten to the actual front-end origins before going live.
+  CORS_ALLOWED_ORIGINS: "*"
+
+  MAX_UPLOAD_BYTES: "26214400"
+  MAX_REQUEST_BYTES: "1048576"
+  UPLOAD_DIR: "/var/lib/realtime-chat/uploads"
+
+  WORKER_THREADS: "4"
+  MAINTENANCE_INTERVAL_SECONDS: "60"
+
+  # Distributed tracing. Points at an OpenTelemetry Collector, which fans out to
+  # Jaeger/Zipkin/Tempo — that indirection means changing backend is a collector
+  # config change, not an application redeploy.
+  TRACING_ENABLED: "true"
+  TRACING_EXPORTER: "otlp"
+  TRACING_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318/v1/traces"
+  # 5% keeps trace volume affordable; raise temporarily while investigating.
+  TRACING_SAMPLE_RATIO: "0.05"
+
+  # Feature flags. These are the boot defaults; an operator can flip one at
+  # runtime via PUT /api/v1/admin/features/<name>, which applies immediately to
+  # one pod and is not persisted — change it here for a durable rollout.
+  ENABLE_REACTIONS: "true"
+  ENABLE_UPLOADS: "true"
+  ENABLE_NOTIFICATIONS: "true"
+  ENABLE_TYPING: "true"
+  ENABLE_SEARCH: "true"
+  ENABLE_READ_RECEIPTS: "true"
+  ENABLE_PRESENCE: "true"
+  ENABLE_AUDIT_LOG: "true"
+
+  # Serve the API reference. Set to "false" to switch /docs and /openapi.json off
+  # without a rebuild.
+  RTC_DOCS_ENABLED: "true"

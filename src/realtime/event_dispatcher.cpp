@@ -8,8 +8,10 @@
 
 #include "rtc/dto/message_dto.hpp"
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/events/event_types.hpp"
 #include "rtc/logging/logger.hpp"
 #include "rtc/realtime/events.hpp"
+#include "rtc/tracing/scoped_span.hpp"
 
 namespace rtc::realtime {
 namespace {
@@ -30,9 +32,15 @@ namespace {
 
 }  // namespace
 
+bool EventDispatcher::enabled(features::Feature feature) const noexcept {
+    // No flag store attached => everything on. Keeps the dispatcher usable
+    // standalone (and in the existing unit tests) with no behaviour change.
+    return flags_ == nullptr || flags_->is_enabled(feature);
+}
+
 void EventDispatcher::on_open(crow::websocket::connection& conn, std::int64_t user_id,
-                              const std::string& username) {
-    auto session = connections_.register_session(&conn, user_id, username);
+                              const std::string& username, protocol::Version version) {
+    auto session = connections_.register_session(&conn, user_id, username, version);
     session->last_activity_ms.store(now_ms(), std::memory_order_relaxed);
 
     try {
@@ -41,17 +49,28 @@ void EventDispatcher::on_open(crow::websocket::connection& conn, std::int64_t us
         connections_.rooms().join_many(conversations_.conversation_ids(user_id), &conn);
 
         // Presence: announce online to peers only on the first live session.
-        if (presence_.on_connect(user_id)) {
+        if (enabled(features::Feature::kPresence) && presence_.on_connect(user_id)) {
             connections_.publish(conversations_.peer_ids(user_id),
                                  realtime::events::kPresenceUpdate,
                                  nlohmann::json{{"user_id", user_id}, {"status", "online"}});
+            if (publisher_ != nullptr) {
+                publisher_->publish(::rtc::events::UserOnline{
+                    .user_id = user_id,
+                    .username = username,
+                    .session_count = connections_.sessions().sessions_for_user(user_id).size(),
+                }.to_event());
+            }
         }
     } catch (const std::exception& ex) {
         RTC_LOG_WARN("ws on_open side effects failed for user {}: {}", user_id, ex.what());
     }
 
+    // The ready frame tells the client which protocol it actually got, so a
+    // client that asked for v2 can verify it rather than assume.
     connections_.send_event(&conn, realtime::events::kReady,
-                            nlohmann::json{{"user_id", user_id}, {"username", username}});
+                            nlohmann::json{{"user_id", user_id},
+                                           {"username", username},
+                                           {"protocol_version", protocol::to_number(version)}});
 }
 
 void EventDispatcher::on_message(crow::websocket::connection& conn, const std::string& data) {
@@ -63,36 +82,57 @@ void EventDispatcher::on_message(crow::websocket::connection& conn, const std::s
     }
     const std::int64_t user_id = session->user_id;
 
-    nlohmann::json envelope = nlohmann::json::parse(data, nullptr, false);
-    if (envelope.is_discarded() || !envelope.is_object() || !envelope.contains("type")) {
-        send_error(conn, "validation_error", "Malformed event envelope");
+    const auto frame = protocol::decode(data);
+    if (!frame) {
+        send_error(conn, "validation_error", "Malformed event envelope", protocol::Envelope{});
         return;
     }
-    const std::string type = envelope.value("type", std::string{});
-    const nlohmann::json payload =
-        envelope.contains("data") ? envelope["data"] : nlohmann::json::object();
+    // Echo the client's ids back on any reply so a v2 client can match request to
+    // response; a v1 client simply has none and the fields stay empty.
+    const protocol::Envelope envelope{frame->request_id, frame->correlation_id};
+    const std::string& type = frame->event;
+    const nlohmann::json& payload = frame->payload;
+
+    // One span per inbound frame, parented to nothing (a WebSocket frame is its
+    // own operation), so the work it triggers downstream is attributable.
+    auto scope = tracing::ws_scope(type);
+    scope.span().set_attribute("rtc.user_id", user_id);
+    if (!frame->request_id.empty()) {
+        scope.span().set_attribute("rtc.request_id", frame->request_id);
+    }
 
     try {
         if (type == realtime::events::kClientPing) {
-            connections_.send_event(&conn, realtime::events::kPong, nlohmann::json::object());
+            connections_.send_event(&conn, realtime::events::kPong, nlohmann::json::object(),
+                                    envelope);
         } else if (type == realtime::events::kClientSendMessage) {
             handle_send_message(user_id, payload);
         } else if (type == realtime::events::kClientTypingStart) {
-            handle_typing(conn, user_id, session->username, payload, /*starting=*/true);
+            if (enabled(features::Feature::kTyping)) {
+                handle_typing(conn, user_id, session->username, payload, /*starting=*/true);
+            }
         } else if (type == realtime::events::kClientTypingStop) {
-            handle_typing(conn, user_id, session->username, payload, /*starting=*/false);
+            if (enabled(features::Feature::kTyping)) {
+                handle_typing(conn, user_id, session->username, payload, /*starting=*/false);
+            }
         } else if (type == realtime::events::kClientMarkDelivered) {
-            handle_mark_delivered(user_id, payload);
+            if (enabled(features::Feature::kReadReceipts)) {
+                handle_mark_delivered(user_id, payload);
+            }
         } else if (type == realtime::events::kClientMarkRead) {
-            handle_mark_read(user_id, payload);
+            if (enabled(features::Feature::kReadReceipts)) {
+                handle_mark_read(user_id, payload);
+            }
         } else {
-            send_error(conn, "validation_error", "Unknown event type");
+            send_error(conn, "validation_error", "Unknown event type", envelope);
         }
     } catch (const errors::AppException& ex) {
-        send_error(conn, ex.code(), ex.message());
+        scope.span().record_error(ex.message());
+        send_error(conn, ex.code(), ex.message(), envelope);
     } catch (const std::exception& ex) {
+        scope.span().record_error(ex.what());
         RTC_LOG_ERROR("ws handler error (type={}): {}", type, ex.what());
-        send_error(conn, "internal_error", "Failed to process event");
+        send_error(conn, "internal_error", "Failed to process event", envelope);
     }
 }
 
@@ -102,11 +142,17 @@ void EventDispatcher::on_close(crow::websocket::connection& conn) {
         return;
     }
     try {
-        if (presence_.on_disconnect(session->user_id)) {
+        if (enabled(features::Feature::kPresence) && presence_.on_disconnect(session->user_id)) {
             connections_.publish(conversations_.peer_ids(session->user_id),
                                  realtime::events::kPresenceUpdate,
                                  nlohmann::json{{"user_id", session->user_id},
                                                 {"status", "offline"}});
+            if (publisher_ != nullptr) {
+                publisher_->publish(::rtc::events::UserOffline{
+                    .user_id = session->user_id,
+                    .username = session->username,
+                }.to_event());
+            }
         }
     } catch (const std::exception& ex) {
         RTC_LOG_WARN("ws on_close side effects failed for user {}: {}", session->user_id,
@@ -146,9 +192,10 @@ void EventDispatcher::handle_mark_read(std::int64_t user_id, const nlohmann::jso
 }
 
 void EventDispatcher::send_error(crow::websocket::connection& conn, std::string_view code,
-                                 std::string_view message) {
+                                 std::string_view message,
+                                 const protocol::Envelope& envelope) {
     connections_.send_event(&conn, realtime::events::kError,
-                            nlohmann::json{{"code", code}, {"message", message}});
+                            nlohmann::json{{"code", code}, {"message", message}}, envelope);
 }
 
 }  // namespace rtc::realtime

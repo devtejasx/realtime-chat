@@ -73,6 +73,31 @@ public:
     // Interval for periodic maintenance jobs (cache purge, session cleanup).
     std::int64_t maintenance_interval_seconds = 60;
 
+    // --- Phase 5: enterprise platform ---
+
+    // Distributed tracing (OpenTelemetry-compatible). Disabled by default: it is
+    // an opt-in operational capability, and a tracer pointed at a collector that
+    // is not there should never be the default experience.
+    bool tracing_enabled = false;
+    // "logging" (structured log records), "otlp" (OTLP/HTTP JSON — Jaeger, Tempo,
+    // OpenTelemetry Collector) or "zipkin" (Zipkin v2 JSON).
+    std::string tracing_exporter = "logging";
+    std::string tracing_endpoint = "http://127.0.0.1:4318/v1/traces";
+    // Head-based sampling probability for root spans, in [0, 1]. 5% keeps trace
+    // volume affordable while still surfacing latency outliers; raise it while
+    // investigating, and set it to 1.0 in staging.
+    double tracing_sample_ratio = 0.05;
+
+    // Cross-instance WebSocket fan-out via Redis Pub/Sub. Required for more than
+    // one replica; pointless (pure overhead) with exactly one. Defaults to
+    // following redis_enabled, since Redis is its prerequisite.
+    bool cluster_enabled = false;
+
+    // How long an authorisation decision (role, suspension) may be cached. This
+    // is the worst-case delay before a demotion or ban takes effect, so keep it
+    // short — see services::AuthorizationService.
+    std::int64_t authz_cache_ttl_seconds = 30;
+
     // Observability / environment
     std::string log_level = "info";
     // Log output format: "text" (human-readable) or "json" (structured, for log

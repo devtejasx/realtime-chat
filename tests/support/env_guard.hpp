@@ -50,8 +50,13 @@ private:
 #endif
     }
 
+    // Guard on _WIN32, not _MSC_VER: setenv/unsetenv are POSIX and are absent
+    // from every Windows C runtime, so a MinGW/Clang-on-Windows build needs the
+    // _putenv_s path just as much as an MSVC one does. (_putenv_s with an empty
+    // value removes the variable, which is the documented Windows idiom for
+    // unsetting it.)
     static void set(const char* name, const char* value) {
-#if defined(_MSC_VER)
+#if defined(_WIN32)
         _putenv_s(name, value);
 #else
         ::setenv(name, value, /*overwrite=*/1);
@@ -59,7 +64,7 @@ private:
     }
 
     static void unset(const char* name) {
-#if defined(_MSC_VER)
+#if defined(_WIN32)
         _putenv_s(name, "");
 #else
         ::unsetenv(name);

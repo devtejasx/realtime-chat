@@ -5,6 +5,7 @@
 
 #include "rtc/dto/conversation_dto.hpp"
 #include "rtc/dto/pagination.hpp"
+#include "rtc/events/event_bus.hpp"
 #include "rtc/models/conversation.hpp"
 #include "rtc/models/conversation_participant.hpp"
 #include "rtc/notifications/notification_dispatcher.hpp"
@@ -28,6 +29,13 @@ public:
           users_(users),
           broadcaster_(broadcaster),
           notifications_(notifications) {}
+
+    // Attaches the domain event bus. Optional and set after construction, so this
+    // is additive for every existing caller and test (see MessageService for the
+    // same pattern and rationale).
+    void set_event_publisher(events::IEventPublisher& publisher) noexcept {
+        publisher_ = &publisher;
+    }
 
     // Creates a direct or group conversation on behalf of `actor_id`.
     [[nodiscard]] models::Conversation create(std::int64_t actor_id,
@@ -74,10 +82,13 @@ private:
     void require_owner(const models::Conversation& conversation, std::int64_t user_id);
     void require_user_exists(std::int64_t user_id);
 
+    [[nodiscard]] events::IEventPublisher& publisher() const noexcept;
+
     repositories::IConversationRepository& conversations_;
     repositories::IUserRepository& users_;
     realtime::IEventBroadcaster& broadcaster_;
     notifications::INotificationDispatcher& notifications_;
+    events::IEventPublisher* publisher_ = nullptr;
 };
 
 }  // namespace rtc::services

@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# EC2 bootstrap for a realtime-chat application instance.
+#
+# Rendered by Terraform (see compute.tf). Deliberately minimal: it installs
+# Docker, fetches secrets, writes the environment file and starts the container.
+# Anything more elaborate belongs in a baked AMI (Packer) — a long user-data
+# script is slow at every boot and its failures are awkward to diagnose.
+#
+# Secrets are read from Secrets Manager at boot using the instance role, never
+# baked into user data. User data is readable by anything that can reach IMDS, so
+# a credential placed here would be exposed by any SSRF bug in the application.
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+# Bootstrap failures otherwise vanish; this makes them greppable in the console log.
+exec > >(tee /var/log/rtc-bootstrap.log | logger -t rtc-bootstrap -s 2>/dev/console) 2>&1
+
+echo "=== realtime-chat bootstrap starting ($(date --iso-8601=seconds)) ==="
+
+PROJECT_NAME="${project_name}"
+ENVIRONMENT="${environment}"
+AWS_REGION="${aws_region}"
+DB_SECRET_ARN="${db_secret_arn}"
+APP_SECRET_ARN="${app_secret_arn}"
+REDIS_ENDPOINT="${redis_endpoint}"
+LOG_GROUP_NAME="${log_group_name}"
+
+export DEBIAN_FRONTEND=noninteractive
+
+# --- packages --------------------------------------------------------------
+apt-get update -y
+apt-get install -y --no-install-recommends \
+    ca-certificates curl gnupg jq unzip awscli amazon-cloudwatch-agent
+
+# Docker from the official repository; the distro package lags well behind.
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg |
+    gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+    >/etc/apt/sources.list.d/docker.list
+apt-get update -y
+apt-get install -y --no-install-recommends \
+    docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+systemctl enable --now docker
+
+# --- secrets ---------------------------------------------------------------
+#
+# Fetched with the instance role. `--query SecretString --output text` avoids the
+# double-encoded JSON that trips people up here.
+echo "Fetching secrets from AWS Secrets Manager"
+DB_SECRET=$(aws secretsmanager get-secret-value \
+    --region "$AWS_REGION" --secret-id "$DB_SECRET_ARN" \
+    --query SecretString --output text)
+APP_SECRET=$(aws secretsmanager get-secret-value \
+    --region "$AWS_REGION" --secret-id "$APP_SECRET_ARN" \
+    --query SecretString --output text)
+
+# --- environment file ------------------------------------------------------
+#
+# Written 0600 and owned by root. It contains the database password and the JWT
+# signing key; Docker reads it as root via --env-file.
+install -d -m 0750 /etc/realtime-chat
+umask 077
+
+{
+    echo "APP_ENV=$ENVIRONMENT"
+    echo "CHAT_PORT=8080"
+    echo "LOG_LEVEL=info"
+    echo "LOG_FORMAT=json"
+
+    # Database, straight out of the secret.
+    echo "DB_HOST=$(jq -r .DB_HOST <<<"$DB_SECRET")"
+    echo "DB_PORT=$(jq -r .DB_PORT <<<"$DB_SECRET")"
+    echo "DB_NAME=$(jq -r .DB_NAME <<<"$DB_SECRET")"
+    echo "DB_USER=$(jq -r .DB_USER <<<"$DB_SECRET")"
+    echo "DB_PASSWORD=$(jq -r .DB_PASSWORD <<<"$DB_SECRET")"
+    echo "DB_POOL_SIZE=8"
+
+    echo "JWT_SECRET=$(jq -r .JWT_SECRET <<<"$APP_SECRET")"
+    echo "JWT_ISSUER=realtime-chat"
+    echo "JWT_ACCESS_TTL_SECONDS=900"
+    echo "JWT_REFRESH_TTL_SECONDS=1209600"
+
+    # Redis, and with it cross-instance WebSocket fan-out. CLUSTER_ENABLED is
+    # essential with more than one instance: without it a message persisted here
+    # never reaches a recipient connected to another instance.
+    echo "REDIS_ENABLED=true"
+    echo "REDIS_URL=tcp://$REDIS_ENDPOINT:6379"
+    echo "CLUSTER_ENABLED=true"
+
+    # Node identity, so cluster-bus logs and traces name the instance.
+    TOKEN=$(curl -sS -X PUT "http://169.254.169.254/latest/api/token" \
+        -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+    INSTANCE_ID=$(curl -sS -H "X-aws-ec2-metadata-token: $TOKEN" \
+        "http://169.254.169.254/latest/meta-data/instance-id")
+    echo "RTC_NODE_ID=$INSTANCE_ID"
+
+    echo "WORKER_THREADS=4"
+    echo "RATE_LIMIT_ENABLED=true"
+    echo "AUTHZ_CACHE_TTL_SECONDS=30"
+
+    # Tracing off until a collector exists; turning it on is a one-line change.
+    echo "TRACING_ENABLED=false"
+    echo "TRACING_EXPORTER=otlp"
+
+    echo "ENABLE_REACTIONS=true"
+    echo "ENABLE_UPLOADS=true"
+    echo "ENABLE_NOTIFICATIONS=true"
+    echo "ENABLE_TYPING=true"
+    echo "ENABLE_SEARCH=true"
+    echo "ENABLE_AUDIT_LOG=true"
+} >/etc/realtime-chat/app.env
+
+chmod 0600 /etc/realtime-chat/app.env
+unset DB_SECRET APP_SECRET
+
+# --- log shipping ----------------------------------------------------------
+cat >/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<CWAGENT
+{
+  "agent": { "run_as_user": "root" },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/rtc-bootstrap.log",
+            "log_group_name": "$LOG_GROUP_NAME",
+            "log_stream_name": "{instance_id}/bootstrap"
+          }
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "namespace": "$PROJECT_NAME",
+    "append_dimensions": { "InstanceId": "\$\{aws:InstanceId\}" },
+    "metrics_collected": {
+      "mem": { "measurement": ["mem_used_percent"] },
+      "disk": { "measurement": ["used_percent"], "resources": ["/"] }
+    }
+  }
+}
+CWAGENT
+
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+    -a fetch-config -m ec2 -s \
+    -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
+# --- application -----------------------------------------------------------
+#
+# Migrations run as a separate one-shot container before the server starts. Doing
+# it this way means the schema is applied exactly once per deploy rather than
+# racing between instances, and a migration failure stops the rollout instead of
+# leaving a server running against the wrong schema.
+IMAGE="ghcr.io/devtejasx/realtime-chat:latest"
+
+echo "Pulling $IMAGE"
+docker pull "$IMAGE"
+
+echo "Applying database migrations"
+docker run --rm --env-file /etc/realtime-chat/app.env "$IMAGE" --migrate
+
+echo "Starting application"
+docker run -d \
+    --name realtime-chat \
+    --restart unless-stopped \
+    --env-file /etc/realtime-chat/app.env \
+    -p 8080:8080 \
+    --log-driver awslogs \
+    --log-opt awslogs-region="$AWS_REGION" \
+    --log-opt awslogs-group="$LOG_GROUP_NAME" \
+    --log-opt awslogs-stream="$INSTANCE_ID/application" \
+    --health-cmd 'curl -fsS http://localhost:8080/health/live || exit 1' \
+    --health-interval 15s \
+    --health-timeout 5s \
+    --health-retries 3 \
+    "$IMAGE"
+
+# Wait for readiness so a failed bootstrap is visible here rather than only as a
+# load-balancer health-check failure minutes later.
+echo "Waiting for readiness"
+for _ in $(seq 1 60); do
+    if curl -fsS http://localhost:8080/health/ready >/dev/null 2>&1; then
+        echo "=== bootstrap complete: instance is ready ==="
+        exit 0
+    fi
+    sleep 2
+done
+
+echo "!!! instance did not become ready within 120s; check 'docker logs realtime-chat'" >&2
+exit 1

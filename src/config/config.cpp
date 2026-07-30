@@ -3,6 +3,7 @@
 #include <cctype>
 #include <charconv>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -79,6 +80,29 @@ template <typename T>
     return parsed;
 }
 
+// Parses a floating-point environment variable, clamped to [min, max]. Used only
+// for the tracing sample ratio. std::from_chars for floating point is not
+// available in every standard library implementation this project supports, so
+// std::strtod is used with explicit whole-string validation.
+[[nodiscard]] double parse_double_env(const char* name, double fallback, double min_value,
+                                      double max_value) {
+    const auto raw = rtc::utils::get_env(name);
+    if (!raw || raw->empty()) {
+        return fallback;
+    }
+    char* end = nullptr;
+    const double parsed = std::strtod(raw->c_str(), &end);
+    if (end == nullptr || *end != '\0') {
+        throw ConfigException("Invalid number for environment variable",
+                              std::string(name) + "='" + *raw + "'");
+    }
+    if (parsed < min_value || parsed > max_value) {
+        throw ConfigException("Value out of range for environment variable",
+                              std::string(name) + "='" + *raw + "'");
+    }
+    return parsed;
+}
+
 }  // namespace
 
 Config Config::load_from_env() {
@@ -141,6 +165,20 @@ Config Config::load_from_env() {
     cfg.maintenance_interval_seconds =
         parse_int64_env("MAINTENANCE_INTERVAL_SECONDS", cfg.maintenance_interval_seconds, 1);
 
+    // --- Phase 5 ---
+    cfg.tracing_enabled = parse_bool_env("TRACING_ENABLED", cfg.tracing_enabled);
+    cfg.tracing_exporter = rtc::utils::get_env_or("TRACING_EXPORTER", cfg.tracing_exporter);
+    cfg.tracing_endpoint = rtc::utils::get_env_or("TRACING_ENDPOINT", cfg.tracing_endpoint);
+    cfg.tracing_sample_ratio =
+        parse_double_env("TRACING_SAMPLE_RATIO", cfg.tracing_sample_ratio, 0.0, 1.0);
+
+    // Cluster fan-out follows redis_enabled unless explicitly overridden: Redis is
+    // its transport, so defaulting it on without Redis would only produce warnings.
+    cfg.cluster_enabled = parse_bool_env("CLUSTER_ENABLED", cfg.redis_enabled);
+
+    cfg.authz_cache_ttl_seconds =
+        parse_int64_env("AUTHZ_CACHE_TTL_SECONDS", cfg.authz_cache_ttl_seconds, 1);
+
     cfg.log_level = rtc::utils::get_env_or("LOG_LEVEL", cfg.log_level);
     cfg.log_format = rtc::utils::get_env_or("LOG_FORMAT", cfg.log_format);
     cfg.app_env = rtc::utils::get_env_or("APP_ENV", cfg.app_env);
@@ -171,6 +209,18 @@ void Config::validate() const {
     }
     if (ws_heartbeat_timeout_seconds < ws_heartbeat_interval_seconds) {
         throw ConfigException("WS heartbeat timeout must be >= heartbeat interval");
+    }
+    if (tracing_exporter != "logging" && tracing_exporter != "otlp" &&
+        tracing_exporter != "zipkin") {
+        throw ConfigException("TRACING_EXPORTER must be one of: logging, otlp, zipkin",
+                              "TRACING_EXPORTER='" + tracing_exporter + "'");
+    }
+    // Cluster fan-out without Redis silently delivers only to local connections,
+    // which looks like intermittent message loss to users. Fail fast instead.
+    if (cluster_enabled && !redis_enabled) {
+        throw ConfigException(
+            "CLUSTER_ENABLED requires REDIS_ENABLED: Redis Pub/Sub is the transport for "
+            "cross-instance WebSocket delivery");
     }
 }
 

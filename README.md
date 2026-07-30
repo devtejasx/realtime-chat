@@ -38,6 +38,22 @@ A production-grade real-time chat backend written in **Modern C++20**.
 > probes, **structured JSON logs with request ids**, expanded Prometheus
 > metrics (DB/cache latency, memory), and a full production docs set. Clone and
 > follow [docs/Deployment.md](docs/Deployment.md) to ship it.
+>
+> **Phase 5 — Enterprise Distributed Platform** (complete): **API versioning**
+> (`/api/v1`, with the unversioned prefix permanently supported), a served
+> **OpenAPI 3.1** spec and **Swagger UI** at `/docs`, an internal
+> **domain event bus** (publisher/subscriber/dispatcher, dispatched off the
+> request path), an append-only **audit log** with a search API, **RBAC** with
+> four roles and a permission table, account suspension that takes effect on the
+> next request, an **admin module** (users, groups, sessions, sockets, cache,
+> jobs, metrics, audit, feature flags), **PostgreSQL full-text search** with
+> ranking, highlighting and trigram fuzzy fallback, a **versioned WebSocket
+> protocol** with request/correlation ids, **Redis Pub/Sub fan-out** for true
+> horizontal scaling, **OpenTelemetry-compatible tracing** (OTLP/Zipkin
+> exporters, W3C trace context), runtime **feature flags**, three distinct
+> **health probes**, **Kubernetes** manifests, **Terraform** for AWS,
+> **Google Benchmark** microbenchmarks and a **k6** load-test suite.
+> See [docs/Diagrams.md](docs/Diagrams.md).
 
 ## Features
 
@@ -68,6 +84,36 @@ A production-grade real-time chat backend written in **Modern C++20**.
 - **Tests** — GoogleTest covering config, validation, hashing, JWT, all
   services, realtime managers, and the register/login APIs, plus opt-in database
   integration tests.
+- **API versioning** — every route is authored once and served at both
+  `/api/v1/...` and the legacy `/api/...`; an unknown version returns a
+  machine-readable 404 naming what is supported.
+- **OpenAPI 3.1 + Swagger UI** — the full spec is compiled into the binary and
+  served at `/openapi.json`, with an interactive viewer at `/docs`. A test
+  asserts every registered route is documented.
+- **Domain event bus** — typed events (`UserRegistered`, `MessageSent`,
+  `MessageDeleted`, `AdminAction`, …) published by producers and consumed by
+  independent subscribers, dispatched on the worker pool so a slow subscriber
+  never touches request latency.
+- **Audit log** — append-only, idempotent, correlated with the request and trace
+  that caused it, searchable at `/api/v1/admin/audit-logs`.
+- **RBAC** — `user` / `moderator` / `admin` / `super_admin` over a constexpr
+  permission table; decisions are database-authoritative behind a short-TTL cache
+  so a ban or demotion is effective on the next request, not at token expiry.
+- **Admin module** — user and group management, session and socket inspection,
+  cache/job/system statistics, audit search, runtime feature-flag toggles.
+- **Full-text search** — a stored `tsvector` with a GIN index, `ts_rank_cd`
+  ranking, `ts_headline` snippets, and a trigram fuzzy fallback for typos.
+- **Versioned WebSocket protocol** — negotiated at the handshake; v2 adds
+  `event`/`version`/`timestamp`/`request_id`/`correlation_id`/`payload` while v1
+  stays frozen for existing clients.
+- **Horizontal scaling** — Redis Pub/Sub fans WebSocket broadcasts across every
+  replica, with origin-node loop suppression.
+- **Distributed tracing** — W3C trace context propagation and OTLP/Zipkin export
+  to Jaeger, Zipkin, Tempo or an OpenTelemetry Collector.
+- **Feature flags** — eight runtime-togglable capabilities, seeded from the
+  environment and switchable live by a super admin.
+- **Health probes** — `/health/live`, `/health/ready` and `/health/startup`,
+  each answering a genuinely different question.
 
 ## Tech stack
 
@@ -93,10 +139,18 @@ A production-grade real-time chat backend written in **Modern C++20**.
 ├── src/                    # implementation (mirrors include/)
 ├── tests/                  # GoogleTest suite + fakes
 ├── migrations/             # SQL schema migrations
+├── benchmarks/             # Google Benchmark microbenchmarks (opt-in)
+├── loadtest/               # k6 load-test scenarios
 ├── docker/                 # Dockerfile
 ├── docker-compose.yml      # local postgres + server
-├── scripts/                # build / test / run / format helpers
-└── docs/                   # Architecture, Database, API
+├── deploy/
+│   ├── aws/                # EC2 deploy / rollback scripts
+│   ├── k8s/                # Kubernetes manifests
+│   ├── systemd/            # hardened service unit
+│   └── terraform/          # AWS infrastructure as code
+├── nginx/                  # reverse-proxy configuration
+├── scripts/                # build / test / run / format / coverage helpers
+└── docs/                   # architecture, diagrams, API, operations
 ```
 
 ## Quick start (Docker)
@@ -199,12 +253,17 @@ WebSocket event set, and all Phase 3 endpoints are documented in
 
 ## Further reading
 
-- [docs/Architecture.md](docs/Architecture.md) — layers, dependency injection,
-  request lifecycle.
 - [docs/Architecture.md](docs/Architecture.md) — layers, DI, request lifecycle,
   real-time and production layers.
+- [docs/Diagrams.md](docs/Diagrams.md) — system, clean-architecture, ERD,
+  deployment, request, auth, RBAC, WebSocket, event and cache diagrams.
 - [docs/Database.md](docs/Database.md) — schema, migrations, connection pool.
-- [docs/API.md](docs/API.md) — endpoints, payloads, error format.
+- [docs/API.md](docs/API.md) — endpoints, payloads, error format. The live
+  reference is the OpenAPI spec at `/openapi.json` and Swagger UI at `/docs`.
+- [docs/WebSocketProtocol.md](docs/WebSocketProtocol.md) — versioned wire
+  protocol, every event, delivery semantics.
+- [docs/Authorization.md](docs/Authorization.md) — roles, permissions,
+  suspension, audit log.
 - [docs/Deployment.md](docs/Deployment.md) — scaling, Redis, storage, rolling
   deploys, readiness checklist, runbook.
 - [docs/Docker.md](docs/Docker.md) — images and Compose stacks.
@@ -215,6 +274,10 @@ WebSocket event set, and all Phase 3 endpoints are documented in
 - [docs/Troubleshooting.md](docs/Troubleshooting.md) — common issues.
 - [docs/Contributing.md](docs/Contributing.md) — dev workflow and standards.
 - [docs/Release.md](docs/Release.md) — versioning and release process.
+- [deploy/k8s/README.md](deploy/k8s/README.md) — Kubernetes manifests.
+- [deploy/terraform/README.md](deploy/terraform/README.md) — AWS infrastructure.
+- [loadtest/README.md](loadtest/README.md) — k6 scenarios and expected
+  performance.
 
 ## License
 

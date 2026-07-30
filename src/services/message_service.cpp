@@ -3,6 +3,7 @@
 #include <string>
 
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/events/event_types.hpp"
 #include "rtc/realtime/events.hpp"
 #include "rtc/validation/validators.hpp"
 
@@ -12,6 +13,10 @@ namespace {
 using rtc::errors::AuthorizationException;
 using rtc::errors::NotFoundException;
 }  // namespace
+
+events::IEventPublisher& MessageService::publisher() const noexcept {
+    return publisher_ != nullptr ? *publisher_ : events::NullEventPublisher::instance();
+}
 
 models::Message MessageService::require_message(std::int64_t message_id) {
     auto message = messages_.find_by_id(message_id);
@@ -61,6 +66,19 @@ models::Message MessageService::send(std::int64_t actor_id,
 
     // 3) Notifications are event-driven and never block or fail the send.
     notifications_.new_message(actor_id, stored.conversation_id, stored.id, participants);
+
+    // 4) Announce the domain fact. Anything that wants to react — analytics, the
+    // broker, search indexing — subscribes rather than being called from here,
+    // which is what keeps this method from growing a new dependency per feature.
+    // Note that only the content *length* travels on the bus: message bodies stay
+    // inside the domain.
+    publisher().publish(events::MessageSent{
+        .message_id = stored.id,
+        .conversation_id = stored.conversation_id,
+        .sender_id = actor_id,
+        .recipient_ids = participants,
+        .content_length = content.size(),
+    }.to_event());
     return stored;
 }
 
@@ -86,18 +104,26 @@ models::Message MessageService::edit(std::int64_t actor_id, std::int64_t message
 
     broadcaster_.publish(conversations_.list_participant_ids(updated.conversation_id),
                          realtime::events::kMessageUpdated, to_response(updated).to_json());
+    publisher().publish(events::MessageEdited{
+        .message_id = updated.id,
+        .conversation_id = updated.conversation_id,
+        .actor_id = actor_id,
+    }.to_event());
     return updated;
 }
 
 models::Message MessageService::remove(std::int64_t actor_id, std::int64_t message_id) {
     const auto existing = require_message(message_id);
 
-    bool permitted = existing.sender_id == actor_id;
+    const bool is_author = existing.sender_id == actor_id;
+    bool permitted = is_author;
+    bool as_moderator = false;
     if (!permitted) {
         // A group owner may remove any message in their group.
         const auto conversation = conversations_.find_by_id(existing.conversation_id);
         permitted = conversation && conversation->is_group() &&
                     conversation->owner_id == actor_id;
+        as_moderator = permitted;
     }
     if (!permitted) {
         throw AuthorizationException("Not allowed to delete this message");
@@ -106,6 +132,14 @@ models::Message MessageService::remove(std::int64_t actor_id, std::int64_t messa
     const models::Message deleted = messages_.soft_delete(message_id);
     broadcaster_.publish(conversations_.list_participant_ids(deleted.conversation_id),
                          realtime::events::kMessageDeleted, to_response(deleted).to_json());
+    // Deleting someone else's message is the case a security reviewer cares about,
+    // so the distinction is recorded rather than inferred later from the ids.
+    publisher().publish(events::MessageDeleted{
+        .message_id = deleted.id,
+        .conversation_id = deleted.conversation_id,
+        .actor_id = actor_id,
+        .by_moderator = as_moderator,
+    }.to_event());
     return deleted;
 }
 

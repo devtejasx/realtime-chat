@@ -12,6 +12,17 @@
 include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
 
+# CMake 4.0 removed compatibility with `cmake_minimum_required(VERSION <3.5)`.
+# Some pinned third-party projects (notably Bcrypt.cpp) still declare an older
+# minimum, which makes their sub-configure a hard error under CMake >= 4. Raising
+# the floor for *dependency* configuration keeps this project buildable on both
+# CMake 3.x and 4.x without patching vendored sources. Our own CMake files
+# already require 3.24, so this only ever affects fetched subprojects.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0" AND NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
+    set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE STRING
+        "Minimum CMake policy version accepted from third-party subprojects" FORCE)
+endif()
+
 # Pin every dependency to an explicit tag for reproducible builds.
 set(RTC_DEP_ASIO_TAG        "asio-1-30-2")
 set(RTC_DEP_CROW_TAG        "v1.2.0")
@@ -20,6 +31,7 @@ set(RTC_DEP_JSON_TAG        "v3.11.3")
 set(RTC_DEP_JWTCPP_TAG      "v0.7.0")
 set(RTC_DEP_BCRYPT_TAG      "master")
 set(RTC_DEP_GTEST_TAG       "v1.14.0")
+set(RTC_DEP_BENCHMARK_TAG   "v1.8.3")
 
 # ---------------------------------------------------------------------------
 # System packages
@@ -53,7 +65,11 @@ FetchContent_MakeAvailable(asio)
 
 add_library(asio INTERFACE)
 target_include_directories(asio SYSTEM INTERFACE "${asio_SOURCE_DIR}/asio/include")
-target_compile_definitions(asio INTERFACE ASIO_STANDALONE ASIO_NO_DEPRECATED)
+# ASIO_STANDALONE only: do NOT define ASIO_NO_DEPRECATED here. That macro removes
+# the `asio::io_service` typedef, which Crow v1.2.0 still references in
+# crow/http_request.h (request::post/dispatch), so defining it breaks the build
+# against the pinned Asio 1.30.x. Revisit when Crow drops the deprecated alias.
+target_compile_definitions(asio INTERFACE ASIO_STANDALONE)
 target_link_libraries(asio INTERFACE Threads::Threads)
 # Crow's bundled FindAsio.cmake locates headers through this variable.
 set(ASIO_INCLUDE_DIR "${asio_SOURCE_DIR}/asio/include" CACHE PATH "" FORCE)
@@ -114,7 +130,7 @@ FetchContent_MakeAvailable(bcrypt)
 # ---------------------------------------------------------------------------
 # GoogleTest — unit / integration testing.
 # ---------------------------------------------------------------------------
-if(RTC_BUILD_TESTS)
+if(RTC_BUILD_TESTS OR RTC_BUILD_BENCHMARKS)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(googletest
@@ -122,6 +138,32 @@ if(RTC_BUILD_TESTS)
         GIT_TAG        ${RTC_DEP_GTEST_TAG}
         GIT_SHALLOW    TRUE)
     FetchContent_MakeAvailable(googletest)
+endif()
+
+# ---------------------------------------------------------------------------
+# Google Benchmark — microbenchmarks. Fetched only when RTC_BUILD_BENCHMARKS=ON so
+# the default build stays lean.
+#
+# BENCHMARK_ENABLE_TESTING is forced off: benchmarking the benchmark library is not
+# our concern, and its own test suite pulls in further dependencies.
+# ---------------------------------------------------------------------------
+if(RTC_BUILD_BENCHMARKS)
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_USE_BUNDLED_GTEST OFF CACHE BOOL "" FORCE)
+    # Google Benchmark compiles *itself* with -Werror by default, so a warning newly
+    # introduced by a compiler we do not control becomes a hard build failure in a
+    # dependency (GCC 15 flags an unhandled enum in its sysinfo.cc, for instance).
+    # Our own code keeps its strict warnings via rtc_warnings; third-party warnings
+    # are not ours to fix.
+    set(BENCHMARK_ENABLE_WERROR OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_DOWNLOAD_DEPENDENCIES OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(benchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG        ${RTC_DEP_BENCHMARK_TAG}
+        GIT_SHALLOW    TRUE)
+    FetchContent_MakeAvailable(benchmark)
 endif()
 
 # ---------------------------------------------------------------------------

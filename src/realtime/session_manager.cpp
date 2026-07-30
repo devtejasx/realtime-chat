@@ -5,8 +5,9 @@
 namespace rtc::realtime {
 
 std::shared_ptr<Session> SessionManager::add(crow::websocket::connection* conn,
-                                             std::int64_t user_id, std::string username) {
-    auto session = std::make_shared<Session>(conn, user_id, std::move(username), 0);
+                                             std::int64_t user_id, std::string username,
+                                             protocol::Version version) {
+    auto session = std::make_shared<Session>(conn, user_id, std::move(username), 0, version);
     std::lock_guard<std::mutex> lock(mutex_);
     by_connection_[conn] = session;
     by_user_[user_id].insert(conn);
@@ -47,6 +48,38 @@ std::vector<crow::websocket::connection*> SessionManager::connections_for_user(
         out.reserve(it->second.size());
         for (auto* conn : it->second) {
             out.push_back(conn);
+        }
+    }
+    return out;
+}
+
+std::vector<std::shared_ptr<Session>> SessionManager::sessions_for_user(
+    std::int64_t user_id) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<std::shared_ptr<Session>> out;
+    const auto it = by_user_.find(user_id);
+    if (it == by_user_.end()) {
+        return out;
+    }
+    out.reserve(it->second.size());
+    for (auto* conn : it->second) {
+        const auto session_it = by_connection_.find(conn);
+        if (session_it != by_connection_.end()) {
+            out.push_back(session_it->second);
+        }
+    }
+    return out;
+}
+
+std::vector<std::shared_ptr<Session>> SessionManager::sessions_for(
+    const std::vector<crow::websocket::connection*>& connections) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<std::shared_ptr<Session>> out;
+    out.reserve(connections.size());
+    for (auto* conn : connections) {
+        const auto it = by_connection_.find(conn);
+        if (it != by_connection_.end()) {
+            out.push_back(it->second);
         }
     }
     return out;

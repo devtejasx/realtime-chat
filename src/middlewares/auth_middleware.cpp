@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/services/authorization_service.hpp"
 
 namespace rtc::middlewares {
 namespace {
@@ -43,7 +44,8 @@ std::optional<std::string> AuthMiddleware::extract_bearer_token(const crow::requ
     return std::string(token);
 }
 
-security::TokenClaims AuthMiddleware::authenticate(const crow::request& request) const {
+security::TokenClaims AuthMiddleware::authenticate_token_only(
+    const crow::request& request) const {
     const auto token = extract_bearer_token(request);
     if (!token) {
         throw rtc::errors::AuthenticationException("Missing or malformed Authorization header");
@@ -51,6 +53,16 @@ security::TokenClaims AuthMiddleware::authenticate(const crow::request& request)
     // verify() enforces signature, issuer, expiry and that this is an access
     // token; it throws AuthenticationException on any failure.
     return token_service_.verify(*token, security::TokenType::kAccess);
+}
+
+security::TokenClaims AuthMiddleware::authenticate(const crow::request& request) const {
+    const security::TokenClaims claims = authenticate_token_only(request);
+    if (authorization_ != nullptr) {
+        // Throws AuthenticationException when the account has been suspended, so
+        // a ban is effective on the next request rather than at token expiry.
+        authorization_->require_active(claims.user_id);
+    }
+    return claims;
 }
 
 }  // namespace rtc::middlewares

@@ -38,6 +38,11 @@ public:
     [[nodiscard]] std::uint64_t failed() const noexcept { return failed_.load(); }
     [[nodiscard]] std::size_t worker_count() const noexcept { return worker_count_; }
 
+    // True between start() and stop(). Read by /health/ready — a stopped pool
+    // silently drops every submitted task, so an instance in that state must not
+    // keep receiving traffic.
+    [[nodiscard]] bool is_running() const noexcept { return running_.load(); }
+
 private:
     void worker_loop();
 

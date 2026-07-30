@@ -5,6 +5,7 @@
 
 #include "rtc/dto/message_dto.hpp"
 #include "rtc/dto/pagination.hpp"
+#include "rtc/events/event_bus.hpp"
 #include "rtc/models/message.hpp"
 #include "rtc/notifications/notification_dispatcher.hpp"
 #include "rtc/realtime/event_broadcaster.hpp"
@@ -29,6 +30,17 @@ public:
           broadcaster_(broadcaster),
           notifications_(notifications),
           attachments_(attachments) {}
+
+    // Attaches the domain event bus.
+    //
+    // Injected via a setter rather than the constructor so this is a strictly
+    // additive change: every existing caller — including the unit tests that
+    // construct a MessageService with five collaborators — keeps compiling
+    // unchanged. Until it is set, publishing goes to a shared no-op publisher, so
+    // no call site needs a null check.
+    void set_event_publisher(events::IEventPublisher& publisher) noexcept {
+        publisher_ = &publisher;
+    }
 
     // Builds a wire response for a message, including its linked attachment ids.
     [[nodiscard]] dto::MessageResponse to_response(const models::Message& message);
@@ -57,11 +69,15 @@ private:
     [[nodiscard]] models::Message require_message(std::int64_t message_id);
     void require_participant(std::int64_t conversation_id, std::int64_t user_id);
 
+    // The publisher to use — the injected one, or the shared no-op.
+    [[nodiscard]] events::IEventPublisher& publisher() const noexcept;
+
     repositories::IMessageRepository& messages_;
     repositories::IConversationRepository& conversations_;
     realtime::IEventBroadcaster& broadcaster_;
     notifications::INotificationDispatcher& notifications_;
     IAttachmentLinker& attachments_;
+    events::IEventPublisher* publisher_ = nullptr;
 };
 
 }  // namespace rtc::services

@@ -1,0 +1,100 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: realtime-chat
+  labels:
+    app.kubernetes.io/name: realtime-chat
+  annotations:
+    # --- TLS -------------------------------------------------------------
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    # --- WebSocket -------------------------------------------------------
+    #
+    # The default proxy read timeout (60s) would sever an idle WebSocket long
+    # before the application's own 90s heartbeat timeout notices. These are set
+    # comfortably above it so the *application* decides when a connection is dead,
+    # not the proxy.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # Disable response buffering: buffering defeats the point of a real-time push.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+
+    # --- Body size -------------------------------------------------------
+    # Must be at least MAX_UPLOAD_BYTES (25 MiB), or nginx rejects a legitimate
+    # upload with 413 before the application ever sees it.
+    nginx.ingress.kubernetes.io/proxy-body-size: "26m"
+
+    # --- Rate limiting ---------------------------------------------------
+    # A coarse edge limit in front of the application's own per-endpoint limiter.
+    # Two layers: the edge sheds volumetric abuse cheaply, the application applies
+    # the precise per-user rules.
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - chat.example.com
+      secretName: realtime-chat-tls
+  rules:
+    - host: chat.example.com
+      http:
+        paths:
+          # WebSocket endpoints, listed first so they match before the catch-all.
+          # Both the versioned and legacy paths are real routes: a WebSocket
+          # upgrade bypasses Crow's middleware chain, so the version-rewrite
+          # middleware never runs for it.
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: realtime-chat
+                port:
+                  name: http
+          - path: /api/v1/ws
+            pathType: Prefix
+            backend:
+              service:
+                name: realtime-chat
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: realtime-chat
+                port:
+                  name: http
+---
+# /metrics must not be publicly reachable: it exposes internal counters useful for
+# reconnaissance. Prometheus scrapes pods directly inside the cluster (see the
+# prometheus.io/* annotations on the Deployment), so nothing legitimate needs it
+# through the Ingress. A separate Ingress with a deny rule makes the intent
+# explicit and survives someone later broadening the main path list.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: realtime-chat-metrics-deny
+  annotations:
+    # Return 403 rather than proxying. `return` short-circuits before the upstream.
+    nginx.ingress.kubernetes.io/server-snippet: |
+      location /metrics {
+        deny all;
+        return 403;
+      }
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: chat.example.com
+      http:
+        paths:
+          - path: /metrics
+            pathType: Exact
+            backend:
+              service:
+                name: realtime-chat
+                port:
+                  name: http

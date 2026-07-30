@@ -2,12 +2,14 @@
 
 #include <optional>
 #include <string>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
 #include "rtc/dto/auth_dto.hpp"
 #include "rtc/dto/user_dto.hpp"
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/events/event_types.hpp"
 #include "rtc/http/guard.hpp"
 #include "rtc/http/json_body.hpp"
 #include "rtc/http/response.hpp"
@@ -32,6 +34,10 @@ namespace {
 
 }  // namespace
 
+events::IEventPublisher& AuthController::publisher() const noexcept {
+    return publisher_ != nullptr ? *publisher_ : events::NullEventPublisher::instance();
+}
+
 void AuthController::register_routes(http::App& app) {
     // Records a session for a freshly authenticated user and returns the augmented
     // response JSON (adds "session_id").
@@ -49,7 +55,13 @@ void AuthController::register_routes(http::App& app) {
             return http::run_guarded([&] {
                 auto request = dto::RegisterRequest::from_json(http::parse_json_body(req));
                 const auto response = auth_service_.register_user(std::move(request));
-                return http::json_response(201, with_session(req, response));
+                auto body = with_session(req, response);
+                publisher().publish(events::UserRegistered{
+                    .user_id = response.user.id,
+                    .username = response.user.username,
+                    .email = response.user.email,
+                }.to_event());
+                return http::json_response(201, std::move(body));
             });
         });
 
@@ -58,7 +70,16 @@ void AuthController::register_routes(http::App& app) {
             return http::run_guarded([&] {
                 auto request = dto::LoginRequest::from_json(http::parse_json_body(req));
                 const auto response = auth_service_.login(std::move(request));
-                return http::json_response(200, with_session(req, response));
+                auto body = with_session(req, response);
+                // ip / user_agent are the fields a security review actually reads
+                // on a sign-in record, and they only exist at this boundary.
+                publisher().publish(events::UserLoggedIn{
+                    .user_id = response.user.id,
+                    .username = response.user.username,
+                    .ip = req.remote_ip_address,
+                    .user_agent = req.get_header_value("User-Agent"),
+                }.to_event());
+                return http::json_response(200, std::move(body));
             });
         });
 
@@ -84,10 +105,21 @@ void AuthController::register_routes(http::App& app) {
     CROW_ROUTE(app, "/api/auth/logout")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
-                const auto claims = auth_guard_.authenticate(req);
+                // authenticate_token_only: a suspended account must still be able
+                // to sign out cleanly. Blocking logout for a banned user would
+                // leave their refresh token alive and give them no way to
+                // invalidate it themselves.
+                const auto claims = auth_guard_.authenticate_token_only(req);
                 const auto body = http::parse_json_body(req);
                 const std::string session_id = require_string(body, "session_id");
                 const bool revoked = session_service_.revoke(claims.user_id, session_id);
+                if (revoked) {
+                    publisher().publish(events::UserLoggedOut{
+                        .user_id = claims.user_id,
+                        .session_id = session_id,
+                        .all_sessions = false,
+                    }.to_event());
+                }
                 return http::json_response(200, nlohmann::json{{"revoked", revoked}});
             });
         });
@@ -96,8 +128,12 @@ void AuthController::register_routes(http::App& app) {
     CROW_ROUTE(app, "/api/auth/logout-all")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
-                const auto claims = auth_guard_.authenticate(req);
+                const auto claims = auth_guard_.authenticate_token_only(req);
                 const auto count = session_service_.revoke_all(claims.user_id);
+                publisher().publish(events::UserLoggedOut{
+                    .user_id = claims.user_id,
+                    .all_sessions = true,
+                }.to_event());
                 return http::json_response(200, nlohmann::json{{"revoked", count}});
             });
         });
@@ -105,7 +141,9 @@ void AuthController::register_routes(http::App& app) {
     CROW_ROUTE(app, "/api/auth/me")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
-                const auto claims = auth_guard_.authenticate(req);
+                // Readable while suspended, so a client can explain *why* the
+                // rest of the API is refusing it.
+                const auto claims = auth_guard_.authenticate_token_only(req);
                 const auto user = user_service_.get_by_id(claims.user_id);
                 return http::json_response(200, dto::UserResponse::from(user).to_json());
             });

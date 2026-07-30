@@ -1,0 +1,157 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-chat
+  labels:
+    app.kubernetes.io/name: realtime-chat
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: realtime-chat
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # maxUnavailable: 0 keeps full capacity throughout a rollout. That matters
+      # more than usual here: every terminating pod drops its WebSocket
+      # connections, and those clients all reconnect at once. Replacing one pod at
+      # a time keeps that reconnect burst small.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: realtime-chat
+        app.kubernetes.io/component: backend
+      annotations:
+        # Rolls the pods when configuration changes. Without this, editing the
+        # ConfigMap appears to do nothing until the next unrelated deploy.
+        # Regenerate with:
+        #   kubectl create cm realtime-chat-config --from-file=... --dry-run=client -o yaml | sha256sum
+        checksum/config: "REPLACE_WITH_CONFIGMAP_CHECKSUM"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: realtime-chat
+      # Spread replicas across nodes so losing one node cannot take out the whole
+      # deployment. `ScheduleAnyway` keeps a small cluster schedulable.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: realtime-chat
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      # Long enough for in-flight requests to finish and for WebSocket peers to be
+      # closed cleanly. SIGTERM triggers Application::stop(), which drains the
+      # worker pool and joins background threads.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: realtime-chat
+          image: ghcr.io/devtejasx/realtime-chat:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: realtime-chat-config
+            - secretRef:
+                name: realtime-chat-secrets
+          env:
+            # Node identity. The pod name makes cluster-bus log lines and the
+            # service.instance.id trace attribute traceable back to a specific pod.
+            - name: RTC_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+          # --- probes ---------------------------------------------------------
+          #
+          # Three probes answering three different questions. Conflating them is a
+          # classic way to turn a dependency blip into an outage.
+
+          # Startup: suppresses the other two until bootstrap (including
+          # migrations) completes. 60 * 2s = up to two minutes of headroom.
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: http
+            periodSeconds: 2
+            failureThreshold: 60
+
+          # Liveness: dependency-free by design. If this consulted PostgreSQL, a
+          # database outage would restart every replica and turn a recoverable
+          # problem into a total one.
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # Readiness: checks PostgreSQL, the cache, the worker pool and the
+          # scheduler. Failing removes the pod from the Service without killing
+          # it, which is the correct response to an unavailable dependency.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+
+          resources:
+            requests:
+              # The request is what the HPA's utilisation target is measured
+              # against, so it should reflect steady-state usage, not the peak.
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              # No CPU limit on purpose: CFS throttling at the limit adds latency
+              # spikes to a service whose whole point is low-latency delivery.
+              # Memory is limited, because a leak must be contained.
+              memory: "768Mi"
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          volumeMounts:
+            # readOnlyRootFilesystem is on, so every writable path is an explicit
+            # volume. Attachment storage is emptyDir here because it is per-pod
+            # scratch; a multi-replica deployment serving durable attachments needs
+            # object storage (S3) or an RWX volume instead — a pod-local upload is
+            # invisible to the other replicas.
+            - name: uploads
+              mountPath: /var/lib/realtime-chat/uploads
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: uploads
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi

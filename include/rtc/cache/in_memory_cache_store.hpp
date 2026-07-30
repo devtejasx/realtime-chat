@@ -21,13 +21,20 @@ namespace rtc::cache {
 // cleanup job. For multi-instance deployments, swap in the Redis store.
 class InMemoryCacheStore final : public ICacheStore {
 public:
-    void set(std::string_view key, std::string_view value, Seconds ttl) override;
+    // The optional-TTL defaults are restated here (and in RedisCacheStore)
+    // deliberately. A default argument on a virtual function is *not* inherited
+    // through the override: it applies only at the static type of the call, so
+    // without these, `store.set(k, v)` compiles through ICacheStore& but not
+    // through a concrete InMemoryCacheStore&. ICacheStore remains the documented
+    // source of truth for what the defaults mean.
+    void set(std::string_view key, std::string_view value, Seconds ttl = Seconds{0}) override;
     [[nodiscard]] std::optional<std::string> get(std::string_view key) override;
     bool del(std::string_view key) override;
     [[nodiscard]] bool exists(std::string_view key) override;
     void expire(std::string_view key, Seconds ttl) override;
 
-    [[nodiscard]] std::int64_t incr(std::string_view key, Seconds ttl_on_create) override;
+    [[nodiscard]] std::int64_t incr(std::string_view key,
+                                    Seconds ttl_on_create = Seconds{0}) override;
 
     void sadd(std::string_view key, std::string_view member) override;
     void srem(std::string_view key, std::string_view member) override;

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "rtc/errors/exceptions.hpp"
+#include "rtc/events/event_types.hpp"
 #include "rtc/realtime/events.hpp"
 #include "rtc/validation/validators.hpp"
 
@@ -49,6 +50,10 @@ void ConversationService::require_user_exists(std::int64_t user_id) {
     }
 }
 
+events::IEventPublisher& ConversationService::publisher() const noexcept {
+    return publisher_ != nullptr ? *publisher_ : events::NullEventPublisher::instance();
+}
+
 models::Conversation ConversationService::create(std::int64_t actor_id,
                                                  const dto::CreateConversationRequest& request) {
     models::Conversation conversation;
@@ -86,6 +91,12 @@ models::Conversation ConversationService::create(std::int64_t actor_id,
     const auto ids = conversations_.list_participant_ids(conversation.id);
     broadcaster_.publish(ids, realtime::events::kConversationCreated,
                          dto::ConversationResponse::from(conversation, participants).to_json());
+    publisher().publish(events::ConversationCreated{
+        .conversation_id = conversation.id,
+        .actor_id = actor_id,
+        .is_group = conversation.is_group(),
+        .participant_ids = ids,
+    }.to_event());
     return conversation;
 }
 
@@ -129,6 +140,10 @@ void ConversationService::remove(std::int64_t actor_id, std::int64_t conversatio
     conversations_.remove(conversation_id);
     broadcaster_.publish(ids, realtime::events::kConversationDeleted,
                          nlohmann::json{{"conversation_id", conversation_id}});
+    publisher().publish(events::ConversationDeleted{
+        .conversation_id = conversation_id,
+        .actor_id = actor_id,
+    }.to_event());
 }
 
 models::Conversation ConversationService::rename_group(
@@ -163,6 +178,11 @@ models::ConversationParticipant ConversationService::add_member(std::int64_t act
         conversations_.list_participant_ids(conversation_id), realtime::events::kMemberAdded,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", user_id}});
     notifications_.added_to_group(conversation_id, user_id, actor_id);
+    publisher().publish(events::MemberAdded{
+        .conversation_id = conversation_id,
+        .member_id = user_id,
+        .actor_id = actor_id,
+    }.to_event());
     return *participant;
 }
 
@@ -179,6 +199,11 @@ void ConversationService::remove_member(std::int64_t actor_id, std::int64_t conv
         ids, realtime::events::kMemberRemoved,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", target_user_id}});
     notifications_.removed_from_group(conversation_id, target_user_id, actor_id);
+    publisher().publish(events::MemberRemoved{
+        .conversation_id = conversation_id,
+        .member_id = target_user_id,
+        .actor_id = actor_id,
+    }.to_event());
 }
 
 void ConversationService::leave(std::int64_t actor_id, std::int64_t conversation_id) {

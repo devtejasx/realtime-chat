@@ -25,6 +25,19 @@ struct SecurityMiddleware {
         }
     }
 
+    // Marker header a handler may set to request its own Content-Security-Policy.
+    //
+    // The default policy (`default-src 'none'`) is right for a JSON API but blocks
+    // any HTML page that needs assets — the Swagger UI viewer, in practice.
+    // after_handle runs *after* the handler, so a handler cannot simply set the
+    // header itself; it would be overwritten. This marker inverts the control:
+    // the handler states its intended policy, the middleware honours it, and the
+    // marker is stripped so it never reaches the client.
+    //
+    // Deliberately narrow: it can only replace CSP, never remove any of the other
+    // security headers, so the blast radius of a misuse is one directive.
+    static constexpr const char* kCspOverrideHeader = "X-RTC-CSP-Override";
+
     void after_handle(crow::request& /*req*/, crow::response& res, context& /*ctx*/) {
         apply_cors(res);
         // Security headers (defense-in-depth for an API surface).
@@ -32,7 +45,15 @@ struct SecurityMiddleware {
         res.set_header("X-Frame-Options", "DENY");
         res.set_header("Referrer-Policy", "no-referrer");
         res.set_header("X-XSS-Protection", "0");
-        res.set_header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+
+        const std::string requested = res.get_header_value(kCspOverrideHeader);
+        if (requested.empty()) {
+            res.set_header("Content-Security-Policy",
+                           "default-src 'none'; frame-ancestors 'none'");
+        } else {
+            res.set_header("Content-Security-Policy", requested);
+            res.headers.erase(kCspOverrideHeader);
+        }
     }
 
 private:

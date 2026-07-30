@@ -1,0 +1,119 @@
+# ---------------------------------------------------------------------------
+# Doxygen configuration for realtime-chat.
+#
+# Generate with:
+#   doxygen Doxyfile          # output lands in build/doxygen/html
+#
+# The codebase documents itself in ordinary // comments explaining *why* a design
+# choice was made, rather than in /** */ blocks restating what a signature already
+# says. Doxygen is configured to read those (JAVADOC_AUTOBRIEF plus
+# EXTRACT_ALL) so the generated reference reflects the source as written instead of
+# demanding it be rewritten for the tool's benefit.
+# ---------------------------------------------------------------------------
+
+PROJECT_NAME           = "realtime-chat"
+PROJECT_BRIEF          = "Distributed real-time messaging platform (Modern C++20)"
+PROJECT_NUMBER         = 0.1.0
+
+OUTPUT_DIRECTORY       = build/doxygen
+CREATE_SUBDIRS         = NO
+OUTPUT_LANGUAGE        = English
+
+# --- what to read ----------------------------------------------------------
+
+INPUT                  = include src docs/Architecture.md README.md
+FILE_PATTERNS          = *.hpp *.cpp *.md
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */build/* */_deps/* */tests/*
+
+# Render the README as the landing page rather than an empty index.
+USE_MDFILE_AS_MAINPAGE = README.md
+
+# --- extraction ------------------------------------------------------------
+
+# EXTRACT_ALL: document everything, including entities without an explicit
+# doc-comment. The alternative silently omits most of the codebase because the
+# comments here are plain // rather than ///, which would make the output actively
+# misleading about what exists.
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = NO
+EXTRACT_ANON_NSPACES   = NO
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+# Treat the first sentence of a comment block as the brief description, so
+# ordinary comments produce sensible summaries with no markup.
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+MULTILINE_CPP_IS_BRIEF = NO
+
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+BUILTIN_STL_SUPPORT    = YES
+STRIP_FROM_PATH        = .
+FULL_PATH_NAMES        = YES
+
+# --- warnings --------------------------------------------------------------
+
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+# Broken references and malformed markup fail the run, so documentation rot is
+# caught in CI rather than discovered by a reader.
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+WARN_LOGFILE           = build/doxygen/doxygen-warnings.log
+
+# --- output ----------------------------------------------------------------
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_COLORSTYLE        = TOGGLE
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_DYNAMIC_SECTIONS  = YES
+SEARCHENGINE           = YES
+
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+
+# --- diagrams --------------------------------------------------------------
+
+# Inheritance and collaboration graphs are genuinely useful for the layered
+# interface/implementation structure here (ICacheStore, IEventSubscriber,
+# IClusterBus and friends). Requires Graphviz; without it, HAVE_DOT=NO still
+# produces a complete reference, just without the graphs.
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+UML_LOOK               = YES
+TEMPLATE_RELATIONS     = YES
+# Include and caller graphs are switched off deliberately: with this many headers
+# they generate hundreds of unreadable images and dominate the build time.
+INCLUDE_GRAPH          = NO
+INCLUDED_BY_GRAPH      = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+DOT_GRAPH_MAX_NODES    = 60
+
+# --- preprocessing ---------------------------------------------------------
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+
+# Defined so the documented view matches a full-featured build: without these the
+# Redis backends and the version string would be preprocessed away and vanish from
+# the reference.
+PREDEFINED             = RTC_WITH_REDIS \
+                         RTC_VERSION="0.1.0" \
+                         __cplusplus=202002L
+
+ALIASES                = "threadsafe=\par Thread safety:\n" \
+                         "invariant=\par Invariant:\n"

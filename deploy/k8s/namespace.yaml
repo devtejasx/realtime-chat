@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: realtime-chat
+  labels:
+    app.kubernetes.io/name: realtime-chat
+    # Pod Security Admission, enforcing the `restricted` profile.
+    #
+    # This is what makes the Deployment's securityContext non-optional: any pod
+    # that tries to run as root, escalate privileges, or keep Linux capabilities is
+    # rejected at admission rather than quietly running with more privilege than
+    # intended. `warn` and `audit` are set to the same level so a violation is
+    # visible in the API server audit log even if enforcement is later relaxed.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

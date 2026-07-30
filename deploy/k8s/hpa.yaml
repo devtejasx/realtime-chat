@@ -1,0 +1,74 @@
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: realtime-chat
+  labels:
+    app.kubernetes.io/name: realtime-chat
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: realtime-chat
+  # minReplicas: 3, not 1.
+  #
+  # Two reasons. Availability: a PodDisruptionBudget with minAvailable: 2 cannot be
+  # satisfied below 3, so node drains would block. And correctness of load
+  # distribution: WebSocket connections are pinned to the pod that accepted them,
+  # so scaling *down* is what actually disrupts users — a removed pod drops all its
+  # connections at once. Keeping a floor of 3 makes scale-down events rarer and
+  # each one proportionally smaller.
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # Measured against the CPU *request* (250m), not the limit. 70% leaves
+          # headroom for the burst that arrives while new pods are still starting.
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+    # A connection-count metric would be the ideal signal here, since this service
+    # is bound by concurrent WebSockets rather than CPU. The application already
+    # exports rtc_ws_connections; wiring it in needs prometheus-adapter, at which
+    # point the following becomes available:
+    #
+    # - type: Pods
+    #   pods:
+    #     metric:
+    #       name: rtc_ws_connections
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "2000"
+
+  behavior:
+    scaleUp:
+      # React quickly to load: a chat backlog builds fast.
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+      selectPolicy: Max
+    scaleDown:
+      # Deliberately slow and cautious. Every removed pod severs its WebSocket
+      # connections, forcing those clients to reconnect and re-fetch history — so
+      # the cost of scaling down too eagerly is paid by users, not by the cluster.
+      # A five-minute window also prevents flapping on a spiky workload.
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min

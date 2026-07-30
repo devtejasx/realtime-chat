@@ -1,4 +1,25 @@
 # ---------------------------------------------------------------------------
+# rtc_password_hashing — bcrypt isolation boundary.
+#
+# Bcrypt.cpp publishes its API as <bcrypt.h>, which collides with the Windows
+# SDK header of the same name (the BCrypt CNG API) that <wincrypt.h> — pulled in
+# by OpenSSL, and therefore by jwt-cpp — includes. If Bcrypt.cpp's include
+# directory is on the search path for the whole library, every OpenSSL-using
+# translation unit resolves <bcrypt.h> to the wrong header and fails to compile.
+#
+# Exactly one translation unit needs that header, so it gets its own target and
+# the dependency stays PRIVATE to it. Beyond unbreaking Windows builds this is
+# simply better include hygiene: a third-party header's namespace no longer
+# leaks across ~70 unrelated translation units.
+# ---------------------------------------------------------------------------
+add_library(rtc_password_hashing STATIC security/bcrypt_password_hasher.cpp)
+target_include_directories(rtc_password_hashing PUBLIC "${CMAKE_SOURCE_DIR}/include")
+# OpenSSL::Crypto supplies RAND_bytes. Bcrypt.cpp's own salt generation falls back
+# to srand(time(NULL)) + rand() off OpenBSD, which makes the salt a function of the
+# current second — see the comment block in bcrypt_password_hasher.cpp.
+target_link_libraries(rtc_password_hashing PRIVATE bcrypt OpenSSL::Crypto rtc_warnings)
+
+# ---------------------------------------------------------------------------
 # rtc_core — the application library.
 #
 # Contains every layer (config, logging, errors, database, security, domain,
@@ -11,7 +32,6 @@ add_library(rtc_core STATIC
     logging/logger.cpp
     errors/error_mapper.cpp
     utils/time.cpp
-    security/bcrypt_password_hasher.cpp
     security/jwt_token_service.cpp
     utils/hash.cpp
     dto/auth_dto.cpp
@@ -31,6 +51,12 @@ add_library(rtc_core STATIC
     repositories/pg_reaction_repository.cpp
     repositories/pg_notification_repository.cpp
     repositories/pg_session_repository.cpp
+    repositories/pg_audit_log_repository.cpp
+    repositories/pg_user_admin_repository.cpp
+    repositories/pg_message_search_repository.cpp
+    services/authorization_service.cpp
+    services/audit_service.cpp
+    services/search_service.cpp
     services/user_service.cpp
     services/auth_service.cpp
     services/conversation_service.cpp
@@ -52,12 +78,27 @@ add_library(rtc_core STATIC
     metrics/metrics_registry.cpp
     media/mime.cpp
     storage/local_file_storage.cpp
+    realtime/protocol.cpp
+    realtime/cluster_bus.cpp
+    realtime/redis_cluster_bus.cpp
     realtime/session_manager.cpp
     realtime/room_manager.cpp
     realtime/connection_manager.cpp
     realtime/event_dispatcher.cpp
     realtime/heartbeat_monitor.cpp
     middlewares/auth_middleware.cpp
+    middlewares/versioning_middleware.cpp
+    middlewares/tracing_middleware.cpp
+    features/feature_flags.cpp
+    events/domain_event.cpp
+    events/event_dispatcher.cpp
+    events/in_process_event_bus.cpp
+    tracing/trace_context.cpp
+    tracing/span.cpp
+    tracing/tracer.cpp
+    tracing/span_exporter.cpp
+    tracing/otlp_http_exporter.cpp
+    tracing/scoped_span.cpp
     controllers/health_controller.cpp
     controllers/auth_controller.cpp
     controllers/user_controller.cpp
@@ -69,6 +110,10 @@ add_library(rtc_core STATIC
     controllers/notification_controller.cpp
     controllers/session_controller.cpp
     controllers/metrics_controller.cpp
+    controllers/search_controller.cpp
+    controllers/admin_controller.cpp
+    controllers/docs_controller.cpp
+    docs/openapi_spec.cpp
     application.cpp
 )
 
@@ -96,7 +141,7 @@ target_link_libraries(rtc_core
         OpenSSL::Crypto
         Threads::Threads
     PRIVATE
-        bcrypt
+        rtc_password_hashing
         rtc_warnings
 )
 

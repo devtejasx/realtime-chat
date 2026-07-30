@@ -1,0 +1,89 @@
+---
+# Default-deny egress with an explicit allowlist.
+#
+# Not strictly required to run, but it is the control that turns a compromised
+# container from a pivot point into a dead end: without it, code running in the
+# pod can reach every other service in the cluster and the whole internet.
+#
+# Ingress is restricted to the ingress controller and the Prometheus scraper, so
+# nothing else in the cluster can talk to the API directly.
+#
+# Requires a CNI that enforces NetworkPolicy (Calico, Cilium, AWS VPC CNI with
+# policy enabled). On a CNI without enforcement this object is silently inert —
+# verify before relying on it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: realtime-chat
+  labels:
+    app.kubernetes.io/name: realtime-chat
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: realtime-chat
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Application traffic from the ingress controller.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Metrics scraping.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 8080
+
+  egress:
+    # DNS. Without this rule nothing else resolves and every other egress rule is
+    # useless — this is the one people forget.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL and Redis, within this namespace.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # OpenTelemetry Collector, for span export.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 4318
+
+    # Note: no general internet egress rule. Managed PostgreSQL or Redis (RDS,
+    # ElastiCache) sits outside the cluster, so a deployment using those needs an
+    # explicit ipBlock rule for the relevant CIDR here.

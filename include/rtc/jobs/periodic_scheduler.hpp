@@ -34,6 +34,14 @@ public:
     void start();
     void stop();
 
+    // True between start() and stop(). Read by /health/ready: an instance whose
+    // maintenance thread has died still serves requests but silently stops
+    // expiring sessions and purging the cache, so it should be taken out of
+    // rotation rather than left quietly degrading.
+    [[nodiscard]] bool is_running() const noexcept { return running_.load(); }
+
+    [[nodiscard]] std::size_t task_count() const noexcept { return tasks_.size(); }
+
 private:
     void run();
 

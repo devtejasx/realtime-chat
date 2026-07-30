@@ -37,6 +37,16 @@ add_executable(rtc_tests
     reaction_service_test.cpp
     notification_service_test.cpp
     session_service_test.cpp
+    # Phase 5 — enterprise platform
+    api_versioning_test.cpp
+    rbac_test.cpp
+    event_bus_test.cpp
+    tracing_test.cpp
+    ws_protocol_test.cpp
+    feature_flags_test.cpp
+    audit_service_test.cpp
+    search_service_test.cpp
+    openapi_spec_test.cpp
 )
 
 target_include_directories(rtc_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

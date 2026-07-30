@@ -1,5 +1,6 @@
 #pragma once
 
+#include "rtc/events/event_bus.hpp"
 #include "rtc/http/app.hpp"
 #include "rtc/middlewares/auth_middleware.hpp"
 #include "rtc/services/auth_service.hpp"
@@ -31,13 +32,27 @@ public:
           session_service_(session_service),
           auth_guard_(auth_guard) {}
 
+    // Attaches the domain event bus so authentication events reach the audit log.
+    //
+    // Published here rather than inside AuthService deliberately: the client IP
+    // and User-Agent are the most valuable fields on a sign-in audit record, and
+    // they exist only at the transport boundary. Pushing them down into the
+    // service would mean giving the service layer a dependency on crow::request,
+    // which is exactly the coupling the layering exists to prevent.
+    void set_event_publisher(events::IEventPublisher& publisher) noexcept {
+        publisher_ = &publisher;
+    }
+
     void register_routes(http::App& app);
 
 private:
+    [[nodiscard]] events::IEventPublisher& publisher() const noexcept;
+
     services::AuthService& auth_service_;
     services::UserService& user_service_;
     services::SessionService& session_service_;
     middlewares::AuthMiddleware& auth_guard_;
+    events::IEventPublisher* publisher_ = nullptr;
 };
 
 }  // namespace rtc::controllers

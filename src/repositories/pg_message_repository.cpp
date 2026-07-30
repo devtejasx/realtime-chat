@@ -99,7 +99,7 @@ std::vector<models::Message> PgMessageRepository::list(const MessageFilter& filt
                                             page.limit,
                                             page.offset);
         std::vector<models::Message> out;
-        out.reserve(result.size());
+        out.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             out.push_back(map_message(row));
         }

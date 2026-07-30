@@ -61,7 +61,7 @@ std::vector<models::Reaction> PgReactionRepository::list_for_message(std::int64_
                                 " FROM message_reactions WHERE message_id = $1 ORDER BY id ASC",
                             message_id);
         std::vector<models::Reaction> out;
-        out.reserve(result.size());
+        out.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             out.push_back(map_row(row));
         }

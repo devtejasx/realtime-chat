@@ -86,7 +86,7 @@ std::vector<models::Attachment> PgAttachmentRepository::list_for_message(std::in
                                 " FROM attachments WHERE message_id = $1 ORDER BY id ASC",
                             message_id);
         std::vector<models::Attachment> out;
-        out.reserve(result.size());
+        out.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             out.push_back(map_row(row));
         }
@@ -110,7 +110,7 @@ std::size_t PgAttachmentRepository::link_to_message(const std::vector<std::int64
                 id,
                 message_id,
                 owner_id);
-            linked += result.affected_rows();
+            linked += static_cast<std::size_t>(result.affected_rows());
         }
         return linked;
     });

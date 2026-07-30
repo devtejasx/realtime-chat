@@ -71,7 +71,7 @@ std::vector<models::Notification> PgNotificationRepository::list_for_user(
                                 "ORDER BY id DESC LIMIT $2 OFFSET $3";
         const auto result = txn.exec_params(sql, user_id, page.limit, page.offset, unread_only);
         std::vector<models::Notification> out;
-        out.reserve(result.size());
+        out.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             out.push_back(map_row(row));
         }

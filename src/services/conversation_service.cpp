@@ -91,13 +91,13 @@ models::Conversation ConversationService::create(std::int64_t actor_id,
     broadcaster_.publish(ids,
                          realtime::events::kConversationCreated,
                          dto::ConversationResponse::from(conversation, participants).to_json());
-    publisher().publish(events::ConversationCreated{
+    const events::ConversationCreated conversation_created_event{
         .conversation_id = conversation.id,
         .actor_id = actor_id,
         .is_group = conversation.is_group(),
         .participant_ids = ids,
-    }
-                            .to_event());
+    };
+    publisher().publish(conversation_created_event.to_event());
     return conversation;
 }
 
@@ -141,11 +141,11 @@ void ConversationService::remove(std::int64_t actor_id, std::int64_t conversatio
     broadcaster_.publish(ids,
                          realtime::events::kConversationDeleted,
                          nlohmann::json{{"conversation_id", conversation_id}});
-    publisher().publish(events::ConversationDeleted{
+    const events::ConversationDeleted conversation_deleted_event{
         .conversation_id = conversation_id,
         .actor_id = actor_id,
-    }
-                            .to_event());
+    };
+    publisher().publish(conversation_deleted_event.to_event());
 }
 
 models::Conversation ConversationService::rename_group(std::int64_t actor_id,
@@ -181,12 +181,12 @@ models::ConversationParticipant ConversationService::add_member(std::int64_t act
         realtime::events::kMemberAdded,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", user_id}});
     notifications_.added_to_group(conversation_id, user_id, actor_id);
-    publisher().publish(events::MemberAdded{
+    const events::MemberAdded member_added_event{
         .conversation_id = conversation_id,
         .member_id = user_id,
         .actor_id = actor_id,
-    }
-                            .to_event());
+    };
+    publisher().publish(member_added_event.to_event());
     return *participant;
 }
 
@@ -205,12 +205,12 @@ void ConversationService::remove_member(std::int64_t actor_id,
         realtime::events::kMemberRemoved,
         nlohmann::json{{"conversation_id", conversation_id}, {"user_id", target_user_id}});
     notifications_.removed_from_group(conversation_id, target_user_id, actor_id);
-    publisher().publish(events::MemberRemoved{
+    const events::MemberRemoved member_removed_event{
         .conversation_id = conversation_id,
         .member_id = target_user_id,
         .actor_id = actor_id,
-    }
-                            .to_event());
+    };
+    publisher().publish(member_removed_event.to_event());
 }
 
 void ConversationService::leave(std::int64_t actor_id, std::int64_t conversation_id) {

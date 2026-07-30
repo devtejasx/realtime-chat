@@ -58,12 +58,12 @@ void AuthController::register_routes(http::App& app) {
                 auto request = dto::RegisterRequest::from_json(http::parse_json_body(req));
                 const auto response = auth_service_.register_user(std::move(request));
                 auto body = with_session(req, response);
-                publisher().publish(events::UserRegistered{
+                const events::UserRegistered user_registered_event{
                     .user_id = response.user.id,
                     .username = response.user.username,
                     .email = response.user.email,
-                }
-                                        .to_event());
+                };
+                publisher().publish(user_registered_event.to_event());
                 return http::json_response(201, std::move(body));
             });
         });
@@ -76,13 +76,13 @@ void AuthController::register_routes(http::App& app) {
                 auto body = with_session(req, response);
                 // ip / user_agent are the fields a security review actually reads
                 // on a sign-in record, and they only exist at this boundary.
-                publisher().publish(events::UserLoggedIn{
+                const events::UserLoggedIn user_logged_in_event{
                     .user_id = response.user.id,
                     .username = response.user.username,
                     .ip = req.remote_ip_address,
                     .user_agent = req.get_header_value("User-Agent"),
-                }
-                                        .to_event());
+                };
+                publisher().publish(user_logged_in_event.to_event());
                 return http::json_response(200, std::move(body));
             });
         });
@@ -119,12 +119,12 @@ void AuthController::register_routes(http::App& app) {
                 const std::string session_id = require_string(body, "session_id");
                 const bool revoked = session_service_.revoke(claims.user_id, session_id);
                 if (revoked) {
-                    publisher().publish(events::UserLoggedOut{
+                    const events::UserLoggedOut user_logged_out_event{
                         .user_id = claims.user_id,
                         .session_id = session_id,
                         .all_sessions = false,
-                    }
-                                            .to_event());
+                    };
+                    publisher().publish(user_logged_out_event.to_event());
                 }
                 return http::json_response(200, nlohmann::json{{"revoked", revoked}});
             });
@@ -136,11 +136,15 @@ void AuthController::register_routes(http::App& app) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate_token_only(req);
                 const auto count = session_service_.revoke_all(claims.user_id);
-                publisher().publish(events::UserLoggedOut{
+                const events::UserLoggedOut user_logged_out_event{
                     .user_id = claims.user_id,
+                    // Explicit: skipping a middle member in a designated
+                    // initialiser trips -Wmissing-field-initializers, and
+                    // "all sessions" genuinely has no single session id.
+                    .session_id = {},
                     .all_sessions = true,
-                }
-                                        .to_event());
+                };
+                publisher().publish(user_logged_out_event.to_event());
                 return http::json_response(200, nlohmann::json{{"revoked", count}});
             });
         });

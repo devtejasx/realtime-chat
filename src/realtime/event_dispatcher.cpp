@@ -55,12 +55,12 @@ void EventDispatcher::on_open(crow::websocket::connection& conn,
                                  realtime::events::kPresenceUpdate,
                                  nlohmann::json{{"user_id", user_id}, {"status", "online"}});
             if (publisher_ != nullptr) {
-                publisher_->publish(::rtc::events::UserOnline{
+                const ::rtc::events::UserOnline user_online_event{
                     .user_id = user_id,
                     .username = username,
                     .session_count = connections_.sessions().sessions_for_user(user_id).size(),
-                }
-                                        .to_event());
+                };
+                publisher_->publish(user_online_event.to_event());
             }
         }
     } catch (const std::exception& ex) {
@@ -151,11 +151,11 @@ void EventDispatcher::on_close(crow::websocket::connection& conn) {
                 realtime::events::kPresenceUpdate,
                 nlohmann::json{{"user_id", session->user_id}, {"status", "offline"}});
             if (publisher_ != nullptr) {
-                publisher_->publish(::rtc::events::UserOffline{
+                const ::rtc::events::UserOffline user_offline_event{
                     .user_id = session->user_id,
                     .username = session->username,
-                }
-                                        .to_event());
+                };
+                publisher_->publish(user_offline_event.to_event());
             }
         }
     } catch (const std::exception& ex) {

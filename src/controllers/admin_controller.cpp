@@ -192,13 +192,13 @@ void AdminController::register_user_routes(http::App& app) {
                 // would not take effect for up to the cache TTL.
                 deps_.authorization->invalidate(user_id);
 
-                deps_.publisher->publish(events::UserRoleChanged{
+                const events::UserRoleChanged user_role_changed_event{
                     .user_id = user_id,
                     .actor_id = actor_id,
                     .previous_role = std::string(security::to_string(previous)),
                     .new_role = std::string(security::to_string(*target_role)),
-                }
-                                             .to_event());
+                };
+                deps_.publisher->publish(user_role_changed_event.to_event());
 
                 return http::json_response(
                     200,
@@ -236,14 +236,14 @@ void AdminController::register_user_routes(http::App& app) {
                 // suspended for API calls but could still mint new access tokens.
                 const std::int64_t revoked = deps_.sessions->revoke_all(user_id);
 
-                deps_.publisher->publish(events::AdminAction{
+                const events::AdminAction admin_action_event{
                     .actor_id = actor_id,
                     .action = "user.ban",
                     .target_type = "user",
                     .target_id = std::to_string(user_id),
                     .details = {{"reason", reason.value_or("")}, {"sessions_revoked", revoked}},
-                }
-                                             .to_event());
+                };
+                deps_.publisher->publish(admin_action_event.to_event());
 
                 return http::json_response(
                     200,
@@ -259,13 +259,13 @@ void AdminController::register_user_routes(http::App& app) {
                 deps_.users->set_banned(user_id, /*banned=*/false, std::nullopt, std::nullopt);
                 deps_.authorization->invalidate(user_id);
 
-                deps_.publisher->publish(events::AdminAction{
+                const events::AdminAction admin_action_event{
                     .actor_id = actor_id,
                     .action = "user.unban",
                     .target_type = "user",
                     .target_id = std::to_string(user_id),
-                }
-                                             .to_event());
+                };
+                deps_.publisher->publish(admin_action_event.to_event());
 
                 return http::json_response(200,
                                            nlohmann::json{{"user_id", user_id}, {"banned", false}});
@@ -298,14 +298,14 @@ void AdminController::register_user_routes(http::App& app) {
                 const std::int64_t actor_id = authorize(req, Permission::kRevokeSessions);
                 const std::int64_t revoked = deps_.sessions->revoke_all(user_id);
 
-                deps_.publisher->publish(events::AdminAction{
+                const events::AdminAction admin_action_event{
                     .actor_id = actor_id,
                     .action = "session.revoke_all",
                     .target_type = "user",
                     .target_id = std::to_string(user_id),
                     .details = {{"revoked", revoked}},
-                }
-                                             .to_event());
+                };
+                deps_.publisher->publish(admin_action_event.to_event());
 
                 return http::json_response(
                     200, nlohmann::json{{"user_id", user_id}, {"revoked", revoked}});
@@ -370,14 +370,14 @@ void AdminController::register_group_routes(http::App& app) {
                                            realtime::events::kConversationDeleted,
                                            nlohmann::json{{"conversation_id", conversation_id}});
 
-                deps_.publisher->publish(events::AdminAction{
+                const events::AdminAction admin_action_event{
                     .actor_id = actor_id,
                     .action = "conversation.delete",
                     .target_type = "conversation",
                     .target_id = std::to_string(conversation_id),
                     .details = {{"participant_count", participants.size()}},
-                }
-                                             .to_event());
+                };
+                deps_.publisher->publish(admin_action_event.to_event());
 
                 return http::json_response(
                     200, nlohmann::json{{"conversation_id", conversation_id}, {"deleted", true}});
@@ -531,14 +531,14 @@ void AdminController::register_operations_routes(http::App& app) {
                 const bool enabled = enabled_it->get<bool>();
                 const bool previous = deps_.features->set(*feature, enabled);
 
-                deps_.publisher->publish(events::AdminAction{
+                const events::AdminAction admin_action_event{
                     .actor_id = actor_id,
                     .action = "feature.toggle",
                     .target_type = "feature",
                     .target_id = name,
                     .details = {{"previous", previous}, {"enabled", enabled}},
-                }
-                                             .to_event());
+                };
+                deps_.publisher->publish(admin_action_event.to_event());
 
                 return http::json_response(
                     200,

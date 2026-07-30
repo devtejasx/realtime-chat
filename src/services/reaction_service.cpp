@@ -46,7 +46,9 @@ void ReactionService::unreact(std::int64_t actor_id, std::int64_t message_id) {
 
 std::vector<models::Reaction> ReactionService::list(std::int64_t actor_id,
                                                     std::int64_t message_id) {
-    authorize(actor_id, message_id);
+    // Called for its authorisation side effect only — it throws when the actor
+    // may not see the message. The returned message itself is not needed here.
+    (void) authorize(actor_id, message_id);
     return reactions_.list_for_message(message_id);
 }
 

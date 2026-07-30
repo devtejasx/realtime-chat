@@ -79,7 +79,7 @@ std::vector<models::ReadReceipt> PgReadReceiptRepository::list_for_message(
             std::string("SELECT ") + kColumns + " FROM read_receipts WHERE message_id = $1",
             message_id);
         std::vector<models::ReadReceipt> out;
-        out.reserve(result.size());
+        out.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             out.push_back(map_receipt(row));
         }

@@ -71,14 +71,14 @@ models::Message MessageService::send(std::int64_t actor_id,
     // which is what keeps this method from growing a new dependency per feature.
     // Note that only the content *length* travels on the bus: message bodies stay
     // inside the domain.
-    publisher().publish(events::MessageSent{
+    const events::MessageSent message_sent_event{
         .message_id = stored.id,
         .conversation_id = stored.conversation_id,
         .sender_id = actor_id,
         .recipient_ids = participants,
         .content_length = content.size(),
-    }
-                            .to_event());
+    };
+    publisher().publish(message_sent_event.to_event());
     return stored;
 }
 
@@ -106,12 +106,12 @@ models::Message MessageService::edit(std::int64_t actor_id,
     broadcaster_.publish(conversations_.list_participant_ids(updated.conversation_id),
                          realtime::events::kMessageUpdated,
                          to_response(updated).to_json());
-    publisher().publish(events::MessageEdited{
+    const events::MessageEdited message_edited_event{
         .message_id = updated.id,
         .conversation_id = updated.conversation_id,
         .actor_id = actor_id,
-    }
-                            .to_event());
+    };
+    publisher().publish(message_edited_event.to_event());
     return updated;
 }
 
@@ -137,13 +137,13 @@ models::Message MessageService::remove(std::int64_t actor_id, std::int64_t messa
                          to_response(deleted).to_json());
     // Deleting someone else's message is the case a security reviewer cares about,
     // so the distinction is recorded rather than inferred later from the ids.
-    publisher().publish(events::MessageDeleted{
+    const events::MessageDeleted message_deleted_event{
         .message_id = deleted.id,
         .conversation_id = deleted.conversation_id,
         .actor_id = actor_id,
         .by_moderator = as_moderator,
-    }
-                            .to_event());
+    };
+    publisher().publish(message_deleted_event.to_event());
     return deleted;
 }
 

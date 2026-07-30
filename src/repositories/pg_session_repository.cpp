@@ -77,7 +77,7 @@ std::vector<models::Session> PgSessionRepository::list_active_for_user(std::int6
                 "ORDER BY last_used_at DESC",
             user_id);
         std::vector<models::Session> out;
-        out.reserve(result.size());
+        out.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             out.push_back(map_row(row));
         }

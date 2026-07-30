@@ -149,7 +149,7 @@ std::vector<models::Conversation> PgConversationRepository::list_for_user(
                                 "LIMIT $2 OFFSET $3";
         const auto result = txn.exec_params(sql, user_id, page.limit, page.offset);
         std::vector<models::Conversation> out;
-        out.reserve(result.size());
+        out.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             out.push_back(map_conversation(row));
         }
@@ -165,7 +165,7 @@ std::vector<models::ConversationParticipant> PgConversationRepository::list_part
                                 "ORDER BY joined_at ASC, id ASC";
         const auto result = txn.exec_params(sql, conversation_id);
         std::vector<models::ConversationParticipant> out;
-        out.reserve(result.size());
+        out.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             out.push_back(map_participant(row));
         }
@@ -180,7 +180,7 @@ std::vector<std::int64_t> PgConversationRepository::list_participant_ids(
             "SELECT user_id FROM conversation_participants WHERE conversation_id = $1",
             conversation_id);
         std::vector<std::int64_t> ids;
-        ids.reserve(result.size());
+        ids.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             ids.push_back(row[0].as<std::int64_t>());
         }
@@ -193,7 +193,7 @@ std::vector<std::int64_t> PgConversationRepository::list_conversation_ids(std::i
         const auto result = txn.exec_params(
             "SELECT conversation_id FROM conversation_participants WHERE user_id = $1", user_id);
         std::vector<std::int64_t> ids;
-        ids.reserve(result.size());
+        ids.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             ids.push_back(row[0].as<std::int64_t>());
         }
@@ -211,7 +211,7 @@ std::vector<std::int64_t> PgConversationRepository::list_peer_ids(std::int64_t u
             "WHERE p1.user_id = $1 AND p2.user_id <> $1",
             user_id);
         std::vector<std::int64_t> ids;
-        ids.reserve(result.size());
+        ids.reserve(static_cast<std::size_t>(result.size()));
         for (const auto& row : result) {
             ids.push_back(row[0].as<std::int64_t>());
         }

@@ -19,7 +19,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build git \
-            libssl-dev libpq-dev postgresql-server-dev-all
+            libssl-dev libpq-dev
 
       - name: Build (Release)
         run: |

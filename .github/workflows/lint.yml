@@ -12,11 +12,21 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      # Pinned, rather than `apt-get install clang-format`.
+      #
+      # clang-format's output changes between major versions, so an unpinned
+      # formatter makes this check non-deterministic over time: the same commit
+      # passes today and fails once the runner image bumps LLVM. Worse, a
+      # contributor formatting locally with a different version cannot make the
+      # check pass at all. The PyPI package ships pinned upstream binaries, so CI
+      # and every developer run the identical formatter.
+      #
+      # Keep this version in step with docs/Contributing.md.
       - name: Install clang-format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
+        run: pipx install clang-format==20.1.8
       - name: Check formatting
         run: |
-          find src include tests -type f \( -name '*.cpp' -o -name '*.hpp' \) \
+          find src include tests benchmarks -type f \( -name '*.cpp' -o -name '*.hpp' \) \
             -print0 | xargs -0 clang-format --dry-run --Werror
 
   clang-tidy:
@@ -32,7 +42,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build git clang-tidy \
-            libssl-dev libpq-dev postgresql-server-dev-all
+            libssl-dev libpq-dev
       - name: Configure (generate compile_commands.json)
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRTC_BUILD_TESTS=OFF
       - name: Run clang-tidy on sources

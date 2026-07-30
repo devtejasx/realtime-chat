@@ -178,7 +178,7 @@ spdlog, jwt-cpp, bcrypt, GoogleTest) is fetched by CMake at configure time, so t
 first configure needs network access.
 
 ```bash
-sudo apt-get install -y build-essential cmake ninja-build git libssl-dev libpq-dev postgresql-server-dev-all
+sudo apt-get install -y build-essential cmake ninja-build git libssl-dev libpq-dev
 ```
 
 ```bash

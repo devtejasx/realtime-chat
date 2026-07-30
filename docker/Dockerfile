@@ -19,7 +19,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pkg-config \
         libssl-dev \
         libpq-dev \
-        postgresql-server-dev-all \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src

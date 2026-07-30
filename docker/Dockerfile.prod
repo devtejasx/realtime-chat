@@ -19,7 +19,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake ninja-build git ca-certificates pkg-config \
-        libssl-dev libpq-dev postgresql-server-dev-all libhiredis-dev \
+        libssl-dev libpq-dev libhiredis-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install redis-plus-plus so the app can be configured with Redis.
@@ -51,7 +51,7 @@ FROM ubuntu:24.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libssl3 libpq5 libhiredis0.14 ca-certificates tini curl \
+        libssl3 libpq5 libhiredis1.1.0 ca-certificates tini curl \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --no-create-home --uid 10001 appuser
 

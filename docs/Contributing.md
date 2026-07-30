@@ -6,8 +6,10 @@ standards, and how changes are reviewed and released.
 ## Prerequisites
 
 - A C++20 compiler (GCC 12+/Clang 15+), CMake ≥ 3.24, Ninja (optional).
-- PostgreSQL + OpenSSL dev headers (`libpq-dev`, `libssl-dev`,
-  `postgresql-server-dev-all`).
+- PostgreSQL + OpenSSL dev headers (`libpq-dev`, `libssl-dev`). Note that
+  `postgresql-server-dev-all` is *not* required — that package exists to build
+  PostgreSQL server extensions, and on Ubuntu 24.04 runners it conflicts with the
+  PGDG `postgresql-common`. This project is a libpq client.
 - `clang-format` and `clang-tidy` for local linting.
 
 ## Getting started

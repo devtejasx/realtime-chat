@@ -50,7 +50,25 @@ TEST(JwtTokenServiceTest, RejectsWrongTokenType) {
 TEST(JwtTokenServiceTest, RejectsTamperedToken) {
     const auto service = make_service();
     std::string token = service.issue(1, "dave", TokenType::kAccess);
-    token.back() = (token.back() == 'a') ? 'b' : 'a';  // corrupt the signature
+
+    // Corrupt a character in the *middle* of the signature segment.
+    //
+    // Flipping the final character (the previous approach) is not reliable.
+    // HS256's 32-byte signature base64url-encodes to 43 characters, and the last
+    // one carries only 4 significant bits — its low 2 bits are padding. Two
+    // characters differing solely in those padding bits, such as 'a' (26) and
+    // 'b' (27), therefore decode to identical bytes, so "corrupting" the last
+    // character was sometimes a no-op: the signature stayed valid, verify()
+    // succeeded, and the test failed. That is a 1-in-64 flake, which is exactly
+    // often enough to be seen occasionally in CI and never locally.
+    //
+    // Every bit of a non-final character is significant, so this always changes
+    // the signature.
+    const std::size_t signature_start = token.rfind('.') + 1;
+    ASSERT_LT(signature_start, token.size()) << "token has no signature segment";
+    const std::size_t target = signature_start + (token.size() - signature_start) / 2;
+    token[target] = (token[target] == 'a') ? 'b' : 'a';
+
     EXPECT_THROW(service.verify(token, TokenType::kAccess), AuthenticationException);
 }
 

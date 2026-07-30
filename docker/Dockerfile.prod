@@ -19,12 +19,39 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake ninja-build git ca-certificates pkg-config \
-        libssl-dev libpq-dev libhiredis-dev \
+        libssl-dev libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# hiredis is built from source rather than installed via libhiredis-dev.
+#
+# redis-plus-plus's installed redis++-config.cmake calls find_dependency(hiredis),
+# which requires a CMake *package config* (hiredisConfig.cmake). Ubuntu's
+# libhiredis-dev ships headers, the library and a pkg-config file — but no CMake
+# config — so find_package(redis++) fails at configure time with:
+#
+#   By not providing "Findhiredis.cmake" ... could not find a package
+#   configuration file provided by "hiredis"
+#
+# Building hiredis with CMake installs that config, which is what makes the
+# transitive find_dependency resolve. The resulting shared library is copied into
+# the runtime stage so both stages agree on the soname.
+ARG HIREDIS_VERSION=v1.2.0
+RUN git clone --depth 1 --branch ${HIREDIS_VERSION} https://github.com/redis/hiredis.git /tmp/hiredis \
+    && cmake -S /tmp/hiredis -B /tmp/hiredis/build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DDISABLE_TESTS=ON \
+    && cmake --build /tmp/hiredis/build \
+    && cmake --install /tmp/hiredis/build \
+    && rm -rf /tmp/hiredis
+
 # Build and install redis-plus-plus so the app can be configured with Redis.
-RUN git clone --depth 1 --branch 1.3.13 https://github.com/sewenew/redis-plus-plus.git /tmp/rpp \
-    && cmake -S /tmp/rpp -B /tmp/rpp/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+ARG REDIS_PLUS_PLUS_VERSION=1.3.13
+RUN git clone --depth 1 --branch ${REDIS_PLUS_PLUS_VERSION} https://github.com/sewenew/redis-plus-plus.git /tmp/rpp \
+    && cmake -S /tmp/rpp -B /tmp/rpp/build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_PREFIX_PATH=/usr/local \
+        -DREDIS_PLUS_PLUS_BUILD_TEST=OFF \
     && cmake --build /tmp/rpp/build \
     && cmake --install /tmp/rpp/build \
     && rm -rf /tmp/rpp
@@ -51,15 +78,20 @@ FROM ubuntu:24.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libssl3 libpq5 libhiredis1.1.0 ca-certificates tini curl \
+        libssl3 libpq5 ca-certificates tini curl \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --no-create-home --uid 10001 appuser
 
 WORKDIR /app
 COPY --from=build /src/build/bin/realtime-chat /app/realtime-chat
 COPY --from=build /src/migrations /app/migrations
-# redis-plus-plus / hiredis shared libs used at runtime.
+# redis-plus-plus and hiredis shared libraries, taken from the build stage.
+#
+# hiredis comes from /usr/local (built from source there) rather than from apt:
+# libredis++.so was linked against that exact build, and Ubuntu's packaged
+# libhiredis is a different soname, so mixing them would fail at load time.
 COPY --from=build /usr/local/lib/libredis++.so* /usr/local/lib/
+COPY --from=build /usr/local/lib/libhiredis.so* /usr/local/lib/
 RUN ldconfig
 
 ENV CHAT_PORT=8080 \

@@ -40,14 +40,28 @@ class MessagingIntegrationTest : public ::testing::Test {
         conversations_ = std::make_unique<rtc::repositories::PgConversationRepository>(*pool_);
         messages_ = std::make_unique<rtc::repositories::PgMessageRepository>(*pool_);
         suffix_ = std::to_string(std::time(nullptr));
+        ready_ = true;
     }
 
     void TearDown() override {
-        if (pool_) {
+        // Guarded on ready_, not on pool_.
+        //
+        // GoogleTest runs TearDown even when SetUp called GTEST_SKIP, and pool_ is
+        // assigned before the migration step that may throw. Cleaning up on pool_
+        // alone therefore ran DELETE against a schema that was never created,
+        // and the escaping exception turned a *skipped* test into a *failed* one —
+        // reporting a database problem as a broken test.
+        if (!ready_) {
+            return;
+        }
+        try {
             auto lease = pool_->acquire();
             pqxx::work txn(lease.get());
             txn.exec_params("DELETE FROM users WHERE username LIKE $1", "itmsg_%");
             txn.commit();
+        } catch (const std::exception& ex) {
+            // Leftover rows are harmless; a throwing TearDown is not.
+            ADD_FAILURE() << "cleanup failed: " << ex.what();
         }
     }
 
@@ -59,6 +73,7 @@ class MessagingIntegrationTest : public ::testing::Test {
             .id;
     }
 
+    bool ready_ = false;  // SetUp completed; cleanup is safe
     std::unique_ptr<rtc::database::ConnectionPool> pool_;
     std::unique_ptr<rtc::repositories::PgUserRepository> users_;
     std::unique_ptr<rtc::repositories::PgConversationRepository> conversations_;

@@ -35,6 +35,11 @@ jobs:
       DB_PASSWORD: chat_password
       JWT_SECRET: ci-test-secret-value-please-ignore
       RTC_RUN_DB_TESTS: "1"
+      # Absolute, because ctest runs from build/ and the default is the relative
+      # path "migrations". Without this the MigrationRunner cannot find the
+      # schema, every DB test skips with "Migrations directory not found", and the
+      # integration suite has been silently not running in CI.
+      MIGRATIONS_DIR: ${{ github.workspace }}/migrations
 
     steps:
       - name: Checkout
@@ -86,6 +91,12 @@ jobs:
       DB_USER: chat
       DB_PASSWORD: chat_password
       JWT_SECRET: ci-test-secret-value-please-ignore
+      RTC_RUN_DB_TESTS: "1"
+      # Absolute, because ctest runs from build/ and the default is the relative
+      # path "migrations". Without this the MigrationRunner cannot find the
+      # schema, every DB test skips with "Migrations directory not found", and the
+      # integration suite has been silently not running in CI.
+      MIGRATIONS_DIR: ${{ github.workspace }}/migrations
       RTC_RUN_DB_TESTS: "1"
     steps:
       - uses: actions/checkout@v4

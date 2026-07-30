@@ -97,7 +97,6 @@ jobs:
       # schema, every DB test skips with "Migrations directory not found", and the
       # integration suite has been silently not running in CI.
       MIGRATIONS_DIR: ${{ github.workspace }}/migrations
-      RTC_RUN_DB_TESTS: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies

@@ -7,6 +7,55 @@ on:
     branches: [main]
 
 jobs:
+  # Validate the workflow files themselves.
+  #
+  # A malformed workflow does not fail loudly — GitHub cannot parse it, so it
+  # cannot read `name:` either, and the run surfaces as the bare file path with no
+  # usable log. The specific trap is a duplicate mapping key: PyYAML's default
+  # loader silently keeps the last value, while GitHub Actions rejects the file
+  # outright. Hence the strict loader below.
+  workflows:
+    name: workflow syntax
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate workflow YAML
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import glob, sys, yaml
+
+          class Strict(yaml.SafeLoader):
+              pass
+
+          def no_duplicates(loader, node, deep=False):
+              seen = {}
+              for key_node, value_node in node.value:
+                  key = loader.construct_object(key_node, deep=deep)
+                  if key in seen:
+                      raise yaml.constructor.ConstructorError(
+                          None, None,
+                          f"duplicate key {key!r} at line {key_node.start_mark.line + 1}",
+                          key_node.start_mark)
+                  seen[key] = loader.construct_object(value_node, deep=deep)
+              return seen
+
+          Strict.add_constructor(
+              yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates)
+
+          failed = 0
+          for path in sorted(glob.glob('.github/workflows/*.yml')):
+              try:
+                  document = yaml.load(open(path, encoding='utf-8'), Loader=Strict)
+                  assert document.get('name'), f"{path}: missing top-level 'name'"
+                  assert document.get('jobs'), f"{path}: no jobs defined"
+                  print(f"ok      {path}")
+              except Exception as exc:
+                  failed += 1
+                  print(f"BROKEN  {path}\n        {exc}")
+          sys.exit(1 if failed else 0)
+          PY
+
   clang-format:
     name: clang-format
     runs-on: ubuntu-24.04

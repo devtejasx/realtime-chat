@@ -1,283 +1,371 @@
+<div align="center">
+
 # realtime-chat
 
-A production-grade real-time chat backend written in **Modern C++20**.
+**A distributed real-time messaging platform written in Modern C++20.**
 
-> **Phase 1 — Foundation & Authentication** (complete): clean architecture,
-> configuration, structured logging, error handling, PostgreSQL with a
-> connection pool and migration runner, bcrypt + JWT auth, an authentication
-> guard, a health endpoint, tests, Docker, and docs.
->
-> **Phase 2 — Core Real-Time Messaging Platform** (complete): user profiles,
-> one-to-one and group conversations, messages with edit/soft-delete, read
-> receipts, pagination and full-text search — over both **REST and WebSockets**.
-> The WebSocket server adds session/connection/room managers, an event
-> dispatcher, presence, typing indicators, heartbeat, and disconnect cleanup.
-> REST controllers and WebSocket handlers call the **same service classes**, so
-> business logic is never duplicated.
->
-> **Phase 3 — Scalability & Production Readiness** (complete): a pluggable cache
-> (`ICacheStore`: in-memory default, Redis for multi-instance), distributed
-> sessions with refresh-token rotation and multi-device logout, file uploads /
-> attachments over a pluggable storage backend (local default; S3/Azure/GCS
-> seam), message reactions, an **event-driven notification system** (in-app +
-> pluggable FCM/APNs/email/SMS push), a background-job executor and scheduler,
-> Redis-backed rate limiting, Prometheus metrics at `/metrics`, and security
-> hardening (headers, CORS, MIME allow-list, upload limits). Every new backend
-> is an interface with a working default, so the project **builds and runs with
-> no external services** and scales out by swapping implementations — no
-> business-logic changes. See [docs/Deployment.md](docs/Deployment.md).
->
-> **Phase 4 — Production Deployment & DevOps** (complete): production Docker
-> image (Redis-enabled, tini, healthcheck) + dev/prod Compose stacks, an
-> **Nginx reverse proxy** with TLS termination, HTTP→HTTPS, WebSocket proxying,
-> gzip and security headers, **Let's Encrypt** automation, a hardened
-> **systemd** unit, **GitHub Actions** CI/CD (build+test+coverage, clang-format/
-> clang-tidy, CodeQL, secret scanning, image build/push to GHCR, tagged
-> releases), **AWS** deployment scripts (EC2/RDS/ElastiCache reference),
-> database backup/restore/migrate/maintenance scripts, **liveness/readiness**
-> probes, **structured JSON logs with request ids**, expanded Prometheus
-> metrics (DB/cache latency, memory), and a full production docs set. Clone and
-> follow [docs/Deployment.md](docs/Deployment.md) to ship it.
->
-> **Phase 5 — Enterprise Distributed Platform** (complete): **API versioning**
-> (`/api/v1`, with the unversioned prefix permanently supported), a served
-> **OpenAPI 3.1** spec and **Swagger UI** at `/docs`, an internal
-> **domain event bus** (publisher/subscriber/dispatcher, dispatched off the
-> request path), an append-only **audit log** with a search API, **RBAC** with
-> four roles and a permission table, account suspension that takes effect on the
-> next request, an **admin module** (users, groups, sessions, sockets, cache,
-> jobs, metrics, audit, feature flags), **PostgreSQL full-text search** with
-> ranking, highlighting and trigram fuzzy fallback, a **versioned WebSocket
-> protocol** with request/correlation ids, **Redis Pub/Sub fan-out** for true
-> horizontal scaling, **OpenTelemetry-compatible tracing** (OTLP/Zipkin
-> exporters, W3C trace context), runtime **feature flags**, three distinct
-> **health probes**, **Kubernetes** manifests, **Terraform** for AWS,
-> **Google Benchmark** microbenchmarks and a **k6** load-test suite.
-> See [docs/Diagrams.md](docs/Diagrams.md).
+Direct and group chat over REST and WebSockets, with the operational machinery
+a real deployment needs: role-based access control, an audit trail, full-text
+search, horizontal scaling, and distributed tracing.
 
-## Features
+[![CI](https://github.com/devtejasx/realtime-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/ci.yml)
+[![Lint](https://github.com/devtejasx/realtime-chat/actions/workflows/lint.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/lint.yml)
+[![CodeQL](https://github.com/devtejasx/realtime-chat/actions/workflows/codeql.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/codeql.yml)
+[![Security](https://github.com/devtejasx/realtime-chat/actions/workflows/security.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/security.yml)
+[![Docker](https://github.com/devtejasx/realtime-chat/actions/workflows/docker.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/docker.yml)
 
-- **Clean architecture** — controllers → services → repositories → database,
-  with DTOs, models, middlewares, and a single composition root.
-- **Configuration** from environment variables with development defaults and
-  fail-fast validation.
-- **Structured logging** via spdlog (requests, responses, errors, lifecycle).
-- **Error handling** — a typed exception hierarchy mapped to consistent JSON
-  error responses.
-- **PostgreSQL** persistence (libpqxx) with a thread-safe connection pool,
-  a repository base class, and an idempotent migration runner.
-- **Authentication** — `POST /api/auth/register` and `POST /api/auth/login`,
-  bcrypt password hashing, and JWT access/refresh tokens with expiry.
-- **JWT middleware** guarding protected routes (`GET /api/auth/me`), returning
-  `401` for missing/invalid tokens.
-- **Health endpoint** — `GET /health`.
-- **User profiles** — display name, bio, avatar (`GET/PUT /api/users/me`,
-  `GET /api/users/{id}`).
-- **Conversations** — one-to-one (deduplicated) and group chats with ownership,
-  membership, rename/add/remove/leave, and delete.
-- **Messages** — send, edit, soft-delete, list with keyset pagination, and
-  full-text keyword search.
-- **WebSockets** — real-time message/typing/presence/receipt events with
-  JWT-authenticated handshakes, heartbeat, and disconnect cleanup.
-- **Presence & read receipts** — online/offline/last-seen tracking and
-  sent/delivered/read receipt state.
-- **Tests** — GoogleTest covering config, validation, hashing, JWT, all
-  services, realtime managers, and the register/login APIs, plus opt-in database
-  integration tests.
-- **API versioning** — every route is authored once and served at both
-  `/api/v1/...` and the legacy `/api/...`; an unknown version returns a
-  machine-readable 404 naming what is supported.
-- **OpenAPI 3.1 + Swagger UI** — the full spec is compiled into the binary and
-  served at `/openapi.json`, with an interactive viewer at `/docs`. A test
-  asserts every registered route is documented.
-- **Domain event bus** — typed events (`UserRegistered`, `MessageSent`,
-  `MessageDeleted`, `AdminAction`, …) published by producers and consumed by
-  independent subscribers, dispatched on the worker pool so a slow subscriber
-  never touches request latency.
-- **Audit log** — append-only, idempotent, correlated with the request and trace
-  that caused it, searchable at `/api/v1/admin/audit-logs`.
-- **RBAC** — `user` / `moderator` / `admin` / `super_admin` over a constexpr
-  permission table; decisions are database-authoritative behind a short-TTL cache
-  so a ban or demotion is effective on the next request, not at token expiry.
-- **Admin module** — user and group management, session and socket inspection,
-  cache/job/system statistics, audit search, runtime feature-flag toggles.
-- **Full-text search** — a stored `tsvector` with a GIN index, `ts_rank_cd`
-  ranking, `ts_headline` snippets, and a trigram fuzzy fallback for typos.
-- **Versioned WebSocket protocol** — negotiated at the handshake; v2 adds
-  `event`/`version`/`timestamp`/`request_id`/`correlation_id`/`payload` while v1
-  stays frozen for existing clients.
-- **Horizontal scaling** — Redis Pub/Sub fans WebSocket broadcasts across every
-  replica, with origin-node loop suppression.
-- **Distributed tracing** — W3C trace context propagation and OTLP/Zipkin export
-  to Jaeger, Zipkin, Tempo or an OpenTelemetry Collector.
-- **Feature flags** — eight runtime-togglable capabilities, seeded from the
-  environment and switchable live by a super admin.
-- **Health probes** — `/health/live`, `/health/ready` and `/health/startup`,
-  each answering a genuinely different question.
+![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)
+![CMake](https://img.shields.io/badge/CMake-%E2%89%A5%203.24-064F8C?logo=cmake&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
+![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
-## Tech stack
+[Quick start](#quick-start) · [Features](#features) · [Architecture](#architecture) ·
+[API](#api) · [Deployment](#deployment) · [Documentation](#documentation)
 
-| Concern        | Choice                          |
-| -------------- | ------------------------------- |
-| Language       | C++20                           |
-| HTTP framework | [Crow](https://github.com/CrowCpp/Crow) |
-| Database       | PostgreSQL + [libpqxx](https://github.com/jtv/libpqxx) |
-| Auth           | bcrypt + JWT ([jwt-cpp](https://github.com/Thalhammer/jwt-cpp)) |
-| Logging        | [spdlog](https://github.com/gabime/spdlog) |
-| JSON           | [nlohmann/json](https://github.com/nlohmann/json) |
-| Build          | CMake ≥ 3.24 (Ninja recommended) |
-| Testing        | GoogleTest                      |
-| Container      | Docker + Docker Compose         |
+</div>
 
-## Repository layout
+---
 
-```
-.
-├── CMakeLists.txt          # top-level build
-├── cmake/                  # dependency resolution
-├── include/rtc/            # public headers (by layer)
-├── src/                    # implementation (mirrors include/)
-├── tests/                  # GoogleTest suite + fakes
-├── migrations/             # SQL schema migrations
-├── benchmarks/             # Google Benchmark microbenchmarks (opt-in)
-├── loadtest/               # k6 load-test scenarios
-├── docker/                 # Dockerfile
-├── docker-compose.yml      # local postgres + server
-├── deploy/
-│   ├── aws/                # EC2 deploy / rollback scripts
-│   ├── k8s/                # Kubernetes manifests
-│   ├── systemd/            # hardened service unit
-│   └── terraform/          # AWS infrastructure as code
-├── nginx/                  # reverse-proxy configuration
-├── scripts/                # build / test / run / format / coverage helpers
-└── docs/                   # architecture, diagrams, API, operations
-```
+## What this is
 
-## Quick start (Docker)
+A chat backend built the way a service that has to stay up gets built. Every
+external dependency sits behind an interface with a working default, so the whole
+system **builds and runs with no external services** beyond PostgreSQL — then
+scales out by swapping implementations, with no change to business logic.
 
-The fastest path — builds the server and starts PostgreSQL alongside it:
+The design decisions that are easy to get wrong are documented *where they are
+made*, in the code, with the reasoning: why roles are resolved from the database
+rather than the JWT, why liveness probes must not touch dependencies, why the
+WebSocket protocol is negotiated instead of unioned.
+
+## Quick start
+
+Everything, including the database:
 
 ```bash
 docker compose up --build
 ```
 
-Then:
+Check it is alive, then open the interactive API reference at
+<http://localhost:8080/docs>:
 
 ```bash
 curl http://localhost:8080/health
 ```
 
-## Production deployment
-
-The full production stack (PostgreSQL + Redis + app + Nginx/TLS) is one command:
+Register a user and send a message:
 
 ```bash
-export JWT_SECRET="$(openssl rand -hex 32)"
-export DB_PASSWORD="$(openssl rand -hex 16)"
-docker compose -f docker-compose.prod.yml up -d --build
+curl -sX POST localhost:8080/api/v1/auth/register -H 'Content-Type: application/json' -d '{"username":"ada","email":"ada@example.com","password":"correct-horse-battery"}'
 ```
 
-Obtain TLS certificates with `DOMAIN=… EMAIL=… ./scripts/ssl/init-letsencrypt.sh`.
-For EC2/RDS/ElastiCache, systemd, backups, and the operational runbook, see
-[docs/Deployment.md](docs/Deployment.md), [docs/Docker.md](docs/Docker.md), and
-[docs/AWS.md](docs/AWS.md). Probes: `/health/live`, `/health/ready`; metrics:
-`/metrics`.
+## Features
+
+### Messaging
+
+| | |
+| --- | --- |
+| **Conversations** | One-to-one (deduplicated) and group chats with ownership, membership, rename, add/remove/leave |
+| **Messages** | Send, edit, soft-delete, keyset pagination, per-conversation history |
+| **Real time** | Messages, typing indicators, presence, read receipts — over WebSockets |
+| **Reactions** | Emoji reactions with live fan-out |
+| **Attachments** | Multipart upload with magic-byte content-type verification, thumbnails, pluggable storage (local default; S3/Azure/GCS seam) |
+| **Notifications** | In-app feed plus a pluggable push provider (FCM/APNs/email/SMS seam) |
+| **Search** | PostgreSQL full-text with `ts_rank_cd` ranking, `ts_headline` highlighting, and a trigram fuzzy fallback for typos |
+
+### Security
+
+| | |
+| --- | --- |
+| **Authentication** | bcrypt password hashing (CSPRNG salts) and JWT access/refresh tokens |
+| **Sessions** | Distributed, with refresh-token rotation for replay protection and multi-device logout |
+| **RBAC** | `user` / `moderator` / `admin` / `super_admin` over a `constexpr` permission table |
+| **Revocation** | Authorization is database-authoritative behind a short-TTL cache, so a ban or demotion takes effect on the caller's **next request** — not at token expiry |
+| **Audit log** | Append-only and idempotent, correlated with the request and trace that caused it, searchable through the admin API |
+| **Hardening** | Security headers, CORS policy, rate limiting, MIME allow-list, upload and body-size limits |
+
+### Scale and operations
+
+| | |
+| --- | --- |
+| **Horizontal scaling** | Redis Pub/Sub fans WebSocket broadcasts across every replica, with origin-node loop suppression |
+| **API versioning** | Routes authored once, served at `/api/v1/...` **and** the legacy `/api/...`; an unknown version returns a machine-readable 404 |
+| **OpenAPI 3.1** | The spec is compiled into the binary and served at `/openapi.json`, with Swagger UI at `/docs`. A test asserts every registered route is documented |
+| **Event bus** | Typed domain events dispatched on a worker pool with per-subscriber error isolation, so a slow subscriber never touches request latency |
+| **Tracing** | W3C trace context propagation and OTLP/Zipkin export to Jaeger, Zipkin, Tempo or an OpenTelemetry Collector |
+| **Metrics** | Prometheus exposition at `/metrics` |
+| **Health probes** | `/health/live`, `/health/ready`, `/health/startup` — three probes answering three genuinely different questions |
+| **Feature flags** | Eight runtime-togglable capabilities, seeded from the environment, switchable live by a super admin |
+| **Admin module** | Users, groups, sessions, connected sockets, cache, jobs, system metrics, audit search, feature toggles |
+
+### Engineering
+
+| | |
+| --- | --- |
+| **Architecture** | Clean architecture — controllers → services → repositories, with DTOs, models, middlewares and a single composition root |
+| **Testing** | GoogleTest across config, validation, security, every service, realtime managers, and the API, plus opt-in database integration tests |
+| **Benchmarks** | Google Benchmark for JWT, cache, protocol encoding, event bus, authorization and PostgreSQL |
+| **Load testing** | k6 scenarios for authentication, messaging, WebSocket concurrency and upload/search |
+| **CI/CD** | GitHub Actions — build, test, coverage, clang-format/clang-tidy, CodeQL, secret scanning, GHCR image push, tagged releases |
+| **Infrastructure** | Docker and Compose, Nginx with TLS, systemd unit, Kubernetes manifests, Terraform for AWS |
+
+## Architecture
+
+```mermaid
+graph LR
+    C["Clients"] --> LB["Load balancer"]
+    LB --> A1["realtime-chat #1"]
+    LB --> A2["realtime-chat #2"]
+    A1 & A2 --> PG[("PostgreSQL")]
+    A1 & A2 --> RD[("Redis")]
+    A1 <-.->|"Pub/Sub fan-out"| RD
+    A2 <-.->|"Pub/Sub fan-out"| RD
+    A1 & A2 -.->|"OTLP"| OT["Collector → Jaeger"]
+```
+
+Dependencies point inward: the domain layer knows nothing about PostgreSQL, Crow
+or Redis. Services depend on interfaces the domain owns, and infrastructure
+implements them — which is why the test suite exercises real service code with no
+database at all.
+
+The dotted Pub/Sub edges are load-bearing. A WebSocket connection is pinned to
+whichever replica accepted it, so without that hop a message persisted by replica
+1 never reaches a recipient connected to replica 2. On a single replica the
+problem is invisible; it appears the moment you scale.
+
+Ten diagrams — system, layering, ERD, request lifecycle, authentication, RBAC,
+WebSocket, event flow, cache, deployment — are in
+[docs/Diagrams.md](docs/Diagrams.md).
+
+## API
+
+The live reference is **Swagger UI at `/docs`**, backed by the OpenAPI 3.1
+document at `/openapi.json`. Every endpoint below is reachable at both
+`/api/v1/...` and the unversioned `/api/...`.
+
+| Area | Endpoints |
+| --- | --- |
+| Authentication | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all` · `GET /auth/me` |
+| Users | `GET`/`PUT /users/me` · `GET /users/{id}` |
+| Conversations | `POST`/`GET /conversations` · `GET`/`DELETE /conversations/{id}` · `PATCH /conversations/{id}/name` · `POST`/`DELETE /conversations/{id}/members…` · `POST /conversations/{id}/leave` |
+| Messages | `POST`/`GET /messages` · `PATCH`/`DELETE /messages/{id}` |
+| Reactions | `POST`/`GET`/`DELETE /messages/{id}/reactions` |
+| Attachments | `POST /attachments` · `GET`/`DELETE /attachments/{id}` · `GET /attachments/{id}/thumbnail` |
+| Notifications | `GET /notifications` · `POST /notifications/{id}/read` · `POST /notifications/read-all` · `DELETE /notifications/{id}` |
+| Sessions | `GET /sessions` · `DELETE /sessions/{id}` |
+| Search | `GET /search/messages?q=…` |
+| Admin | `/admin/users…`, `/admin/conversations/{id}`, `/admin/websockets`, `/admin/cache`, `/admin/jobs`, `/admin/system`, `/admin/audit-logs`, `/admin/features` |
+| WebSocket | `GET /ws?token=…&protocol=2` |
+| Operations | `GET /health`, `/health/live`, `/health/ready`, `/health/startup`, `/metrics`, `/docs`, `/openapi.json` |
+
+Failures share one envelope, with a stable machine-readable `code`:
+
+```json
+{ "error": { "code": "validation_error", "message": "Username is required", "details": "field=username" } }
+```
+
+Full details: [docs/API.md](docs/API.md) ·
+[docs/WebSocketProtocol.md](docs/WebSocketProtocol.md) ·
+[docs/Authorization.md](docs/Authorization.md)
 
 ## Build from source
 
-**Prerequisites:** a C++20 compiler, CMake ≥ 3.24, Ninja (optional), plus the
-PostgreSQL and OpenSSL development headers. Remaining dependencies (Crow,
-libpqxx, spdlog, jwt-cpp, bcrypt, GoogleTest) are fetched automatically by
-CMake at configure time, so a network connection is required for the first
-configure.
-
-On Debian/Ubuntu:
+**Prerequisites:** a C++20 compiler, CMake ≥ 3.24, Ninja (optional), and the
+PostgreSQL and OpenSSL development headers. Everything else (Crow, libpqxx,
+spdlog, jwt-cpp, bcrypt, GoogleTest) is fetched by CMake at configure time, so the
+first configure needs network access.
 
 ```bash
-sudo apt-get install -y build-essential cmake ninja-build git \
-    libssl-dev libpq-dev postgresql-server-dev-all
+sudo apt-get install -y build-essential cmake ninja-build git libssl-dev libpq-dev postgresql-server-dev-all
 ```
-
-Configure and build:
 
 ```bash
-./scripts/build.sh          # or: cmake -S . -B build && cmake --build build
+./scripts/build.sh
 ```
-
-Run the tests:
 
 ```bash
 ./scripts/test.sh
 ```
 
-Run the server (needs a reachable PostgreSQL — see `docker-compose.yml`):
+Run the server — it needs a reachable PostgreSQL, which `docker-compose.yml`
+provides:
 
 ```bash
-cp .env.example .env        # adjust as needed
-./scripts/run.sh
+cp .env.example .env && ./scripts/run.sh
+```
+
+### Build options
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `RTC_BUILD_TESTS` | `ON` | GoogleTest suite |
+| `RTC_BUILD_BENCHMARKS` | `OFF` | Google Benchmark suite (fetches an extra dependency) |
+| `RTC_WITH_REDIS` | `OFF` | Redis cache and cluster bus — **required for more than one replica** |
+| `RTC_ENABLE_COVERAGE` | `OFF` | gcov/lcov instrumentation (use with `Debug`) |
+| `RTC_WARNINGS_AS_ERRORS` | `OFF` | Promote warnings to errors |
+
+### Benchmarks, coverage and load tests
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DRTC_BUILD_BENCHMARKS=ON && cmake --build build && ./build/bin/rtc_benchmarks
+```
+
+```bash
+./scripts/coverage.sh --open
+```
+
+```bash
+k6 run --env BASE_URL=http://localhost:8080 loadtest/messaging.js
 ```
 
 ## Configuration
 
-All settings come from environment variables and have development defaults.
-See [`.env.example`](.env.example) for the full list (`CHAT_PORT`, `DB_*`,
-`JWT_*`, `LOG_LEVEL`, `APP_ENV`).
+Every setting comes from an environment variable and has a development default;
+[`.env.example`](.env.example) documents the full list. Invalid configuration
+fails at startup rather than at first use — for instance the server refuses to
+boot in production with a weak `JWT_SECRET`, or with `CLUSTER_ENABLED` set but no
+Redis.
 
-## API
+The settings most worth knowing:
 
-See [docs/API.md](docs/API.md) for full endpoint documentation. In brief:
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `JWT_SECRET` | dev placeholder | Must be ≥ 32 bytes in production; startup fails otherwise |
+| `REDIS_ENABLED` | `false` | Enables the shared cache; needs a `-DRTC_WITH_REDIS=ON` build |
+| `CLUSTER_ENABLED` | follows `REDIS_ENABLED` | **Required with more than one replica** — see the architecture note above |
+| `AUTHZ_CACHE_TTL_SECONDS` | `30` | Worst-case delay before a ban or demotion takes effect |
+| `TRACING_ENABLED` | `false` | With `TRACING_EXPORTER` = `logging` / `otlp` / `zipkin` |
+| `ENABLE_*` | `true` | Eight feature flags, also togglable at runtime by a super admin |
 
-| Method | Path                 | Auth | Description                 |
-| ------ | -------------------- | ---- | --------------------------- |
-| GET    | `/health`            | —    | Liveness/status             |
-| POST   | `/api/auth/register` | —    | Create an account           |
-| POST   | `/api/auth/login`    | —    | Obtain access/refresh tokens|
-| GET    | `/api/auth/me`       | JWT  | Current authenticated user  |
-| GET/PUT| `/api/users/me`      | JWT  | View / update your profile  |
-| GET    | `/api/users/{id}`    | JWT  | Another user's public profile |
-| POST/GET | `/api/conversations` | JWT | Create / list conversations |
-| GET/DELETE | `/api/conversations/{id}` | JWT | Get / delete a conversation |
-| POST/GET | `/api/messages`    | JWT  | Send / list & search messages |
-| PATCH/DELETE | `/api/messages/{id}` | JWT | Edit / soft-delete a message |
-| WS     | `/ws?token=…`        | JWT  | Real-time events (see [API.md](docs/API.md)) |
-| POST/GET/DELETE | `/api/attachments…` | JWT | Upload / download / delete files |
-| POST/GET/DELETE | `/api/messages/{id}/reactions` | JWT | Reactions |
-| GET/POST/DELETE | `/api/notifications…` | JWT | Notification feed |
-| GET/DELETE | `/api/sessions…`  | JWT  | Active sessions / revoke |
-| POST   | `/api/auth/refresh\|logout\|logout-all` | JWT | Session lifecycle |
-| GET    | `/metrics`           | —    | Prometheus metrics |
+## Deployment
 
-Group management (`/api/conversations/{id}/name|members|leave`), the full
-WebSocket event set, and all Phase 3 endpoints are documented in
-[docs/API.md](docs/API.md).
+The full production stack — PostgreSQL, Redis, the app and Nginx with TLS — is one
+command:
 
-## Further reading
+```bash
+export JWT_SECRET="$(openssl rand -hex 32)" DB_PASSWORD="$(openssl rand -hex 16)" && docker compose -f docker-compose.prod.yml up -d --build
+```
 
-- [docs/Architecture.md](docs/Architecture.md) — layers, DI, request lifecycle,
-  real-time and production layers.
-- [docs/Diagrams.md](docs/Diagrams.md) — system, clean-architecture, ERD,
-  deployment, request, auth, RBAC, WebSocket, event and cache diagrams.
-- [docs/Database.md](docs/Database.md) — schema, migrations, connection pool.
-- [docs/API.md](docs/API.md) — endpoints, payloads, error format. The live
-  reference is the OpenAPI spec at `/openapi.json` and Swagger UI at `/docs`.
-- [docs/WebSocketProtocol.md](docs/WebSocketProtocol.md) — versioned wire
-  protocol, every event, delivery semantics.
-- [docs/Authorization.md](docs/Authorization.md) — roles, permissions,
-  suspension, audit log.
-- [docs/Deployment.md](docs/Deployment.md) — scaling, Redis, storage, rolling
-  deploys, readiness checklist, runbook.
-- [docs/Docker.md](docs/Docker.md) — images and Compose stacks.
-- [docs/AWS.md](docs/AWS.md) — EC2/RDS/ElastiCache reference deployment.
-- [docs/Security.md](docs/Security.md) — OWASP posture.
-- [docs/Monitoring.md](docs/Monitoring.md) — metrics, probes, alerts.
-- [docs/Performance.md](docs/Performance.md) — tuning and scaling.
-- [docs/Troubleshooting.md](docs/Troubleshooting.md) — common issues.
-- [docs/Contributing.md](docs/Contributing.md) — dev workflow and standards.
-- [docs/Release.md](docs/Release.md) — versioning and release process.
-- [deploy/k8s/README.md](deploy/k8s/README.md) — Kubernetes manifests.
-- [deploy/terraform/README.md](deploy/terraform/README.md) — AWS infrastructure.
-- [loadtest/README.md](loadtest/README.md) — k6 scenarios and expected
-  performance.
+Certificates come from `DOMAIN=… EMAIL=… ./scripts/ssl/init-letsencrypt.sh`.
+
+| Target | Where |
+| --- | --- |
+| Docker / Compose | [docs/Docker.md](docs/Docker.md) |
+| Kubernetes | [deploy/k8s/](deploy/k8s/README.md) — Deployment, Service, Ingress, ConfigMap, Secret, HPA, PDB, NetworkPolicy |
+| AWS (Terraform) | [deploy/terraform/](deploy/terraform/README.md) — VPC, EC2, RDS, ElastiCache, IAM, security groups, ALB |
+| AWS (scripts) | [docs/AWS.md](docs/AWS.md) |
+| systemd | [deploy/systemd/](deploy/systemd/) |
+
+Operational guidance, the readiness checklist and the runbook are in
+[docs/Deployment.md](docs/Deployment.md).
+
+## Repository layout
+
+```
+.
+├── include/rtc/            # public headers, by layer
+├── src/                    # implementation (mirrors include/)
+├── tests/                  # GoogleTest suite + fakes
+├── benchmarks/             # Google Benchmark microbenchmarks (opt-in)
+├── loadtest/               # k6 load-test scenarios
+├── migrations/             # SQL schema migrations
+├── cmake/                  # dependency resolution
+├── docker/                 # Dockerfile + production image
+├── nginx/                  # reverse-proxy configuration
+├── deploy/
+│   ├── aws/                # EC2 deploy / rollback scripts
+│   ├── k8s/                # Kubernetes manifests
+│   ├── systemd/            # hardened service unit
+│   └── terraform/          # AWS infrastructure as code
+├── scripts/                # build / test / run / format / coverage helpers
+└── docs/                   # architecture, diagrams, API, operations
+```
+
+## Documentation
+
+**Design**
+[Architecture](docs/Architecture.md) ·
+[Diagrams](docs/Diagrams.md) ·
+[Database](docs/Database.md)
+
+**Interfaces**
+[API](docs/API.md) ·
+[WebSocket protocol](docs/WebSocketProtocol.md) ·
+[Authorization & audit](docs/Authorization.md)
+
+**Operations**
+[Deployment](docs/Deployment.md) ·
+[Docker](docs/Docker.md) ·
+[AWS](docs/AWS.md) ·
+[Kubernetes](deploy/k8s/README.md) ·
+[Terraform](deploy/terraform/README.md) ·
+[Monitoring](docs/Monitoring.md) ·
+[Performance](docs/Performance.md) ·
+[Load testing](loadtest/README.md) ·
+[Troubleshooting](docs/Troubleshooting.md)
+
+**Project**
+[Security posture](docs/Security.md) ·
+[Contributing](docs/Contributing.md) ·
+[Release process](docs/Release.md)
+
+## Tech stack
+
+| Concern | Choice |
+| --- | --- |
+| Language | C++20 |
+| HTTP / WebSocket | [Crow](https://github.com/CrowCpp/Crow) |
+| Database | PostgreSQL + [libpqxx](https://github.com/jtv/libpqxx) |
+| Cache / Pub/Sub | Redis (optional) via [redis-plus-plus](https://github.com/sewenew/redis-plus-plus) |
+| Auth | bcrypt + JWT ([jwt-cpp](https://github.com/Thalhammer/jwt-cpp)) |
+| Logging | [spdlog](https://github.com/gabime/spdlog) |
+| JSON | [nlohmann/json](https://github.com/nlohmann/json) |
+| Tracing | OpenTelemetry-compatible (OTLP/HTTP, Zipkin v2) |
+| Build | CMake ≥ 3.24 (Ninja recommended) |
+| Testing | GoogleTest · Google Benchmark · k6 |
+| Container | Docker + Docker Compose |
+| Orchestration | Kubernetes · Terraform |
+
+<details>
+<summary><strong>Project history</strong> — how it got here, phase by phase</summary>
+
+<br>
+
+**Phase 1 — Foundation & authentication.** Clean architecture, configuration,
+structured logging, error handling, PostgreSQL with a connection pool and
+migration runner, bcrypt + JWT auth, an authentication guard, a health endpoint,
+tests, Docker.
+
+**Phase 2 — Core real-time messaging.** User profiles, one-to-one and group
+conversations, messages with edit and soft-delete, read receipts, pagination and
+keyword search — over both REST and WebSockets. Session, connection and room
+managers, an event dispatcher, presence, typing indicators, heartbeat and
+disconnect cleanup. REST controllers and WebSocket handlers call the *same*
+service classes, so business logic is never duplicated.
+
+**Phase 3 — Scalability & production readiness.** A pluggable cache
+(`ICacheStore`: in-memory default, Redis for multi-instance), distributed sessions
+with refresh-token rotation and multi-device logout, attachments over a pluggable
+storage backend, reactions, an event-driven notification system, a background-job
+executor and scheduler, rate limiting, Prometheus metrics, and security hardening.
+
+**Phase 4 — Production deployment & DevOps.** Production Docker image and
+dev/prod Compose stacks, Nginx with TLS and WebSocket proxying, Let's Encrypt
+automation, a hardened systemd unit, GitHub Actions CI/CD, AWS deployment
+scripts, database backup/restore/migrate/maintenance scripts, liveness and
+readiness probes, structured JSON logs with request ids.
+
+**Phase 5 — Enterprise distributed platform.** API versioning, a served OpenAPI
+3.1 spec with Swagger UI, an internal domain event bus, an append-only audit log,
+RBAC with account suspension, an admin module, PostgreSQL full-text search,
+a versioned WebSocket protocol, Redis Pub/Sub fan-out for true horizontal
+scaling, OpenTelemetry-compatible tracing, runtime feature flags, three health
+probes, Kubernetes manifests, Terraform, Google Benchmark microbenchmarks and a
+k6 load-test suite.
+
+</details>
 
 ## License
 

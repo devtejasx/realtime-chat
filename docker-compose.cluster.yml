@@ -113,9 +113,22 @@ services:
   balancer:
     image: nginx:1.27-alpine
     container_name: rtc-cluster-balancer
+    # service_healthy, not just service_started.
+    #
+    # Nginx resolves upstream hostnames once, when it parses the config, and
+    # caches the addresses for the life of the process. Starting it while the
+    # servers are still coming up means it pins whatever addresses they had then
+    # — and after a rebuild assigns new ones, every request silently lands on a
+    # single instance, or none. Waiting for both to be healthy makes the
+    # addresses it caches the real ones.
+    #
+    # This is also why recreating a server needs `docker compose restart
+    # balancer`: the cache does not expire. Production reverse proxies point at
+    # a Service or target group rather than at pod addresses, so the problem
+    # does not arise there.
     depends_on:
-      - server-a
-      - server-b
+      server-a: { condition: service_healthy }
+      server-b: { condition: service_healthy }
     ports:
       - "8080:8080"
     volumes:

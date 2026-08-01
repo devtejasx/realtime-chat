@@ -156,7 +156,7 @@ CWAGENT
 # it this way means the schema is applied exactly once per deploy rather than
 # racing between instances, and a migration failure stops the rollout instead of
 # leaving a server running against the wrong schema.
-IMAGE="ghcr.io/devtejasx/realtime-chat:latest"
+IMAGE="ghcr.io/devtejasx/realtime-chat-server:latest"
 
 echo "Pulling $IMAGE"
 docker pull "$IMAGE"

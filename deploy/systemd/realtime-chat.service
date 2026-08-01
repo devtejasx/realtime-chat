@@ -10,7 +10,7 @@
 
 [Unit]
 Description=realtime-chat backend
-Documentation=https://github.com/devtejasx/realtime-chat
+Documentation=https://github.com/devtejasx/realtime-chat-server
 After=network-online.target postgresql.service redis.service
 Wants=network-online.target
 Requires=postgresql.service

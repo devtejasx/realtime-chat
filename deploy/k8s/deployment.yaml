@@ -59,7 +59,7 @@ spec:
       terminationGracePeriodSeconds: 45
       containers:
         - name: realtime-chat
-          image: ghcr.io/devtejasx/realtime-chat:latest
+          image: ghcr.io/devtejasx/realtime-chat-server:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

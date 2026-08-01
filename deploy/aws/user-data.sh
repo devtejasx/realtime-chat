@@ -7,7 +7,7 @@
 # being baked in — fetch them into /opt/realtime-chat/.env before `up`.
 set -euxo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/devtejasx/realtime-chat.git}"
+REPO_URL="${REPO_URL:-https://github.com/devtejasx/realtime-chat-server.git}"
 APP_DIR="/opt/realtime-chat"
 
 # --- Docker ---

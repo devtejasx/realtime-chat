@@ -83,5 +83,5 @@ docker build -f docker/Dockerfile.prod -t realtime-chat:local .
 docker run --rm -p 8080:8080 --env-file .env realtime-chat:local
 ```
 
-CI publishes images to `ghcr.io/devtejasx/realtime-chat` on pushes to `main`
+CI publishes images to `ghcr.io/devtejasx/realtime-chat-server` on pushes to `main`
 and tags (see `.github/workflows/docker.yml`).

@@ -15,7 +15,7 @@ standards, and how changes are reviewed and released.
 ## Getting started
 
 ```bash
-git clone https://github.com/devtejasx/realtime-chat.git
+git clone https://github.com/devtejasx/realtime-chat-server.git
 cd realtime-chat
 ./scripts/build.sh          # configure + build
 ./scripts/test.sh           # build + run the test suite

@@ -33,7 +33,7 @@ Pushing a `v*` tag triggers:
   LICENSE + `.env.example`) with a SHA-256 checksum, and publishes a **GitHub
   Release** with auto-generated notes and the artifacts attached.
 - **`docker.yml`** — builds the production image and pushes it to
-  `ghcr.io/devtejasx/realtime-chat` tagged with the semver
+  `ghcr.io/devtejasx/realtime-chat-server` tagged with the semver
   (`X.Y.Z`, `X.Y`) and the commit SHA.
 
 ## Deploying a release
@@ -41,7 +41,7 @@ Pushing a `v*` tag triggers:
 Container hosts:
 
 ```bash
-docker pull ghcr.io/devtejasx/realtime-chat:X.Y.Z
+docker pull ghcr.io/devtejasx/realtime-chat-server:X.Y.Z
 # update the image tag in your compose/orchestrator, run migrations, roll:
 docker compose -f docker-compose.prod.yml run --rm server --migrate
 docker compose -f docker-compose.prod.yml up -d

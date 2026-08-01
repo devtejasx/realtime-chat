@@ -8,11 +8,11 @@ Direct and group chat over REST and WebSockets, with the operational machinery
 a real deployment needs: role-based access control, an audit trail, full-text
 search, horizontal scaling, and distributed tracing.
 
-[![CI](https://github.com/devtejasx/realtime-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/ci.yml)
-[![Lint](https://github.com/devtejasx/realtime-chat/actions/workflows/lint.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/lint.yml)
-[![CodeQL](https://github.com/devtejasx/realtime-chat/actions/workflows/codeql.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/codeql.yml)
-[![Security](https://github.com/devtejasx/realtime-chat/actions/workflows/security.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/security.yml)
-[![Docker](https://github.com/devtejasx/realtime-chat/actions/workflows/docker.yml/badge.svg)](https://github.com/devtejasx/realtime-chat/actions/workflows/docker.yml)
+[![CI](https://github.com/devtejasx/realtime-chat-server/actions/workflows/ci.yml/badge.svg)](https://github.com/devtejasx/realtime-chat-server/actions/workflows/ci.yml)
+[![Lint](https://github.com/devtejasx/realtime-chat-server/actions/workflows/lint.yml/badge.svg)](https://github.com/devtejasx/realtime-chat-server/actions/workflows/lint.yml)
+[![CodeQL](https://github.com/devtejasx/realtime-chat-server/actions/workflows/codeql.yml/badge.svg)](https://github.com/devtejasx/realtime-chat-server/actions/workflows/codeql.yml)
+[![Security](https://github.com/devtejasx/realtime-chat-server/actions/workflows/security.yml/badge.svg)](https://github.com/devtejasx/realtime-chat-server/actions/workflows/security.yml)
+[![Docker](https://github.com/devtejasx/realtime-chat-server/actions/workflows/docker.yml/badge.svg)](https://github.com/devtejasx/realtime-chat-server/actions/workflows/docker.yml)
 
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)
 ![CMake](https://img.shields.io/badge/CMake-%E2%89%A5%203.24-064F8C?logo=cmake&logoColor=white)

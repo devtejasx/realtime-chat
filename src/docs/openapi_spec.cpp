@@ -1148,7 +1148,7 @@ constexpr const char* kOpenApiJson = R"OPENAPI({
   },
   "externalDocs": {
     "description": "Architecture, WebSocket protocol and deployment documentation",
-    "url": "https://github.com/devtejasx/realtime-chat/tree/main/docs"
+    "url": "https://github.com/devtejasx/realtime-chat-server/tree/main/docs"
   }
 })OPENAPI";
 

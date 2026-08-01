@@ -55,6 +55,121 @@ Redis is unreachable at startup, the service **falls back to the in-memory
 store** (single-instance semantics) and logs the choice. No code changes are
 needed to switch backends — see the `ICacheStore` abstraction.
 
+## Running more than one instance
+
+Two settings control this, and both must be on:
+
+| Variable | Effect |
+| --- | --- |
+| `REDIS_ENABLED=true` | Shared cache and rate-limit state |
+| `CLUSTER_ENABLED=true` | Redis Pub/Sub fan-out between instances (`RedisClusterBus` instead of the no-op bus) |
+
+`CLUSTER_ENABLED` requires `REDIS_ENABLED` — Redis Pub/Sub is the transport — and
+config validation rejects the combination at startup rather than degrading
+quietly.
+
+**Read this before scaling past one replica.** If the cluster bus is not
+available, the service does not fail. It runs, stays healthy, and delivers
+WebSocket events only to clients connected to *that* instance. A message sent
+through pod A never reaches a client on pod B. Nothing errors and no probe goes
+red; chat just works for some recipients and not others, depending on where the
+load balancer put them.
+
+Check which mode you are in:
+
+```bash
+curl -s localhost:8080/health/ready | jq .cluster
+```
+
+```json
+{ "distributed": true, "node_id": "node-a" }
+```
+
+`"distributed": false` with more than one replica running means delivery is
+partial right now.
+
+### Verifying multi-instance delivery locally
+
+`docker-compose.cluster.yml` runs PostgreSQL, Redis and two servers behind an
+Nginx balancer. Each server is also published directly, which is the point —
+addressing them individually is what turns "it seemed to work" into proof.
+
+```bash
+docker compose -f docker-compose.cluster.yml up --build
+```
+
+| Endpoint | What it is |
+| --- | --- |
+| `localhost:8080` | Nginx, round-robin across both |
+| `localhost:8081` | Server A directly |
+| `localhost:8082` | Server B directly |
+
+**1. Confirm both instances are clustered.** If either reports `false`, stop
+here — nothing below will mean anything.
+
+```bash
+curl -s localhost:8081/health/ready | jq -c .cluster; curl -s localhost:8082/health/ready | jq -c .cluster
+```
+
+**2. Register a user and connect a WebSocket to server A**, using any client
+that can hold a connection open (`websocat` below):
+
+```bash
+websocat "ws://localhost:8081/api/v1/ws?token=$ACCESS_TOKEN&protocol=2"
+```
+
+**3. Send a message through server B**, the instance that client is *not*
+connected to:
+
+```bash
+curl -sX POST localhost:8082/api/v1/messages -H "Authorization: Bearer $OTHER_TOKEN" -H 'Content-Type: application/json' -d '{"conversation_id":1,"content":"crossed instances"}'
+```
+
+The frame arriving on the socket attached to A is the whole proof: it was
+persisted by B, published to Redis, received by A, and delivered to A's
+connection. Before Redis Pub/Sub, that message would have been written to the
+database and silently never delivered.
+
+**4. Watch the hop happen.** Each instance logs the events it publishes and
+receives, and the counters are on `/metrics`:
+
+```bash
+curl -s localhost:8081/metrics | grep rtc_cluster
+```
+
+`rtc_cluster_published_total` climbing on B while `rtc_cluster_received_total`
+climbs on A is the fan-out working. Published rising with received flat
+everywhere means the instances are talking to different Redis databases, or to
+none.
+
+**5. Subscribe to Redis directly** to see the raw traffic:
+
+```bash
+docker exec -it rtc-cluster-redis redis-cli psubscribe 'rtc:cluster:*'
+```
+
+### What crosses instances, and how
+
+| Concern | Channel | Notes |
+| --- | --- | --- |
+| Messages, typing, read receipts | `rtc:cluster:user`, `rtc:cluster:room` | Persist first, then broadcast |
+| Notifications | `rtc:cluster:user` | Delivered through the same user fan-out; no dedicated channel |
+| Presence | `rtc:cluster:presence` | Per-node session sets, so a user on two replicas is online once |
+| Cache and authorization invalidation | `rtc:cluster:cache` | Makes a ban effective fleet-wide immediately |
+| Sessions, refresh tokens, logout | *(none)* | PostgreSQL-backed, shared by construction |
+
+Loop suppression is by node id: every message carries the publisher's
+`RTC_NODE_ID` and receivers drop their own. That is what keeps one send from
+becoming two deliveries on the instance that sent it.
+
+### Failure behaviour
+
+| Failure | Effect |
+| --- | --- |
+| Redis unreachable at startup | Falls back to the no-op bus, logs an error, serves single-instance |
+| Redis dies while running | In-flight fan-out is lost; each instance keeps serving its own connections. PostgreSQL is still the source of truth, so a reconnecting client re-reads history and loses nothing durable |
+| One instance dies | Its clients reconnect elsewhere. Presence entries it published linger until a peer calls `forget_node` or the users reconnect and re-announce |
+
 ## File storage
 
 Uploads use the pluggable `IFileStorage` abstraction. The default

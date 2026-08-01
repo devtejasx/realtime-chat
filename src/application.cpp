@@ -172,10 +172,53 @@ void Application::wire_observability() {
 
 void Application::wire_cluster_bus() {
     cluster_bus_ = make_cluster_bus(config_, node_id_);
-    if (cluster_bus_->is_distributed()) {
-        // Registers the inbound handlers; must happen before start().
-        connection_manager_->set_cluster_bus(*cluster_bus_);
+    if (!cluster_bus_->is_distributed()) {
+        // Single instance: local delivery and local eviction already reach
+        // everything there is. Leaving the publishers unset keeps the null
+        // implementations in place rather than paying for a hop to nobody.
+        return;
     }
+
+    // Registers the inbound handlers; must happen before start().
+    connection_manager_->set_cluster_bus(*cluster_bus_);
+    wire_cluster_invalidation();
+}
+
+void Application::wire_cluster_invalidation() {
+    invalidation_publisher_ =
+        std::make_unique<realtime::ClusterInvalidationPublisher>(*cluster_bus_);
+
+    // Outbound: a mutation on this instance now evicts fleet-wide. Without this,
+    // banning a user through one replica leaves the others honouring the cached
+    // role until it expires — see AuthorizationService::invalidate.
+    authorization_service_->set_invalidation_publisher(*invalidation_publisher_);
+    cache_service_->set_invalidation_publisher(*invalidation_publisher_);
+
+    // Inbound. Runs on the bus's subscriber thread, so every branch must be
+    // thread-safe, and each calls the *_local variant: re-publishing on receipt
+    // would amplify one eviction into one per replica, forever.
+    realtime::subscribe_to_invalidations(
+        *cluster_bus_, [this](const cache::InvalidationEvent& event) {
+            if (event.scope == cache::invalidation_scopes::kAuthorization) {
+                // Malformed ids are dropped rather than defaulted: invalidating
+                // user 0 would be a silent no-op that looks like success.
+                try {
+                    authorization_service_->invalidate_local(std::stoll(event.key));
+                } catch (const std::exception&) {
+                    RTC_LOG_WARN("Ignoring authorization invalidation with unparseable id '{}'",
+                                 event.key);
+                }
+                return;
+            }
+            if (event.scope == cache::invalidation_scopes::kNamespacedKey) {
+                cache_service_->invalidate_local(event.key, event.sub_key);
+                return;
+            }
+            // An unknown scope means a newer peer is publishing something this
+            // build does not understand. Log once per occurrence and carry on —
+            // refusing to start would turn a rolling upgrade into an outage.
+            RTC_LOG_WARN("Ignoring cache invalidation with unknown scope '{}'", event.scope);
+        });
 }
 
 void Application::wire_event_subscribers() {

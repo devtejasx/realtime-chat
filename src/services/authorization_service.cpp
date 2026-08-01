@@ -78,9 +78,20 @@ void AuthorizationService::require_active(std::int64_t user_id) {
     }
 }
 
-void AuthorizationService::invalidate(std::int64_t user_id) {
+void AuthorizationService::invalidate_local(std::int64_t user_id) {
     cache_.del(role_key(user_id));
     cache_.del(ban_key(user_id));
+}
+
+void AuthorizationService::invalidate(std::int64_t user_id) {
+    invalidate_local(user_id);
+    // Announced after the local drop, so this instance is already consistent by
+    // the time anyone else acts on the notice. The publisher is noexcept: a
+    // cluster hop that fails must not turn a successful ban into a 500.
+    invalidations_->publish_invalidation(
+        cache::InvalidationEvent{.scope = std::string(cache::invalidation_scopes::kAuthorization),
+                                 .key = std::to_string(user_id),
+                                 .sub_key = {}});
 }
 
 }  // namespace rtc::services

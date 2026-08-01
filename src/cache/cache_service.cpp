@@ -39,8 +39,16 @@ void CacheService::put(std::string_view ns,
     store_.set(make_key(ns, key), value.dump(), ttl);
 }
 
-void CacheService::invalidate(std::string_view ns, std::string_view key) {
+void CacheService::invalidate_local(std::string_view ns, std::string_view key) {
     store_.del(make_key(ns, key));
+}
+
+void CacheService::invalidate(std::string_view ns, std::string_view key) {
+    invalidate_local(ns, key);
+    invalidations_->publish_invalidation(
+        InvalidationEvent{.scope = std::string(invalidation_scopes::kNamespacedKey),
+                          .key = std::string(ns),
+                          .sub_key = std::string(key)});
 }
 
 double CacheService::hit_ratio() const noexcept {

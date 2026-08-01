@@ -8,6 +8,7 @@
 #include "rtc/http/api_version.hpp"
 #include "rtc/http/guard.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 #include "rtc/utils/env.hpp"
 
 namespace rtc::controllers {
@@ -67,13 +68,14 @@ void DocsController::register_routes(http::App& app) {
         });
     };
 
+    // The canonical, unversioned location: the document describes every version
+    // this build serves, so it is not itself version-scoped.
     CROW_ROUTE(app, "/openapi.json").methods(crow::HTTPMethod::Get)(serve_spec);
 
-    // Also served under the versioned prefix. This one is registered explicitly
-    // rather than relying on the version-rewrite middleware, because a client that
-    // discovers the API through /api/v1 should find the spec there without needing
-    // to know that /openapi.json is unversioned.
-    CROW_ROUTE(app, "/api/v1/openapi.json").methods(crow::HTTPMethod::Get)(serve_spec);
+    // Also served under the API prefixes, so a client that discovers the service
+    // through /api/v1 finds the spec where it expects it rather than having to
+    // know that /openapi.json sits outside the namespace.
+    RTC_API_ROUTE(app, "/openapi.json").methods(crow::HTTPMethod::Get)(serve_spec);
 
     CROW_ROUTE(app, "/docs").methods(crow::HTTPMethod::Get)([enabled]() {
         if (!enabled) {

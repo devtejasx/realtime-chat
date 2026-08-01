@@ -7,12 +7,13 @@
 #include "rtc/http/guard.hpp"
 #include "rtc/http/json_body.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 
 namespace rtc::controllers {
 
 void UserController::register_routes(http::App& app) {
     // GET /api/users/me — the authenticated user's own profile.
-    CROW_ROUTE(app, "/api/users/me")
+    RTC_API_ROUTE(app, "/users/me")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -22,7 +23,7 @@ void UserController::register_routes(http::App& app) {
         });
 
     // PUT /api/users/me — partial profile update.
-    CROW_ROUTE(app, "/api/users/me")
+    RTC_API_ROUTE(app, "/users/me")
         .methods(crow::HTTPMethod::Put)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -33,7 +34,7 @@ void UserController::register_routes(http::App& app) {
         });
 
     // GET /api/users/<id> — another user's public profile (email withheld).
-    CROW_ROUTE(app, "/api/users/<int>")
+    RTC_API_ROUTE(app, "/users/<int>")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 (void) auth_guard_.authenticate(req);  // any authenticated user may view

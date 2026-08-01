@@ -478,6 +478,11 @@ void Application::register_routes() {
     search_controller_->register_routes(*app_);
     admin_controller_->register_routes(*app_);
     docs_controller_->register_routes(*app_);
+
+    // Must stay last. Crow resolves a path by keeping the *lowest* matching rule
+    // index, so the versioned catch-all only wins for requests no concrete route
+    // above claimed. Registering it earlier would shadow the entire API.
+    controllers::ApiFallbackController::register_routes(*app_);
 }
 
 int Application::run() {

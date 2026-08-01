@@ -6,11 +6,12 @@
 #include "rtc/dto/session_dto.hpp"
 #include "rtc/http/guard.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 
 namespace rtc::controllers {
 
 void SessionController::register_routes(http::App& app) {
-    CROW_ROUTE(app, "/api/sessions")
+    RTC_API_ROUTE(app, "/sessions")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -26,7 +27,7 @@ void SessionController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/sessions/<string>")
+    RTC_API_ROUTE(app, "/sessions/<string>")
         .methods(crow::HTTPMethod::Delete)([this](const crow::request& req, const std::string& id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);

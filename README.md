@@ -105,7 +105,7 @@ curl -sX POST localhost:8080/api/v1/auth/register -H 'Content-Type: application/
 | | |
 | --- | --- |
 | **Architecture** | Clean architecture — controllers → services → repositories, with DTOs, models, middlewares and a single composition root |
-| **Testing** | GoogleTest across config, validation, security, every service, realtime managers, and the API, plus opt-in database integration tests |
+| **Testing** | GoogleTest across config, validation, security, every service, realtime managers, and the API, plus opt-in database integration tests. HTTP-level suites drive the real Crow router — one in-process (`ctest -L unit`) and one against a live socket (`ctest -L live`) — asserting prefix parity and that the OpenAPI document matches the DTOs it describes |
 | **Benchmarks** | Google Benchmark for JWT, cache, protocol encoding, event bus, authorization and PostgreSQL |
 | **Load testing** | k6 scenarios for authentication, messaging, WebSocket concurrency and upload/search |
 | **CI/CD** | GitHub Actions — build, test, coverage, clang-format/clang-tidy, CodeQL, secret scanning, GHCR image push, tagged releases |
@@ -142,8 +142,17 @@ WebSocket, event flow, cache, deployment — are in
 ## API
 
 The live reference is **Swagger UI at `/docs`**, backed by the OpenAPI 3.1
-document at `/openapi.json`. Every endpoint below is reachable at both
-`/api/v1/...` and the unversioned `/api/...`.
+document at `/openapi.json`.
+
+Every endpoint below is reachable at both `/api/v1/...` (canonical, and what the
+OpenAPI document publishes) and the unversioned `/api/...` (a permanently
+supported alias for the default version). Both are real registered routes
+bound to the same handler, so they are identical in behaviour — not a redirect
+and not a rewrite. Nothing is deprecated and there is no migration deadline;
+adopting the versioned prefix means adding `/v1` to the base URL and changing
+nothing else. Responses carry `X-API-Version`, and an unsupported version
+returns a machine-readable `unsupported_api_version` error naming the versions
+this build serves. See [docs/API.md](docs/API.md#versioning) for the details.
 
 | Area | Endpoints |
 | --- | --- |

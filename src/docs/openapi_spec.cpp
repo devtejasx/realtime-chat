@@ -133,11 +133,19 @@ constexpr const char* kOpenApiJson = R"OPENAPI({
       },
       "LoginRequest": {
         "type": "object",
-        "required": ["identifier", "password"],
+        "description": "The account is named by exactly one of `identifier`, `username` or `email` — they are accepted interchangeably and resolved against both the username and email columns. `identifier` is the canonical spelling; the other two exist for clients that model the field by what they collected. Supplying none of them is a validation error.",
+        "required": ["password"],
         "properties": {
-          "identifier": { "type": "string", "description": "Username or email." },
+          "identifier": { "type": "string", "description": "Username or email. Preferred." },
+          "username": { "type": "string", "description": "Alternative to `identifier`." },
+          "email": { "type": "string", "format": "email", "description": "Alternative to `identifier`." },
           "password": { "type": "string", "format": "password" }
         },
+        "anyOf": [
+          { "required": ["identifier"] },
+          { "required": ["username"] },
+          { "required": ["email"] }
+        ],
         "examples": [{ "identifier": "ada", "password": "correct-horse-battery" }]
       },
       "TokenPair": {
@@ -177,42 +185,73 @@ constexpr const char* kOpenApiJson = R"OPENAPI({
           "avatar_url": { "type": ["string", "null"], "format": "uri" }
         }
       },
+      "ConversationParticipant": {
+        "type": "object",
+        "required": ["user_id", "role", "joined_at"],
+        "properties": {
+          "user_id": { "type": "integer", "format": "int64" },
+          "role": { "type": "string", "enum": ["member", "owner"],
+                    "description": "Membership role within this conversation, distinct from the account-level RBAC role." },
+          "joined_at": { "type": "string", "format": "date-time" }
+        }
+      },
       "Conversation": {
         "type": "object",
-        "required": ["id", "type", "created_at"],
+        "required": ["id", "type", "created_at", "updated_at", "participants"],
         "properties": {
           "id": { "type": "integer", "format": "int64" },
           "type": { "type": "string", "enum": ["direct", "group"] },
           "name": { "type": ["string", "null"], "description": "Group name; null for direct." },
-          "owner_id": { "type": ["integer", "null"], "format": "int64" },
-          "participant_ids": { "type": "array", "items": { "type": "integer", "format": "int64" } },
+          "owner_id": { "type": ["integer", "null"], "format": "int64",
+                        "description": "Group owner; null for direct conversations." },
+          "participants": {
+            "type": "array",
+            "description": "Full membership records, not bare ids.",
+            "items": { "$ref": "#/components/schemas/ConversationParticipant" }
+          },
           "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" },
           "last_message_at": { "type": ["string", "null"], "format": "date-time" }
         }
       },
       "CreateConversationRequest": {
         "type": "object",
-        "description": "Supply `participant_id` for a direct conversation, or `name` plus `member_ids` for a group.",
+        "description": "`type` selects the shape and is always required. A direct conversation takes exactly one other participant and ignores `name`; a group takes `name` plus its initial members. The caller is always added implicitly and must not be listed in `participant_ids`. Creating a direct conversation is idempotent — an existing one between the same two users is returned rather than duplicated.",
+        "required": ["type", "participant_ids"],
         "properties": {
-          "participant_id": { "type": "integer", "format": "int64" },
-          "name": { "type": "string", "maxLength": 100 },
-          "member_ids": { "type": "array", "items": { "type": "integer", "format": "int64" } }
+          "type": { "type": "string", "enum": ["direct", "group"] },
+          "participant_ids": {
+            "type": "array",
+            "description": "Other participants, excluding the caller. Exactly one entry when type is `direct`.",
+            "items": { "type": "integer", "format": "int64" }
+          },
+          "name": { "type": "string", "maxLength": 100,
+                    "description": "Group name. Ignored when type is `direct`." }
         },
-        "examples": [{ "participant_id": 2 }, { "name": "release-team", "member_ids": [2, 3, 4] }]
+        "examples": [
+          { "type": "direct", "participant_ids": [2] },
+          { "type": "group", "name": "release-team", "participant_ids": [2, 3, 4] }
+        ]
       },
       "Message": {
         "type": "object",
-        "required": ["id", "conversation_id", "sender_id", "content", "type", "created_at"],
+        "required": ["id", "conversation_id", "sender_id", "content", "type", "created_at",
+                     "updated_at", "deleted", "edited"],
         "properties": {
           "id": { "type": "integer", "format": "int64" },
           "conversation_id": { "type": "integer", "format": "int64" },
           "sender_id": { "type": "integer", "format": "int64" },
           "type": { "type": "string", "enum": ["text", "system"] },
-          "content": { "type": "string", "maxLength": 4000 },
+          "content": { "type": "string", "maxLength": 4000,
+                       "description": "Emptied when the message is soft-deleted." },
           "attachment_ids": { "type": "array", "items": { "type": "integer", "format": "int64" } },
           "created_at": { "type": "string", "format": "date-time" },
-          "edited_at": { "type": ["string", "null"], "format": "date-time" },
-          "deleted_at": { "type": ["string", "null"], "format": "date-time" }
+          "updated_at": { "type": "string", "format": "date-time" },
+          "deleted": { "type": "boolean",
+                       "description": "Soft-delete flag. The row is retained so conversation history stays contiguous." },
+          "edited": { "type": "boolean", "description": "True once the content has been changed." },
+          "edited_at": { "type": ["string", "null"], "format": "date-time",
+                         "description": "Null until the first edit." }
         }
       },
       "SendMessageRequest": {
@@ -234,18 +273,20 @@ constexpr const char* kOpenApiJson = R"OPENAPI({
       },
       "Reaction": {
         "type": "object",
+        "required": ["message_id", "user_id", "emoji"],
         "properties": {
           "message_id": { "type": "integer", "format": "int64" },
           "user_id": { "type": "integer", "format": "int64" },
-          "emoji": { "type": "string", "maxLength": 32 },
+          "emoji": { "type": "string", "enum": ["👍", "❤️", "😂", "😮", "😢", "👏", "🔥"] },
           "created_at": { "type": "string", "format": "date-time" }
         }
       },
       "ReactionRequest": {
         "type": "object",
+        "description": "Reactions are restricted to a fixed palette so every client can render them, and anything outside the enum is rejected with a validation error naming `emoji`. Send the literal emoji character, not a shortcode such as `:thumbsup:`.",
         "required": ["emoji"],
-        "properties": { "emoji": { "type": "string", "minLength": 1, "maxLength": 32 } },
-        "examples": [{ "emoji": "thumbsup" }]
+        "properties": { "emoji": { "type": "string", "enum": ["👍", "❤️", "😂", "😮", "😢", "👏", "🔥"] } },
+        "examples": [{ "emoji": "👍" }]
       },
       "Attachment": {
         "type": "object",

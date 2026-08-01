@@ -113,6 +113,7 @@ add_library(rtc_core STATIC
     controllers/search_controller.cpp
     controllers/admin_controller.cpp
     controllers/docs_controller.cpp
+    controllers/api_fallback_controller.cpp
     docs/openapi_spec.cpp
     application.cpp
 )

@@ -10,6 +10,7 @@
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/http/guard.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 
 namespace rtc::controllers {
 namespace {
@@ -56,9 +57,9 @@ namespace {
 }  // namespace
 
 void SearchController::register_routes(http::App& app) {
-    // Reachable as both /api/search/messages and /api/v1/search/messages — the
-    // version prefix is normalised by ApiVersionMiddleware before routing.
-    CROW_ROUTE(app, "/api/search/messages")
+    // Reachable as both /api/search/messages and /api/v1/search/messages: the
+    // macro registers the handler under each prefix.
+    RTC_API_ROUTE(app, "/search/messages")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);

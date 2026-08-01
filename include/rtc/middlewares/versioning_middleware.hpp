@@ -21,42 +21,49 @@ struct ApiVersionRewrite {
     std::string normalised;   // path with the version segment reduced to "/api"
 };
 
-// Reduces "/api/v2/messages" to "/api/messages" and reports the version.
+// Classifies "/api/v2/messages" as version 2 and reports "/api/messages" as its
+// unversioned equivalent.
 //
 // Only a *complete* "v" + digits path segment counts, so "/api/version" and
-// "/api/v1x/foo" are left untouched and routed literally. Paths outside the
-// "/api" namespace (e.g. "/health", "/metrics", "/docs") are never rewritten:
-// operational endpoints are deliberately unversioned.
+// "/api/v1x/foo" are classified as unversioned and routed literally. Paths
+// outside the "/api" namespace (e.g. "/health", "/metrics", "/docs") never carry
+// a version: operational endpoints are deliberately unversioned.
+//
+// `normalised` is informational — it names the legacy path a versioned request
+// corresponds to, which the version catch-all uses when explaining a 404. It is
+// no longer fed back into the router; see below.
 [[nodiscard]] ApiVersionRewrite parse_versioned_path(std::string_view path);
 
 // Global middleware implementing the API-versioning policy in rtc/http/api_version.hpp.
 //
 // Responsibilities:
 //
-//   1. Normalise "/api/v<n>/..." to "/api/..." before routing, which is what
-//      lets one route table serve every version with zero duplication.
+//   1. Determine which version served the request, from an explicit
+//      "/api/v<n>/..." prefix or by falling back to the default for a legacy
+//      unversioned call.
 //   2. Reject an unknown version with a 404 and a machine-readable error naming
 //      the versions this build supports — far friendlier than a bare route miss.
 //   3. Stamp X-API-Version on every response so clients can assert the contract
 //      they were served, including on legacy unversioned calls.
 //
-// Placement: this middleware sits *last* in the App's middleware list, which
-// means it is the innermost before_handle (still ahead of the router, so the
-// rewrite takes effect) and the first after_handle to run. Two properties fall
-// out of that, both deliberate:
+// What this middleware explicitly does *not* do is rewrite the request path.
+// An earlier revision normalised "/api/v1/x" to "/api/x" here so a single
+// unversioned route table could serve both prefixes. That never worked: Crow
+// resolves the route in handle_url() -> handle_initial(), before any middleware
+// runs, so every versioned path 404'd out of the connection layer with the
+// rewrite still pending. Both prefixes are now registered as real routes via
+// RTC_API_ROUTE (rtc/http/route_registrar.hpp), which is the only place the
+// router will actually look.
 //
-//   - When an unsupported version is rejected, Crow still unwinds the *outer*
-//     middlewares, so the 404 keeps its CORS/security headers, request metrics
-//     and access-log line instead of silently bypassing them.
-//   - after_handle restores the original path before the logging middleware
-//     unwinds, so both access-log lines show the URL the client actually
-//     requested rather than the internally rewritten one.
+// Placement: this middleware sits *last* in the App's middleware list, so it is
+// the innermost before_handle and the first after_handle to run. When an
+// unsupported version is rejected, Crow still unwinds the *outer* middlewares,
+// so the 404 keeps its CORS/security headers, request metrics and access-log
+// line instead of silently bypassing them.
 struct ApiVersionMiddleware {
     struct context {
         int version = http::kDefaultApiVersion;
         bool explicit_prefix = false;  // false => legacy unversioned call
-        std::string original_path;
-        bool rewritten = false;
     };
 
     void before_handle(crow::request& req, crow::response& res, context& ctx);

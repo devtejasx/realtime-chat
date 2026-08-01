@@ -8,6 +8,7 @@
 #include "rtc/http/guard.hpp"
 #include "rtc/http/json_body.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 
 namespace rtc::controllers {
 namespace {
@@ -22,7 +23,7 @@ namespace {
 }  // namespace
 
 void ConversationController::register_routes(http::App& app) {
-    CROW_ROUTE(app, "/api/conversations")
+    RTC_API_ROUTE(app, "/conversations")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -33,7 +34,7 @@ void ConversationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/conversations")
+    RTC_API_ROUTE(app, "/conversations")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -47,7 +48,7 @@ void ConversationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/conversations/<int>")
+    RTC_API_ROUTE(app, "/conversations/<int>")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -56,7 +57,7 @@ void ConversationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/conversations/<int>")
+    RTC_API_ROUTE(app, "/conversations/<int>")
         .methods(crow::HTTPMethod::Delete)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -65,7 +66,7 @@ void ConversationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/conversations/<int>/name")
+    RTC_API_ROUTE(app, "/conversations/<int>/name")
         .methods(crow::HTTPMethod::Patch)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -75,7 +76,7 @@ void ConversationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/conversations/<int>/members")
+    RTC_API_ROUTE(app, "/conversations/<int>/members")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -87,7 +88,7 @@ void ConversationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/conversations/<int>/members/<int>")
+    RTC_API_ROUTE(app, "/conversations/<int>/members/<int>")
         .methods(crow::HTTPMethod::Delete)(
             [this](const crow::request& req, std::int64_t id, std::int64_t user_id) {
                 return http::run_guarded([&] {
@@ -97,7 +98,7 @@ void ConversationController::register_routes(http::App& app) {
                 });
             });
 
-    CROW_ROUTE(app, "/api/conversations/<int>/leave")
+    RTC_API_ROUTE(app, "/conversations/<int>/leave")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);

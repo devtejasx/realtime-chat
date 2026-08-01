@@ -26,10 +26,12 @@ namespace rtc::http {
 //                             brackets handler work only.
 //   4. LoggingMiddleware    — access log with a request id, correlated with the
 //                             trace id captured above.
-//   5. ApiVersionMiddleware — innermost: rewrites "/api/v<n>/..." to "/api/..."
-//                             immediately before the router matches, and is the
-//                             first to unwind so the outer layers still observe
-//                             the client-visible path and status.
+//   5. ApiVersionMiddleware — innermost: determines which API version served the
+//                             request, rejects one this build does not support,
+//                             and stamps X-API-Version. It does not touch the
+//                             path — routing already happened by the time any
+//                             middleware runs, so both prefixes are registered
+//                             as real routes (rtc/http/route_registrar.hpp).
 //
 // Adding a middleware here changes no controller: handlers are written against
 // `App&` and are agnostic to the stack's contents.

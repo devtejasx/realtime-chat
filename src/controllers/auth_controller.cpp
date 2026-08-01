@@ -12,6 +12,7 @@
 #include "rtc/http/guard.hpp"
 #include "rtc/http/json_body.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 
 namespace rtc::controllers {
 namespace {
@@ -52,7 +53,7 @@ void AuthController::register_routes(http::App& app) {
         return json;
     };
 
-    CROW_ROUTE(app, "/api/auth/register")
+    RTC_API_ROUTE(app, "/auth/register")
         .methods(crow::HTTPMethod::Post)([this, with_session](const crow::request& req) {
             return http::run_guarded([&] {
                 auto request = dto::RegisterRequest::from_json(http::parse_json_body(req));
@@ -68,7 +69,7 @@ void AuthController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/auth/login")
+    RTC_API_ROUTE(app, "/auth/login")
         .methods(crow::HTTPMethod::Post)([this, with_session](const crow::request& req) {
             return http::run_guarded([&] {
                 auto request = dto::LoginRequest::from_json(http::parse_json_body(req));
@@ -89,7 +90,7 @@ void AuthController::register_routes(http::App& app) {
 
     // Rotate tokens using a refresh token + session id. Public (the refresh
     // token is the credential).
-    CROW_ROUTE(app, "/api/auth/refresh")
+    RTC_API_ROUTE(app, "/auth/refresh")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto body = http::parse_json_body(req);
@@ -107,7 +108,7 @@ void AuthController::register_routes(http::App& app) {
         });
 
     // Revoke the current session (client passes its session_id).
-    CROW_ROUTE(app, "/api/auth/logout")
+    RTC_API_ROUTE(app, "/auth/logout")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 // authenticate_token_only: a suspended account must still be able
@@ -131,7 +132,7 @@ void AuthController::register_routes(http::App& app) {
         });
 
     // Revoke every session for the user (logout from all devices).
-    CROW_ROUTE(app, "/api/auth/logout-all")
+    RTC_API_ROUTE(app, "/auth/logout-all")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate_token_only(req);
@@ -149,16 +150,15 @@ void AuthController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/auth/me")
-        .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
-            return http::run_guarded([&] {
-                // Readable while suspended, so a client can explain *why* the
-                // rest of the API is refusing it.
-                const auto claims = auth_guard_.authenticate_token_only(req);
-                const auto user = user_service_.get_by_id(claims.user_id);
-                return http::json_response(200, dto::UserResponse::from(user).to_json());
-            });
+    RTC_API_ROUTE(app, "/auth/me").methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
+        return http::run_guarded([&] {
+            // Readable while suspended, so a client can explain *why* the
+            // rest of the API is refusing it.
+            const auto claims = auth_guard_.authenticate_token_only(req);
+            const auto user = user_service_.get_by_id(claims.user_id);
+            return http::json_response(200, dto::UserResponse::from(user).to_json());
         });
+    });
 }
 
 }  // namespace rtc::controllers

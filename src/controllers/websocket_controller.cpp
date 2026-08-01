@@ -62,12 +62,15 @@ bool WebSocketController::authenticate(const crow::request& req, void** userdata
 }
 
 void WebSocketController::register_routes(http::App& app) {
-    // Registered at both "/ws" and "/api/v1/ws".
+    // Registered at both "/ws" and "/api/v1/ws", for the same reason the REST
+    // surface uses RTC_API_ROUTE: a versioned path has to be a real route,
+    // because Crow matches before any middleware could adjust it. WebSocket
+    // upgrades additionally bypass the global middleware chain entirely. Both
+    // rules share one handler set via configure_route, so there is a single
+    // implementation and no drift.
     //
-    // WebSocket upgrades bypass the global middleware chain in Crow, so
-    // ApiVersionMiddleware's path rewrite never runs for them — the versioned
-    // path has to be a real route. Both share one handler set via
-    // configure_route, so there is a single implementation and no drift.
+    // Not RTC_API_ROUTE: upgrades go through CROW_WEBSOCKET_ROUTE, which yields
+    // a WebSocketRule rather than the TaggedRule that macro composes.
     configure_route(CROW_WEBSOCKET_ROUTE(app, "/ws"));
     configure_route(CROW_WEBSOCKET_ROUTE(app, "/api/v1/ws"));
 }

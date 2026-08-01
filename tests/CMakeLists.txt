@@ -47,6 +47,11 @@ add_executable(rtc_tests
     audit_service_test.cpp
     search_service_test.cpp
     openapi_spec_test.cpp
+    # HTTP-level contract coverage. These drive requests through the real Crow
+    # router and middleware stack (see api_http_integration_test.cpp for why a
+    # unit test of the path parser was not enough).
+    api_http_integration_test.cpp
+    openapi_contract_test.cpp
 )
 
 target_include_directories(rtc_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -63,3 +68,39 @@ gtest_discover_tests(rtc_tests
     PROPERTIES
         LABELS "unit"
     DISCOVERY_TIMEOUT 30)
+
+# ---------------------------------------------------------------------------
+# Live HTTP suite.
+#
+# Kept in its own executable rather than folded into rtc_tests, for two reasons:
+#
+#   1. These tests bind a real TCP port and start the server. That is a
+#      materially different category from the in-process suite — slower, and
+#      dependent on the machine's networking — so it earns its own CTest label
+#      and can be excluded with `ctest -LE live`.
+#   2. Linking a listening server into the main unit-test binary causes some
+#      endpoint-protection policies (Windows Smart App Control / WDAC among
+#      them) to block the freshly built executable outright, which takes the
+#      *entire* suite offline on a developer machine rather than just the
+#      network-dependent part of it.
+#
+# It covers what the in-process suite structurally cannot: Crow runs the global
+# middleware chain from http_connection, so only a real connection exercises
+# ApiVersionMiddleware.
+# ---------------------------------------------------------------------------
+add_executable(rtc_http_tests http_server_live_test.cpp)
+
+target_include_directories(rtc_http_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+target_link_libraries(rtc_http_tests
+    PRIVATE
+        rtc_core
+        asio
+        GTest::gtest
+        GTest::gtest_main
+)
+
+gtest_discover_tests(rtc_http_tests
+    PROPERTIES
+        LABELS "live"
+    DISCOVERY_TIMEOUT 60)

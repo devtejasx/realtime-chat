@@ -4,6 +4,76 @@ Base URL (local): `http://localhost:8080`
 
 All request and response bodies are JSON (`Content-Type: application/json`).
 
+## Versioning
+
+Every endpoint in this document is served at **two** paths:
+
+| Prefix | Status | Use it when |
+| --- | --- | --- |
+| `/api/v1/...` | Canonical. What the OpenAPI document publishes. | Always, for new code. |
+| `/api/...` | Permanently supported alias for the current default version (v1). | Existing clients. No migration deadline. |
+
+Both are real registered routes serving the same handler, so they are identical
+in behaviour, status codes and payloads — not a redirect, and not a rewrite.
+Picking one is a stylistic choice, not a functional one:
+
+```bash
+curl -X POST localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' -d '{"identifier":"ada","password":"…"}'
+curl -X POST localhost:8080/api/auth/login    -H 'Content-Type: application/json' -d '{"identifier":"ada","password":"…"}'
+```
+
+**Nothing is deprecated.** The unversioned prefix is not scheduled for removal;
+it is pinned to the default version and will keep answering as long as that
+version is served. Migrating is a matter of adding `/v1` to your base URL, with
+no payload or semantic changes — but there is no requirement to do so.
+
+### Which version answered
+
+Every response carries `X-API-Version`, including responses to unversioned
+calls:
+
+```http
+X-API-Version: v1
+```
+
+### Unsupported versions
+
+Requesting a version this build does not serve fails closed rather than falling
+through to a generic route miss:
+
+```console
+$ curl -i localhost:8080/api/v9/auth/login
+HTTP/1.1 404 Not Found
+X-API-Version: v1
+
+{"error":{"code":"unsupported_api_version","message":"Unsupported API version: v9","details":"supported=v1"}}
+```
+
+`X-API-Version` names the version that *answered*, so it reports the current
+version rather than echoing the one that was refused.
+
+A path under a supported version that does not exist returns the ordinary
+`not_found` envelope instead:
+
+```console
+$ curl -i localhost:8080/api/v1/nope
+HTTP/1.1 404 Not Found
+
+{"error":{"code":"not_found","message":"No such endpoint: /api/v1/nope","details":"supported=v1"}}
+```
+
+### Operational endpoints are unversioned
+
+`/health`, `/health/live`, `/health/ready`, `/health/startup`, `/metrics` and
+`/docs` sit outside the `/api` namespace deliberately — a liveness probe should
+not have to track API versions. The OpenAPI document is served at
+`/openapi.json` and, for discoverability, at `/api/openapi.json` and
+`/api/v1/openapi.json`.
+
+The WebSocket endpoint follows the same rule as the REST surface and is
+available at both `/ws` and `/api/v1/ws`; its own message protocol is versioned
+separately (see [WebSocketProtocol.md](WebSocketProtocol.md)).
+
 ## Conventions
 
 ### Success

@@ -10,6 +10,7 @@
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/http/guard.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 
 namespace rtc::controllers {
 namespace {
@@ -35,7 +36,7 @@ namespace {
 }  // namespace
 
 void AttachmentController::register_routes(http::App& app) {
-    CROW_ROUTE(app, "/api/attachments")
+    RTC_API_ROUTE(app, "/attachments")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -79,19 +80,19 @@ void AttachmentController::register_routes(http::App& app) {
         });
     };
 
-    CROW_ROUTE(app, "/api/attachments/<int>")
+    RTC_API_ROUTE(app, "/attachments/<int>")
         .methods(crow::HTTPMethod::Get)(
             [download_handler](const crow::request& req, std::int64_t id) {
                 return download_handler(req, id, /*thumbnail=*/false);
             });
 
-    CROW_ROUTE(app, "/api/attachments/<int>/thumbnail")
+    RTC_API_ROUTE(app, "/attachments/<int>/thumbnail")
         .methods(crow::HTTPMethod::Get)(
             [download_handler](const crow::request& req, std::int64_t id) {
                 return download_handler(req, id, /*thumbnail=*/true);
             });
 
-    CROW_ROUTE(app, "/api/attachments/<int>")
+    RTC_API_ROUTE(app, "/attachments/<int>")
         .methods(crow::HTTPMethod::Delete)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);

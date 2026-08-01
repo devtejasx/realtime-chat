@@ -8,6 +8,7 @@
 #include "rtc/cache/presence_cache.hpp"
 #include "rtc/config/config.hpp"
 #include "rtc/controllers/admin_controller.hpp"
+#include "rtc/controllers/api_fallback_controller.hpp"
 #include "rtc/controllers/attachment_controller.hpp"
 #include "rtc/controllers/auth_controller.hpp"
 #include "rtc/controllers/conversation_controller.hpp"

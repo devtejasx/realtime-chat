@@ -8,11 +8,12 @@
 #include "rtc/dto/pagination.hpp"
 #include "rtc/http/guard.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 
 namespace rtc::controllers {
 
 void NotificationController::register_routes(http::App& app) {
-    CROW_ROUTE(app, "/api/notifications")
+    RTC_API_ROUTE(app, "/notifications")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -32,7 +33,7 @@ void NotificationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/notifications/<int>/read")
+    RTC_API_ROUTE(app, "/notifications/<int>/read")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -41,7 +42,7 @@ void NotificationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/notifications/read-all")
+    RTC_API_ROUTE(app, "/notifications/read-all")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
@@ -50,7 +51,7 @@ void NotificationController::register_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/notifications/<int>")
+    RTC_API_ROUTE(app, "/notifications/<int>")
         .methods(crow::HTTPMethod::Delete)([this](const crow::request& req, std::int64_t id) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);

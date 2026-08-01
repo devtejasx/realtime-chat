@@ -58,10 +58,8 @@ ApiVersionRewrite parse_versioned_path(std::string_view path) {
 }
 
 void ApiVersionMiddleware::before_handle(crow::request& req, crow::response& res, context& ctx) {
-    ctx.original_path = req.url;
-
-    const auto rewrite = parse_versioned_path(req.url);
-    if (!rewrite.has_prefix) {
+    const auto parsed = parse_versioned_path(req.url);
+    if (!parsed.has_prefix) {
         // Legacy unversioned call (or a non-/api path): serve it as the default
         // version. This is the backward-compatibility guarantee.
         ctx.version = http::kDefaultApiVersion;
@@ -69,38 +67,49 @@ void ApiVersionMiddleware::before_handle(crow::request& req, crow::response& res
         return;
     }
 
-    ctx.version = rewrite.version;
     ctx.explicit_prefix = true;
 
-    if (!http::is_supported_api_version(rewrite.version)) {
-        // Fail closed with a helpful, machine-readable payload rather than
-        // letting the request fall through to a generic route miss.
+    if (!http::is_supported_api_version(parsed.version)) {
+        // Report the version that answered, not the one that was asked for.
+        // after_handle stamps X-API-Version from ctx.version, and echoing the
+        // unsupported number there would tell the client the server speaks a
+        // contract it just refused.
+        ctx.version = http::kCurrentApiVersion;
+
+        // Fail closed with a helpful, machine-readable payload rather than a bare
+        // route miss.
+        //
+        // Reaching this point at all depends on the version catch-all registered
+        // by the composition root: Crow resolves the route before any middleware
+        // runs, so without a rule matching "/api/v<n>/<path>" an unknown version
+        // would 404 out of the connection layer and never reach this check.
         res.code = errors::http_status_for(errors::ErrorType::kNotFound);
         res.set_header("Content-Type", "application/json");
         res.set_header(std::string(http::kApiVersionHeader),
                        http::api_version_label(http::kCurrentApiVersion));
         res.body = errors::make_error_body(
                        "unsupported_api_version",
-                       "Unsupported API version: " + http::api_version_label(rewrite.version),
+                       "Unsupported API version: " + http::api_version_label(parsed.version),
                        "supported=" + http::supported_api_versions_label())
                        .dump();
         res.end();
         return;
     }
 
-    // Crow's router matches on req.url only, so rewriting it here is sufficient
-    // to make the versioned path resolve to the unversioned route registration.
-    req.url = rewrite.normalised;
-    ctx.rewritten = true;
+    ctx.version = parsed.version;
+
+    // Deliberately no path rewriting here. Crow's router has already matched by
+    // the time before_handle runs (crow/http_connection.h calls handle_initial()
+    // from handle_url()), so mutating req.url could not influence routing even in
+    // principle — it would only desynchronise the URL the outer access-log and
+    // tracing middlewares report. Both prefixes are real registered routes; see
+    // rtc/http/route_registrar.hpp.
 }
 
-void ApiVersionMiddleware::after_handle(crow::request& req, crow::response& res, context& ctx) {
+void ApiVersionMiddleware::after_handle(crow::request&, crow::response& res, context& ctx) {
+    // Stamped on every response, versioned or not, so a caller can always tell
+    // which contract served it.
     res.set_header(std::string(http::kApiVersionHeader), http::api_version_label(ctx.version));
-    if (ctx.rewritten) {
-        // Routing is done; hand the client-visible path back so the outer
-        // middlewares (access log) report what was actually requested.
-        req.url = ctx.original_path;
-    }
 }
 
 }  // namespace rtc::middlewares

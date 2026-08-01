@@ -8,12 +8,17 @@ namespace rtc::http {
 
 // API versioning policy for the REST surface.
 //
-// Design: every route is *authored exactly once* under the unversioned "/api"
-// prefix, and becomes reachable through a version prefix ("/api/v1/...")
-// because middlewares::ApiVersionMiddleware normalises the request path before
-// Crow's router sees it. Adding "/api/v2" therefore costs one entry in
-// kSupportedApiVersions plus only the handlers whose *behaviour* actually
-// differs — never a duplicated route table.
+// Design: every route is *authored exactly once*, via RTC_API_ROUTE
+// (rtc/http/route_registrar.hpp), which registers it under both the unversioned
+// "/api" prefix and the canonical "/api/v1" one. The duplication lives in Crow's
+// routing trie rather than in the source, so there is no second copy of a path
+// to drift. Adding "/api/v2" costs one entry in kSupportedApiVersions, one more
+// prefix in the macro, and only the handlers whose *behaviour* actually differs
+// — never a hand-maintained duplicate route table.
+//
+// Registration time is the only place this can work: Crow resolves the route in
+// handle_url() before any middleware runs, so a middleware that rewrote the path
+// could never influence matching.
 //
 // Backward compatibility: the bare "/api" prefix stays permanently supported
 // and is treated as an alias for kDefaultApiVersion, so clients written against

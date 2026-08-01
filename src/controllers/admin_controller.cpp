@@ -14,6 +14,7 @@
 #include "rtc/http/guard.hpp"
 #include "rtc/http/json_body.hpp"
 #include "rtc/http/response.hpp"
+#include "rtc/http/route_registrar.hpp"
 #include "rtc/realtime/events.hpp"
 #include "rtc/utils/time.hpp"
 
@@ -121,7 +122,7 @@ void AdminController::register_routes(http::App& app) {
 }
 
 void AdminController::register_user_routes(http::App& app) {
-    CROW_ROUTE(app, "/api/admin/users")
+    RTC_API_ROUTE(app, "/admin/users")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kManageUsers);
@@ -150,7 +151,7 @@ void AdminController::register_user_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/users/<int>")
+    RTC_API_ROUTE(app, "/admin/users/<int>")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req, std::int64_t user_id) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kManageUsers);
@@ -163,7 +164,7 @@ void AdminController::register_user_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/users/<int>/role")
+    RTC_API_ROUTE(app, "/admin/users/<int>/role")
         .methods(crow::HTTPMethod::Put)([this](const crow::request& req, std::int64_t user_id) {
             return http::run_guarded([&] {
                 const std::int64_t actor_id = authorize(req, Permission::kManageRoles);
@@ -208,7 +209,7 @@ void AdminController::register_user_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/users/<int>/ban")
+    RTC_API_ROUTE(app, "/admin/users/<int>/ban")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req, std::int64_t user_id) {
             return http::run_guarded([&] {
                 const std::int64_t actor_id = authorize(req, Permission::kBanUsers);
@@ -252,7 +253,7 @@ void AdminController::register_user_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/users/<int>/unban")
+    RTC_API_ROUTE(app, "/admin/users/<int>/unban")
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req, std::int64_t user_id) {
             return http::run_guarded([&] {
                 const std::int64_t actor_id = authorize(req, Permission::kBanUsers);
@@ -272,7 +273,7 @@ void AdminController::register_user_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/users/<int>/sessions")
+    RTC_API_ROUTE(app, "/admin/users/<int>/sessions")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req, std::int64_t user_id) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewSessions);
@@ -292,7 +293,7 @@ void AdminController::register_user_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/users/<int>/sessions")
+    RTC_API_ROUTE(app, "/admin/users/<int>/sessions")
         .methods(crow::HTTPMethod::Delete)([this](const crow::request& req, std::int64_t user_id) {
             return http::run_guarded([&] {
                 const std::int64_t actor_id = authorize(req, Permission::kRevokeSessions);
@@ -314,7 +315,7 @@ void AdminController::register_user_routes(http::App& app) {
 }
 
 void AdminController::register_group_routes(http::App& app) {
-    CROW_ROUTE(app, "/api/admin/conversations/<int>")
+    RTC_API_ROUTE(app, "/admin/conversations/<int>")
         .methods(crow::HTTPMethod::Get)(
             [this](const crow::request& req, std::int64_t conversation_id) {
                 return http::run_guarded([&] {
@@ -349,7 +350,7 @@ void AdminController::register_group_routes(http::App& app) {
                 });
             });
 
-    CROW_ROUTE(app, "/api/admin/conversations/<int>")
+    RTC_API_ROUTE(app, "/admin/conversations/<int>")
         .methods(crow::HTTPMethod::Delete)([this](const crow::request& req,
                                                   std::int64_t conversation_id) {
             return http::run_guarded([&] {
@@ -386,7 +387,7 @@ void AdminController::register_group_routes(http::App& app) {
 }
 
 void AdminController::register_operations_routes(http::App& app) {
-    CROW_ROUTE(app, "/api/admin/websockets")
+    RTC_API_ROUTE(app, "/admin/websockets")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewSystemMetrics);
@@ -418,7 +419,7 @@ void AdminController::register_operations_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/cache")
+    RTC_API_ROUTE(app, "/admin/cache")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewSystemMetrics);
@@ -431,7 +432,7 @@ void AdminController::register_operations_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/jobs")
+    RTC_API_ROUTE(app, "/admin/jobs")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewSystemMetrics);
@@ -453,7 +454,7 @@ void AdminController::register_operations_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/system")
+    RTC_API_ROUTE(app, "/admin/system")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewSystemMetrics);
@@ -476,7 +477,7 @@ void AdminController::register_operations_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/audit-logs")
+    RTC_API_ROUTE(app, "/admin/audit-logs")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewAuditLogs);
@@ -495,7 +496,7 @@ void AdminController::register_operations_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/audit-logs/summary")
+    RTC_API_ROUTE(app, "/admin/audit-logs/summary")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewAuditLogs);
@@ -503,7 +504,7 @@ void AdminController::register_operations_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/features")
+    RTC_API_ROUTE(app, "/admin/features")
         .methods(crow::HTTPMethod::Get)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 (void) authorize(req, Permission::kViewSystemMetrics);
@@ -512,7 +513,7 @@ void AdminController::register_operations_routes(http::App& app) {
             });
         });
 
-    CROW_ROUTE(app, "/api/admin/features/<string>")
+    RTC_API_ROUTE(app, "/admin/features/<string>")
         .methods(crow::HTTPMethod::Put)([this](const crow::request& req, const std::string& name) {
             return http::run_guarded([&] {
                 const std::int64_t actor_id = authorize(req, Permission::kManageFeatureFlags);

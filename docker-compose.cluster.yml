@@ -1,0 +1,127 @@
+# Multi-instance stack: PostgreSQL + Redis + two chat servers behind Nginx.
+#
+#   docker compose -f docker-compose.cluster.yml up --build
+#
+# What this is for
+# ----------------
+# The single-server compose files cannot show whether horizontal scaling works.
+# With one instance, every WebSocket connection lands on the same process and
+# local delivery reaches everyone — so a completely broken cluster bus looks
+# identical to a working one. Two instances is the smallest deployment where the
+# difference is observable, which is why this file exists separately rather than
+# as a `--scale` flag on the dev stack.
+#
+# Each server is reachable directly (8081, 8082) as well as through the load
+# balancer (8080). Talking to them directly is the point: it lets you connect a
+# client to A, send from B, and prove the message crossed instances rather than
+# hoping the balancer happened to split the traffic.
+#
+# See docs/Deployment.md ("Verifying multi-instance delivery") for the walk
+# through.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rtc-cluster-postgres
+    environment:
+      POSTGRES_DB: realtime_chat
+      POSTGRES_USER: chat
+      POSTGRES_PASSWORD: chat_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_cluster_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat -d realtime_chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: rtc-cluster-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- chat server A ------------------------------------------------------
+  #
+  # Both servers share one database and one Redis. The only thing that differs
+  # is RTC_NODE_ID, which the cluster bus stamps on every message it publishes
+  # so receivers can drop their own broadcasts. Leaving it unset would still
+  # work — make_node_id() falls back to a random token — but fixed names make
+  # the logs legible when you are trying to see which instance did what.
+  server-a:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prod
+    container_name: rtc-cluster-server-a
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment: &server_env
+      CHAT_PORT: 8080
+      DB_HOST: postgres
+      DB_NAME: realtime_chat
+      DB_USER: chat
+      DB_PASSWORD: chat_password
+      REDIS_ENABLED: "true"
+      REDIS_URL: tcp://redis:6379
+      # The switch this whole file exists to exercise. Without it the bus is the
+      # no-op implementation and delivery is silently partial across replicas.
+      CLUSTER_ENABLED: "true"
+      JWT_SECRET: dev-insecure-secret-change-me-in-production
+      APP_ENV: development
+      LOG_LEVEL: debug
+      LOG_FORMAT: text
+      RTC_NODE_ID: node-a
+    ports:
+      - "8081:8080"
+    volumes:
+      - uploads_cluster_data:/data
+    restart: unless-stopped
+
+  # --- chat server B ------------------------------------------------------
+  server-b:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prod
+    container_name: rtc-cluster-server-b
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      <<: *server_env
+      RTC_NODE_ID: node-b
+    ports:
+      - "8082:8080"
+    # Uploads are deliberately shared. Local file storage is per-container, so
+    # without a shared volume an attachment uploaded through A would 404 when
+    # requested through B — a failure mode that only appears once there is more
+    # than one instance, and one a load balancer would surface intermittently.
+    # In a real deployment this is object storage (the IFileStorage seam), not a
+    # shared mount.
+    volumes:
+      - uploads_cluster_data:/data
+    restart: unless-stopped
+
+  # --- load balancer ------------------------------------------------------
+  balancer:
+    image: nginx:1.27-alpine
+    container_name: rtc-cluster-balancer
+    depends_on:
+      - server-a
+      - server-b
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx/cluster.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+volumes:
+  postgres_cluster_data:
+  uploads_cluster_data:

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <pqxx/transaction>
+#include <stdexcept>
 #include <utility>
 
 #include "rtc/cache/in_memory_cache_store.hpp"
@@ -181,8 +182,14 @@ void Application::wire_cluster_bus() {
     }
 
     // Registers the inbound handlers; must happen before start().
+    //
+    // Only the collaborators that already exist at this point are wired here.
+    // Cache invalidation is deliberately *not* — AuthorizationService is
+    // constructed further down wire_object_graph(), and reaching for it here
+    // dereferenced a null unique_ptr and segfaulted on startup with
+    // CLUSTER_ENABLED=true. wire_cluster_invalidation() therefore runs at the end
+    // of the graph, once every participant is built.
     connection_manager_->set_cluster_bus(*cluster_bus_);
-    wire_cluster_invalidation();
     wire_cluster_presence();
 }
 
@@ -193,6 +200,22 @@ void Application::wire_cluster_presence() {
 }
 
 void Application::wire_cluster_invalidation() {
+    // Ordering guard. This function participates in the object graph and so
+    // depends on where it is called from — a dependency the compiler cannot
+    // check, and one that already went wrong once: an earlier revision invoked
+    // it before AuthorizationService existed and the process died with SIGSEGV
+    // immediately after logging "Cluster fan-out enabled", which reads like a
+    // Redis problem and is not.
+    //
+    // Failing here names the actual fault instead. Refusing to start is right:
+    // continuing would silently give up fleet-wide ban propagation, and a
+    // security control that quietly stops working is worse than a crash.
+    if (authorization_service_ == nullptr || cache_service_ == nullptr) {
+        throw std::logic_error(
+            "wire_cluster_invalidation() called before AuthorizationService/CacheService were "
+            "constructed; it must run after the service graph is complete");
+    }
+
     invalidation_publisher_ =
         std::make_unique<realtime::ClusterInvalidationPublisher>(*cluster_bus_);
 
@@ -359,6 +382,12 @@ void Application::wire_object_graph() {
         std::make_unique<services::AuditService>(*audit_log_repository_, *user_repository_);
     search_service_ =
         std::make_unique<services::SearchService>(*message_search_repository_, *features_);
+
+    // Safe only here: both participants now exist. Guarded on the bus being
+    // distributed so a single instance keeps its null publishers.
+    if (cluster_bus_ != nullptr && cluster_bus_->is_distributed()) {
+        wire_cluster_invalidation();
+    }
 
     auth_guard_ = std::make_unique<middlewares::AuthMiddleware>(*token_service_);
     // Enables account-suspension enforcement on every authenticated endpoint, so a

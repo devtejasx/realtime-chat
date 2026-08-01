@@ -11,6 +11,7 @@
 #include "rtc/database/migration_runner.hpp"
 #include "rtc/events/event_types.hpp"
 #include "rtc/logging/logger.hpp"
+#include "rtc/realtime/cluster_presence.hpp"
 #include "rtc/realtime/redis_cluster_bus.hpp"
 #include "rtc/repositories/pg_attachment_repository.hpp"
 #include "rtc/repositories/pg_audit_log_repository.hpp"
@@ -182,6 +183,13 @@ void Application::wire_cluster_bus() {
     // Registers the inbound handlers; must happen before start().
     connection_manager_->set_cluster_bus(*cluster_bus_);
     wire_cluster_invalidation();
+    wire_cluster_presence();
+}
+
+void Application::wire_cluster_presence() {
+    presence_publisher_ = std::make_unique<realtime::ClusterPresencePublisher>(*cluster_bus_);
+    presence_service_->set_publisher(*presence_publisher_);
+    realtime::subscribe_to_presence(*cluster_bus_, *presence_service_);
 }
 
 void Application::wire_cluster_invalidation() {

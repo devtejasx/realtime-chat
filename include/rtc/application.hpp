@@ -38,6 +38,7 @@
 #include "rtc/ratelimit/rate_limiter.hpp"
 #include "rtc/realtime/cluster_bus.hpp"
 #include "rtc/realtime/cluster_invalidation.hpp"
+#include "rtc/realtime/cluster_presence.hpp"
 #include "rtc/realtime/connection_manager.hpp"
 #include "rtc/realtime/event_dispatcher.hpp"
 #include "rtc/realtime/heartbeat_monitor.hpp"
@@ -118,6 +119,7 @@ class Application {
     void wire_observability();         // tracer + feature flags (before anything traced)
     void wire_cluster_bus();           // cross-instance fan-out
     void wire_cluster_invalidation();  // cross-instance cache coherence
+    void wire_cluster_presence();      // cross-instance online/offline view
     void wire_event_subscribers();     // domain event bus consumers
 
     config::Config config_;
@@ -173,6 +175,7 @@ class Application {
     // a non-owning pointer to it.
     std::unique_ptr<realtime::IClusterBus> cluster_bus_;
     std::unique_ptr<realtime::ClusterInvalidationPublisher> invalidation_publisher_;
+    std::unique_ptr<realtime::ClusterPresencePublisher> presence_publisher_;
 
     // Realtime infrastructure (ConnectionManager is the IEventBroadcaster).
     std::unique_ptr<realtime::ConnectionManager> connection_manager_;

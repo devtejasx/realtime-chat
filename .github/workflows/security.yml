@@ -19,6 +19,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Reviews dependency manifest changes on incoming pull requests.
+  #
+  # Two things limit what this can do for this repository, both deliberate to
+  # record rather than discover again later:
+  #
+  #   1. It needs GitHub's dependency graph, which is a repository setting. When
+  #      that is off the action does not "find nothing" — it hard-errors with
+  #      "Dependency review is not supported on this repository", failing every
+  #      pull request for a reason unrelated to the code under review. The probe
+  #      below turns that into a skip with a notice, so the job reports honestly
+  #      instead of blocking merges on an unconfigured feature. Enable the
+  #      setting and it starts running again with no workflow change.
+  #
+  #   2. Even enabled, the dependency graph only parses package manifests
+  #      (package.json, go.mod, Cargo.toml, requirements.txt and friends). This
+  #      project has none: every third-party library is pinned by git tag through
+  #      FetchContent in cmake/dependencies.cmake, which is not an ecosystem the
+  #      graph understands. Treat a passing run here as "nothing in scope", not
+  #      as supply-chain assurance — for that, the pinned tags in
+  #      cmake/dependencies.cmake are the thing to review.
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-24.04
@@ -27,6 +47,20 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check whether the dependency graph is available
+        id: graph
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" --silent >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Dependency review skipped::The dependency graph is not enabled for this repository, so there is nothing for the review to read. Enable it under Settings -> Security -> Dependency graph to activate this check."
+          fi
+
       - uses: actions/dependency-review-action@v4
+        if: steps.graph.outputs.available == 'true'
         with:
           fail-on-severity: high

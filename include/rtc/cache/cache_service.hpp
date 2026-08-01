@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "rtc/cache/cache_store.hpp"
+#include "rtc/cache/invalidation.hpp"
 
 namespace rtc::cache {
 
@@ -32,8 +33,21 @@ class CacheService {
              const nlohmann::json& value,
              std::chrono::seconds ttl);
 
-    // Evicts a single entry.
+    // Evicts a single entry on every instance.
+    //
+    // Local eviction alone is correct only while there is one process holding a
+    // cache. With replicas, whoever performed the write drops its copy and the
+    // others keep serving the stale value until it expires.
     void invalidate(std::string_view ns, std::string_view key);
+
+    // Evicts locally without announcing. What the cluster subscriber calls, so
+    // that receiving a notice cannot re-broadcast it.
+    void invalidate_local(std::string_view ns, std::string_view key);
+
+    // Optional cross-instance publisher, injected by the composition root.
+    void set_invalidation_publisher(IInvalidationPublisher& publisher) noexcept {
+        invalidations_ = &publisher;
+    }
 
     // Read-through cache: returns the cached value, or computes it via `loader`,
     // stores it under `ttl`, and returns it. `loader` returns a JSON value.
@@ -63,6 +77,7 @@ class CacheService {
 
   private:
     ICacheStore& store_;
+    IInvalidationPublisher* invalidations_{&NullInvalidationPublisher::instance()};
     std::atomic<std::uint64_t> hits_{0};
     std::atomic<std::uint64_t> misses_{0};
 };

@@ -37,6 +37,8 @@
 #include "rtc/notifications/push_provider.hpp"
 #include "rtc/ratelimit/rate_limiter.hpp"
 #include "rtc/realtime/cluster_bus.hpp"
+#include "rtc/realtime/cluster_invalidation.hpp"
+#include "rtc/realtime/cluster_presence.hpp"
 #include "rtc/realtime/connection_manager.hpp"
 #include "rtc/realtime/event_dispatcher.hpp"
 #include "rtc/realtime/heartbeat_monitor.hpp"
@@ -114,9 +116,11 @@ class Application {
     void register_metrics();
 
     // Phase 5 wiring, split out of wire_object_graph() to keep each step legible.
-    void wire_observability();      // tracer + feature flags (before anything traced)
-    void wire_cluster_bus();        // cross-instance fan-out
-    void wire_event_subscribers();  // domain event bus consumers
+    void wire_observability();         // tracer + feature flags (before anything traced)
+    void wire_cluster_bus();           // cross-instance fan-out
+    void wire_cluster_invalidation();  // cross-instance cache coherence
+    void wire_cluster_presence();      // cross-instance online/offline view
+    void wire_event_subscribers();     // domain event bus consumers
 
     config::Config config_;
     std::string migrations_dir_;
@@ -170,6 +174,8 @@ class Application {
     // Cross-instance fan-out. Declared before the connection manager, which holds
     // a non-owning pointer to it.
     std::unique_ptr<realtime::IClusterBus> cluster_bus_;
+    std::unique_ptr<realtime::ClusterInvalidationPublisher> invalidation_publisher_;
+    std::unique_ptr<realtime::ClusterPresencePublisher> presence_publisher_;
 
     // Realtime infrastructure (ConnectionManager is the IEventBroadcaster).
     std::unique_ptr<realtime::ConnectionManager> connection_manager_;

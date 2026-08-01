@@ -52,6 +52,9 @@ add_executable(rtc_tests
     # unit test of the path parser was not enough).
     api_http_integration_test.cpp
     openapi_contract_test.cpp
+    # Horizontal scaling: cross-instance state.
+    distributed_presence_test.cpp
+    cluster_broadcast_test.cpp
 )
 
 target_include_directories(rtc_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

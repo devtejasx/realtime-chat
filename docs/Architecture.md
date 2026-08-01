@@ -253,3 +253,160 @@ App instances are stateless: durable state in PostgreSQL, shared ephemeral state
 in Redis. This supports multi-instance deployment behind a load balancer,
 targeting 100k+ users and 10k+ concurrent WebSocket connections. See
 [Deployment.md](Deployment.md).
+
+## Horizontal scaling (Phase 5.1)
+
+### The problem a second replica creates
+
+A WebSocket connection is pinned to whichever instance accepted it. That is not
+a design choice — it is a TCP connection to one process. So the moment there are
+two replicas, the instance that handles a write is usually *not* the instance
+holding the recipients' sockets:
+
+```mermaid
+graph LR
+    Ada["Ada"] -->|"WebSocket"| A["Instance A"]
+    Bob["Bob"] -->|"WebSocket"| B["Instance B"]
+    Ada -->|"POST /messages"| A
+    A --> DB[("PostgreSQL")]
+    A -. "cannot reach Bob's socket" .-> Bob
+```
+
+Nothing errors here. The message is persisted correctly and A delivers it to its
+own connections. Bob simply never receives it, and finds it only if he reloads
+and re-reads history. That is the failure horizontal scaling has to solve, and
+it is invisible in a single-instance test.
+
+### The fan-out hop
+
+Every instance both publishes to and subscribes from a shared set of Redis
+channels. After delivering locally, an instance republishes the event; every
+peer delivers it to *its* connections.
+
+```mermaid
+sequenceDiagram
+    participant C as Ada (on A)
+    participant A as Instance A
+    participant PG as PostgreSQL
+    participant R as Redis Pub/Sub
+    participant B as Instance B
+    participant D as Bob (on B)
+
+    C->>A: POST /api/v1/messages
+    A->>PG: INSERT (source of truth)
+    PG-->>A: message row
+    A-->>C: 201 Created
+    Note over A: persist first, broadcast second
+    A->>A: deliver to local sockets
+    A->>R: PUBLISH rtc:cluster:user
+    R->>B: message (origin = node-a)
+    Note over B: origin ≠ own node id, so accept
+    B->>D: WebSocket frame
+    R->>A: message (origin = node-a)
+    Note over A: origin == own node id, drop
+```
+
+Two properties fall out of that, and both are load-bearing:
+
+- **Persist first, broadcast second.** The database write is the commit point. A
+  broadcast that fails leaves a message that is still readable on reconnect; a
+  broadcast that succeeded before a failed write would show clients a message
+  that does not exist.
+- **Loop suppression by node id.** Every message carries the publisher's
+  `RTC_NODE_ID`, and a receiver drops its own. Without it, the sending instance
+  would deliver each event twice — once locally, once from its own broadcast.
+
+Redis Pub/Sub is fire-and-forget and at-most-once, which is the right primitive:
+a realtime frame that arrives late is worse than useless, and durability already
+lives in PostgreSQL.
+
+### Channels
+
+```mermaid
+graph TD
+    subgraph Instances
+        A["Instance A"]
+        B["Instance B"]
+        C["Instance C"]
+    end
+    subgraph Redis["Redis Pub/Sub"]
+        U["rtc:cluster:user"]
+        RM["rtc:cluster:room"]
+        P["rtc:cluster:presence"]
+        CA["rtc:cluster:cache"]
+    end
+    A <--> U & RM & P & CA
+    B <--> U & RM & P & CA
+    C <--> U & RM & P & CA
+```
+
+| Channel | Carries | Consumer |
+| --- | --- | --- |
+| `rtc:cluster:user` | Events addressed to specific users — messages, notifications, read receipts | `ConnectionManager::deliver_local` |
+| `rtc:cluster:room` | Events for everyone in a conversation — typing, reactions | `ConnectionManager::deliver_local_to_room` |
+| `rtc:cluster:presence` | Per-node online/offline deltas | `PresenceService::apply_remote` |
+| `rtc:cluster:cache` | "Drop what you have cached for X" | `AuthorizationService` / `CacheService` `invalidate_local` |
+
+Notifications have no channel of their own. `NotificationService` delivers
+through `IEventBroadcaster::publish`, which is already cluster-wide, so a second
+channel would mean two paths to maintain for one behaviour.
+
+Sessions have no channel either, and need none: they live in PostgreSQL, so
+login, logout, refresh-token rotation and reconnect are consistent across
+instances by construction rather than by propagation.
+
+### Why the dependencies point the way they do
+
+Cross-instance concerns could easily have turned the service layer into a client
+of the messaging layer. They do not. Each capability defines an interface in the
+layer that *owns the semantics*, and `rtc::realtime` supplies a bus-backed
+adapter:
+
+```mermaid
+graph LR
+    subgraph Owns semantics
+        CI["cache::IInvalidationPublisher"]
+        PP["services::IPresencePublisher"]
+    end
+    subgraph Owns transport
+        RT["realtime::ClusterInvalidationPublisher"]
+        RP["realtime::ClusterPresencePublisher"]
+    end
+    RT -->|implements| CI
+    RP -->|implements| PP
+    RT --> BUS["IClusterBus"]
+    RP --> BUS
+    BUS --> REDIS[("Redis")]
+```
+
+`CacheService` and `PresenceService` therefore stay constructible — and
+testable — with no Redis, no WebSocket stack and no bus at all. The composition
+root is the only place that knows both halves exist, and when a deployment is
+single-instance it simply leaves the null publishers in place rather than paying
+for a hop to nobody.
+
+### Local vs. cluster-wide operations
+
+Every distributed capability has a paired local-only variant, and the split is
+not cosmetic:
+
+| Cluster-wide | Local only | Why both exist |
+| --- | --- | --- |
+| `publish` | `deliver_local` | Inbound cluster messages must not be republished, or they circulate forever |
+| `broadcast_to_room` | `deliver_local_to_room` | Same |
+| `invalidate` | `invalidate_local` | A receiver that re-announced would amplify one eviction into one per replica |
+| `on_connect` / `on_disconnect` | `apply_remote` | Propagating a propagation would loop |
+
+Loop suppression by node id would catch most of this at the transport, but
+correctness here is a property of each class, not something to delegate to the
+bus.
+
+### What is soft state
+
+Presence is the one thing that can drift. If an instance dies without announcing
+its users offline, its entries linger and those users read as online until a peer
+calls `forget_node()` or they reconnect and re-announce. The airtight
+alternative — a per-user TTL key in Redis refreshed on every heartbeat — costs a
+write per heartbeat per user, which is not the right trade for state that
+self-heals on the next reconnect. Everything else is either durable
+(PostgreSQL) or bounded by a cache TTL.

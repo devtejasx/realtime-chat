@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "rtc/cache/cache_store.hpp"
+#include "rtc/cache/invalidation.hpp"
 #include "rtc/repositories/user_admin_repository.hpp"
 #include "rtc/security/role.hpp"
 
@@ -67,8 +68,32 @@ class AuthorizationService {
     // valid at all — rather than a per-action authorisation failure.
     void require_active(std::int64_t user_id);
 
-    // Drops cached role/ban state for a user. Call after any mutation.
+    // Drops cached role/ban state for a user, on *every* instance. Call after
+    // any mutation.
+    //
+    // The cluster hop is not a nicety here. Role and ban decisions are cached
+    // for options_.cache_ttl, so on a multi-replica deployment a ban applied
+    // through one pod stays invisible to the others until their entry expires —
+    // the suspended account keeps working on two thirds of the fleet. Local
+    // eviction alone silently downgrades the documented guarantee (a ban takes
+    // effect on the caller's next request) to "within 30 seconds, probably".
     void invalidate(std::int64_t user_id);
+
+    // Drops the local entry only, without announcing it.
+    //
+    // What a receiver of a cluster invalidation calls. Kept separate from
+    // invalidate() so that handling a remote notice cannot re-publish it: the
+    // bus already suppresses self-originated messages, but a scope that
+    // re-broadcast on receipt would still amplify one eviction into N across
+    // the fleet, and that is a property of this class, not of the transport.
+    void invalidate_local(std::int64_t user_id);
+
+    // Optional cross-instance publisher. Injected by the composition root; when
+    // unset, invalidate() is purely local, which is exactly right for a single
+    // instance.
+    void set_invalidation_publisher(cache::IInvalidationPublisher& publisher) noexcept {
+        invalidations_ = &publisher;
+    }
 
     // Cache effectiveness, surfaced on /metrics.
     [[nodiscard]] std::uint64_t cache_hits() const noexcept { return hits_.load(); }
@@ -81,6 +106,7 @@ class AuthorizationService {
     repositories::IUserAdminRepository& users_;
     cache::ICacheStore& cache_;
     Options options_;
+    cache::IInvalidationPublisher* invalidations_{&cache::NullInvalidationPublisher::instance()};
     std::atomic<std::uint64_t> hits_{0};
     std::atomic<std::uint64_t> misses_{0};
 };

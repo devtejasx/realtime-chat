@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <pqxx/transaction>
+#include <stdexcept>
 #include <utility>
 
 #include "rtc/cache/in_memory_cache_store.hpp"
@@ -11,6 +12,7 @@
 #include "rtc/database/migration_runner.hpp"
 #include "rtc/events/event_types.hpp"
 #include "rtc/logging/logger.hpp"
+#include "rtc/realtime/cluster_presence.hpp"
 #include "rtc/realtime/redis_cluster_bus.hpp"
 #include "rtc/repositories/pg_attachment_repository.hpp"
 #include "rtc/repositories/pg_audit_log_repository.hpp"
@@ -172,10 +174,82 @@ void Application::wire_observability() {
 
 void Application::wire_cluster_bus() {
     cluster_bus_ = make_cluster_bus(config_, node_id_);
-    if (cluster_bus_->is_distributed()) {
-        // Registers the inbound handlers; must happen before start().
-        connection_manager_->set_cluster_bus(*cluster_bus_);
+    if (!cluster_bus_->is_distributed()) {
+        // Single instance: local delivery and local eviction already reach
+        // everything there is. Leaving the publishers unset keeps the null
+        // implementations in place rather than paying for a hop to nobody.
+        return;
     }
+
+    // Registers the inbound handlers; must happen before start().
+    //
+    // Only the collaborators that already exist at this point are wired here.
+    // Cache invalidation is deliberately *not* — AuthorizationService is
+    // constructed further down wire_object_graph(), and reaching for it here
+    // dereferenced a null unique_ptr and segfaulted on startup with
+    // CLUSTER_ENABLED=true. wire_cluster_invalidation() therefore runs at the end
+    // of the graph, once every participant is built.
+    connection_manager_->set_cluster_bus(*cluster_bus_);
+    wire_cluster_presence();
+}
+
+void Application::wire_cluster_presence() {
+    presence_publisher_ = std::make_unique<realtime::ClusterPresencePublisher>(*cluster_bus_);
+    presence_service_->set_publisher(*presence_publisher_);
+    realtime::subscribe_to_presence(*cluster_bus_, *presence_service_);
+}
+
+void Application::wire_cluster_invalidation() {
+    // Ordering guard. This function participates in the object graph and so
+    // depends on where it is called from — a dependency the compiler cannot
+    // check, and one that already went wrong once: an earlier revision invoked
+    // it before AuthorizationService existed and the process died with SIGSEGV
+    // immediately after logging "Cluster fan-out enabled", which reads like a
+    // Redis problem and is not.
+    //
+    // Failing here names the actual fault instead. Refusing to start is right:
+    // continuing would silently give up fleet-wide ban propagation, and a
+    // security control that quietly stops working is worse than a crash.
+    if (authorization_service_ == nullptr || cache_service_ == nullptr) {
+        throw std::logic_error(
+            "wire_cluster_invalidation() called before AuthorizationService/CacheService were "
+            "constructed; it must run after the service graph is complete");
+    }
+
+    invalidation_publisher_ =
+        std::make_unique<realtime::ClusterInvalidationPublisher>(*cluster_bus_);
+
+    // Outbound: a mutation on this instance now evicts fleet-wide. Without this,
+    // banning a user through one replica leaves the others honouring the cached
+    // role until it expires — see AuthorizationService::invalidate.
+    authorization_service_->set_invalidation_publisher(*invalidation_publisher_);
+    cache_service_->set_invalidation_publisher(*invalidation_publisher_);
+
+    // Inbound. Runs on the bus's subscriber thread, so every branch must be
+    // thread-safe, and each calls the *_local variant: re-publishing on receipt
+    // would amplify one eviction into one per replica, forever.
+    realtime::subscribe_to_invalidations(
+        *cluster_bus_, [this](const cache::InvalidationEvent& event) {
+            if (event.scope == cache::invalidation_scopes::kAuthorization) {
+                // Malformed ids are dropped rather than defaulted: invalidating
+                // user 0 would be a silent no-op that looks like success.
+                try {
+                    authorization_service_->invalidate_local(std::stoll(event.key));
+                } catch (const std::exception&) {
+                    RTC_LOG_WARN("Ignoring authorization invalidation with unparseable id '{}'",
+                                 event.key);
+                }
+                return;
+            }
+            if (event.scope == cache::invalidation_scopes::kNamespacedKey) {
+                cache_service_->invalidate_local(event.key, event.sub_key);
+                return;
+            }
+            // An unknown scope means a newer peer is publishing something this
+            // build does not understand. Log once per occurrence and carry on —
+            // refusing to start would turn a rolling upgrade into an outage.
+            RTC_LOG_WARN("Ignoring cache invalidation with unknown scope '{}'", event.scope);
+        });
 }
 
 void Application::wire_event_subscribers() {
@@ -308,6 +382,12 @@ void Application::wire_object_graph() {
         std::make_unique<services::AuditService>(*audit_log_repository_, *user_repository_);
     search_service_ =
         std::make_unique<services::SearchService>(*message_search_repository_, *features_);
+
+    // Safe only here: both participants now exist. Guarded on the bus being
+    // distributed so a single instance keeps its null publishers.
+    if (cluster_bus_ != nullptr && cluster_bus_->is_distributed()) {
+        wire_cluster_invalidation();
+    }
 
     auth_guard_ = std::make_unique<middlewares::AuthMiddleware>(*token_service_);
     // Enables account-suspension enforcement on every authenticated endpoint, so a

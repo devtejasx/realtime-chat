@@ -20,6 +20,10 @@ inline constexpr std::string_view kRoomBroadcast = "rtc:cluster:room";
 inline constexpr std::string_view kPresence = "rtc:cluster:presence";
 // Notification fan-out to a user's connections on other instances.
 inline constexpr std::string_view kNotification = "rtc:cluster:notification";
+// Cache coherence: "drop what you have cached for X". Carries no payload data,
+// only the identity of the entry, so a receiver re-reads from the source of
+// truth rather than trusting a value that crossed the network.
+inline constexpr std::string_view kCacheInvalidate = "rtc:cluster:cache";
 }  // namespace cluster_channels
 
 // Cross-instance message bus for horizontal scaling.

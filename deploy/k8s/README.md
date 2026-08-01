@@ -13,6 +13,7 @@ environments, layer Kustomize overlays on top rather than parameterising these.
 | `secret.yaml` | **Template only** — credential keys and their shape |
 | `deployment.yaml` | Workload, probes, security context, resources |
 | `service.yaml` | ServiceAccount, ClusterIP Service, headless Service |
+| `redis.yaml` | Redis Deployment + Service — the cluster bus transport. **Required whenever `replicas` > 1**: without it the pods fall back to a no-op bus and WebSocket delivery becomes silently partial. Single replica, no persistence; swap for a managed service in production |
 | `ingress.yaml` | TLS, WebSocket timeouts, body size, `/metrics` deny |
 | `hpa.yaml` | HorizontalPodAutoscaler (CPU + memory) |
 | `pdb.yaml` | PodDisruptionBudget |

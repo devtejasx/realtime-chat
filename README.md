@@ -61,6 +61,28 @@ Register a user and send a message:
 curl -sX POST localhost:8080/api/v1/auth/register -H 'Content-Type: application/json' -d '{"username":"ada","email":"ada@example.com","password":"correct-horse-battery"}'
 ```
 
+### More than one instance
+
+A single server cannot show whether horizontal scaling works: every connection
+lands on the same process, so local delivery reaches everyone and a dead cluster
+bus looks identical to a working one. Two servers behind a load balancer, with
+each also addressable directly:
+
+```bash
+docker compose -f docker-compose.cluster.yml up --build
+```
+
+| | |
+| --- | --- |
+| `localhost:8080` | Nginx, round-robin across both |
+| `localhost:8081` / `:8082` | Server A / B directly |
+
+Connect a WebSocket to one, send a message through the other, and watch it
+arrive. `curl -s localhost:8081/health/ready | jq .cluster` reports whether that
+instance is actually clustered — `"distributed": false` on a multi-replica
+deployment means delivery is partial right now, silently. Full walkthrough in
+[docs/Deployment.md](docs/Deployment.md#running-more-than-one-instance).
+
 ## Features
 
 ### Messaging
@@ -90,7 +112,7 @@ curl -sX POST localhost:8080/api/v1/auth/register -H 'Content-Type: application/
 
 | | |
 | --- | --- |
-| **Horizontal scaling** | Redis Pub/Sub fans WebSocket broadcasts across every replica, with origin-node loop suppression |
+| **Horizontal scaling** | Redis Pub/Sub fans WebSocket broadcasts, presence and cache invalidation across every replica, with origin-node loop suppression. Run it with [`docker-compose.cluster.yml`](docker-compose.cluster.yml) |
 | **API versioning** | Routes authored once, served at `/api/v1/...` **and** the legacy `/api/...`; an unknown version returns a machine-readable 404 |
 | **OpenAPI 3.1** | The spec is compiled into the binary and served at `/openapi.json`, with Swagger UI at `/docs`. A test asserts every registered route is documented |
 | **Event bus** | Typed domain events dispatched on a worker pool with per-subscriber error isolation, so a slow subscriber never touches request latency |

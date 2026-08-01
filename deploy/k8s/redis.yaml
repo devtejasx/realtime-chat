@@ -1,0 +1,147 @@
+# Redis: cluster bus transport and cache backend.
+#
+# Why this file exists
+# --------------------
+# The rest of the manifests already assume Redis is here. configmap.yaml sets
+# REDIS_URL to redis.realtime-chat.svc.cluster.local:6379 and CLUSTER_ENABLED to
+# "true", and networkpolicy.yaml opens egress to pods labelled
+# app.kubernetes.io/name: redis — but nothing created any of it. Applying the
+# manifests as they stood produced three replicas that could not reach a bus, so
+# make_cluster_bus fell back to the no-op implementation and WebSocket delivery
+# was silently partial: a message sent through one pod never reached clients
+# connected to the other two.
+#
+# That failure is quiet by construction. The pods stay Ready, /health/ready
+# reports "distributed": false, and nothing errors — chat simply works for some
+# recipients and not others, depending on which pod each one landed on.
+#
+# Scope, stated honestly
+# ----------------------
+# This is a single-replica Redis with no persistence and no failover. It is
+# adequate for the Pub/Sub role — that traffic is fire-and-forget, at-most-once,
+# and PostgreSQL remains the source of truth a reconnecting client re-reads from,
+# so losing Redis loses in-flight fan-out and nothing durable. It is *not*
+# adequate as a general-purpose datastore, and it is a single point of failure
+# for cross-instance delivery: while it is down, each pod degrades to serving
+# only its own connections.
+#
+# For production, replace this with a managed service (ElastiCache, Memorystore)
+# or a Sentinel/Cluster-backed chart, and point REDIS_URL at it. Nothing else in
+# the deployment changes — the URL is the only coupling.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: bus
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: bus
+spec:
+  # One replica on purpose. Redis Pub/Sub does not replicate subscriptions
+  # across independent instances, so a second replica behind the same Service
+  # would split the fleet in two: publishers hitting one instance would be
+  # invisible to subscribers connected to the other. Scaling this safely means
+  # Sentinel or Redis Cluster, not a higher replica count.
+  replicas: 1
+  strategy:
+    # Recreate rather than RollingUpdate: two Redis pods briefly serving the same
+    # Service is exactly the split described above, and a few seconds of no bus
+    # is preferable to a few seconds of half-delivered messages.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: bus
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          args:
+            # Persistence off: everything here is either fan-out in flight or a
+            # cache entry that can be recomputed. Writing an RDB would add disk
+            # I/O and a restore path for data nobody needs back.
+            - "--save"
+            - ""
+            - "--appendonly"
+            - "no"
+            # Bound the cache half so a busy period cannot evict the pod via the
+            # memory limit below. allkeys-lru is right for a cache; Pub/Sub
+            # traffic is not stored and is unaffected.
+            - "--maxmemory"
+            - "192mb"
+            - "--maxmemory-policy"
+            - "allkeys-lru"
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Both probes run redis-cli ping. Unlike the application's probes,
+          # there is no distinction to draw here: a Redis that cannot answer PING
+          # is neither live nor ready, and it has no dependencies of its own to
+          # check.
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              # Above maxmemory, leaving headroom for Redis's own overhead and
+              # client buffers. Setting the limit at maxmemory would let the
+              # kernel OOM-kill the pod before Redis got the chance to evict.
+              memory: 256Mi
+          volumeMounts:
+            # readOnlyRootFilesystem is on, and Redis wants a writable working
+            # directory even with persistence disabled.
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}

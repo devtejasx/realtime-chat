@@ -493,6 +493,21 @@ void Application::wire_object_graph() {
 }
 
 void Application::register_metrics() {
+    // Histogram boundaries, declared before anything observes into them.
+    //
+    // The default bounds are latency-shaped (5ms to 10s). Request duration wants
+    // exactly that, so it is left alone. Upload size does not: every upload from
+    // a few kilobytes to the 25 MiB limit would land in the same +Inf bucket and
+    // the histogram would answer no question at all.
+    metrics_->register_histogram("rtc_upload_bytes",
+                                 {1024.0,        // 1 KiB
+                                  16384.0,       // 16 KiB
+                                  131072.0,      // 128 KiB
+                                  1048576.0,     // 1 MiB
+                                  5242880.0,     // 5 MiB
+                                  10485760.0,    // 10 MiB
+                                  26214400.0});  // 25 MiB — the configured cap
+
     metrics_->register_gauge_callback("rtc_ws_connections", [this] {
         return static_cast<double>(connection_manager_->sessions().session_count());
     });

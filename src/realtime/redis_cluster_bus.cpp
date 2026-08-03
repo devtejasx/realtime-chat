@@ -13,6 +13,7 @@
 
 #include "rtc/errors/exceptions.hpp"
 #include "rtc/logging/logger.hpp"
+#include "rtc/realtime/cluster_trace.hpp"
 
 #ifdef RTC_WITH_REDIS
 #include <sw/redis++/redis++.h>
@@ -115,6 +116,10 @@ struct RedisClusterBus::Impl {
 
         received.fetch_add(1, std::memory_order_relaxed);
         try {
+            // Reparents the handler onto the publishing instance's span, so the
+            // work this message causes on *this* instance appears in the trace
+            // that produced it. No-op when the message carried no context.
+            const cluster_trace::RemoteScope trace_scope(body);
             handler(origin, body);
         } catch (const std::exception& ex) {
             RTC_LOG_ERROR("Cluster bus handler for '{}' threw: {}", channel, ex.what());
@@ -148,6 +153,9 @@ void RedisClusterBus::publish(std::string_view channel, const nlohmann::json& bo
     try {
         nlohmann::json stamped = body;
         stamped[kOriginKey] = impl_->node_id;
+        // Carries the publisher's trace context so the receiving instance can
+        // continue the same trace instead of starting an unrelated one.
+        cluster_trace::stamp(stamped);
         impl_->publisher.publish(std::string(channel), stamped.dump());
         impl_->published.fetch_add(1, std::memory_order_relaxed);
     } catch (const std::exception& ex) {

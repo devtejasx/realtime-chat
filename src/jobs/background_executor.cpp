@@ -1,9 +1,13 @@
 #include "rtc/jobs/background_executor.hpp"
 
 #include <exception>
+#include <optional>
+#include <string>
 #include <utility>
 
+#include "rtc/logging/log_context.hpp"
 #include "rtc/logging/logger.hpp"
+#include "rtc/tracing/scoped_span.hpp"
 
 namespace rtc::jobs {
 
@@ -42,12 +46,46 @@ void BackgroundExecutor::stop() {
 }
 
 void BackgroundExecutor::submit(Task task) {
+    // Correlation is captured here, on the submitting thread, and restored on
+    // the worker.
+    //
+    // Both the trace context and the request id are thread-local, and a queued
+    // task runs on a different thread — so without this hop, work deferred off
+    // the request path (push notifications, fan-out) produces logs with no
+    // request id and spans in an unrelated trace. The effect is that precisely
+    // the work an operator cannot watch directly is also the work they cannot
+    // correlate.
+    //
+    // Capturing at submit time rather than asking call sites to pass a context
+    // means every existing submit() gains propagation without being touched.
+    std::optional<tracing::SpanContext> parent;
+    if (const auto* context = tracing::current_span_context();
+        context != nullptr && context->is_valid()) {
+        parent = *context;
+    }
+    std::string request_id{logging::current_request_id()};
+
+    Task carried = [inner = std::move(task),
+                    parent = std::move(parent),
+                    request_id = std::move(request_id)]() mutable {
+        // Scoped, so the worker thread is left exactly as it was found. A
+        // thread pool reuses its threads: leaking either value would attach it
+        // to whatever unrelated task ran next, mislabelling it in the most
+        // convincing way possible.
+        std::optional<tracing::SpanScope> span_scope;
+        if (parent) {
+            span_scope.emplace(*parent);
+        }
+        const logging::RequestIdScope id_scope(std::move(request_id));
+        inner();
+    };
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!running_.load()) {
             return;
         }
-        tasks_.push(std::move(task));
+        tasks_.push(std::move(carried));
     }
     cv_.notify_one();
 }

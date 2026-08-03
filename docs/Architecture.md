@@ -410,3 +410,81 @@ alternative — a per-user TTL key in Redis refreshed on every heartbeat — cos
 write per heartbeat per user, which is not the right trade for state that
 self-heals on the next reconnect. Everything else is either durable
 (PostgreSQL) or bounded by a cache TTL.
+
+## Observability (Phase 5.2)
+
+### Telemetry flow
+
+Three signals, correlated by one id:
+
+```mermaid
+graph LR
+    subgraph Instance["realtime-chat instance"]
+        REQ["HTTP request"] --> MW["TracingMiddleware<br/>starts server span"]
+        MW --> SVC["Service"]
+        SVC --> REPO["Repository"]
+        SVC --> JOB["Background worker"]
+        SVC --> BUS["Cluster bus publish"]
+    end
+    MW -. "trace_id / span_id" .-> LOG["JSON logs<br/>stdout"]
+    MW --> MET["/metrics"]
+    MW --> EXP["Span exporter"]
+    EXP --> JAEGER[("Jaeger / Tempo<br/>OTLP or Zipkin")]
+    MET --> PROM[("Prometheus")]
+    LOG --> LOKI[("Loki / ELK")]
+    PROM --> GRAF["Grafana"]
+    JAEGER --> GRAF
+    LOKI --> GRAF
+```
+
+The dotted edge is the one that makes the rest useful. Metrics say *something*
+is slow, traces say *where*, and logs say *why* — but only if a log line can be
+tied to the trace that produced it. Every line carries `trace_id`, `span_id` and
+`request_id`, read from ambient context rather than passed at each call site, so
+statements written before tracing existed are correlated too.
+
+### Where a trace would otherwise break
+
+The active span context is thread-local, which is right within a request and
+wrong at every boundary that changes thread or process:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Instance A
+    participant W as Worker pool (A)
+    participant R as Redis Pub/Sub
+    participant B as Instance B
+
+    C->>A: POST /messages (traceparent)
+    Note over A: server span, trace T
+    A->>W: submit() — captures T at submit
+    Note over W: restores T on the pool thread
+    A->>R: PUBLISH (_traceparent = T)
+    R->>B: message
+    Note over B: RemoteScope restores T
+    B->>C: WebSocket frame
+```
+
+Both hops carry the context explicitly:
+
+| Boundary | Mechanism |
+| --- | --- |
+| HTTP in | `traceparent` header, parsed by `TracingMiddleware` |
+| Background worker | Captured at `submit()`, restored on the pool thread |
+| Cluster bus | `_traceparent` on the envelope, restored by `RemoteScope` |
+
+Each restoration is scoped. The pool reuses its threads and the subscriber
+thread handles every channel, so leaking a context would attach it to whatever
+ran next — mislabelling that work in the most convincing way possible, because
+the output looks entirely correct.
+
+Unstamped messages start a fresh trace rather than inheriting one, which is what
+makes a rolling upgrade safe in both directions.
+
+### What is deliberately not traced
+
+Sampling is a ratio, not a guarantee: at a production `TRACING_SAMPLE_RATIO`
+most requests carry no context at all. Everything above degrades to a no-op in
+that case rather than emitting a zeroed id — an invalid trace id looks real and
+matches nothing, which is worse than an empty field.

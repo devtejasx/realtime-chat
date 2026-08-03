@@ -1,0 +1,22 @@
+# Grafana dashboard provisioning.
+#
+# Loads every dashboard JSON from deploy/grafana/dashboards at startup, so the
+# dashboards live in version control rather than in one Grafana instance's
+# database. A dashboard edited in the UI and never exported is a dashboard that
+# disappears with the pod.
+apiVersion: 1
+
+providers:
+  - name: realtime-chat
+    orgId: 1
+    folder: realtime-chat
+    type: file
+    # UI edits are allowed but will be reverted on the next reload. Treat the
+    # UI as a scratchpad and the repository as the source of truth: export the
+    # JSON back into deploy/grafana/dashboards to keep a change.
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

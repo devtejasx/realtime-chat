@@ -1,0 +1,97 @@
+# Prometheus + Grafana + Jaeger, as an overlay on the multi-instance stack.
+#
+#   docker compose -f docker-compose.cluster.yml -f docker-compose.observability.yml up --build
+#
+# Kept as an overlay rather than folded into the cluster file so the two concerns
+# stay separable: someone verifying cross-instance delivery should not have to
+# run a monitoring stack, and someone building dashboards should not have to
+# remember which compose file has them.
+#
+# It attaches to the *cluster* stack rather than the single-server one because
+# the dashboards' most useful panels — cluster published/received, per-instance
+# connections — are meaningless with one replica. Prometheus scrapes both servers
+# directly (see deploy/prometheus/prometheus.yml for why not through the
+# balancer).
+#
+#   Grafana     http://localhost:3000   (anonymous admin, local only)
+#   Prometheus  http://localhost:9090
+#   Jaeger UI   http://localhost:16686
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: rtc-prometheus
+    depends_on:
+      server-a: { condition: service_healthy }
+      server-b: { condition: service_healthy }
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # Short retention: this is a development stack, and a week of samples on a
+      # laptop is wasted disk.
+      - --storage.tsdb.retention.time=24h
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: rtc-grafana
+    depends_on:
+      - prometheus
+    environment:
+      # Anonymous admin. Acceptable *only* because this file binds to localhost
+      # for local use; never carry this into a deployment.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_THEME: dark
+      # Open straight on the dashboard rather than an empty home page.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/realtime-chat-overview.json
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+
+  # Traces. The servers export OTLP/HTTP when TRACING_EXPORTER=otlp; Jaeger
+  # accepts it natively on 4318, so no collector is needed for a local stack.
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: rtc-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # UI
+      - "4318:4318"    # OTLP/HTTP
+    restart: unless-stopped
+
+  # Both servers are pointed at Jaeger. Overrides only the tracing variables;
+  # everything else comes from docker-compose.cluster.yml.
+  server-a:
+    environment:
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: otlp
+      TRACING_ENDPOINT: http://jaeger:4318
+      # Sample everything locally. In production this is the dial that decides
+      # how much a trace costs; 1.0 there would be expensive and mostly noise.
+      TRACING_SAMPLE_RATIO: "1.0"
+      LOG_FORMAT: json
+
+  server-b:
+    environment:
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: otlp
+      TRACING_ENDPOINT: http://jaeger:4318
+      TRACING_SAMPLE_RATIO: "1.0"
+      LOG_FORMAT: json
+
+volumes:
+  prometheus_data:
+  grafana_data:

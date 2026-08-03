@@ -1,0 +1,41 @@
+# Prometheus scrape configuration for the local observability stack.
+#
+# Kubernetes does not use this file — deploy/k8s/deployment.yaml already carries
+# prometheus.io/scrape annotations, which a cluster-wide Prometheus discovers on
+# its own. This exists so the same dashboards can be run against
+# docker-compose.cluster.yml without a cluster.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: local
+
+scrape_configs:
+  - job_name: realtime-chat
+    metrics_path: /metrics
+    static_configs:
+      # Both replicas are scraped individually, on purpose.
+      #
+      # Scraping through the load balancer would hit whichever instance it chose
+      # and label every sample identically, so per-instance series would blend
+      # into one meaningless average. That destroys the signal the cluster panels
+      # exist for: "published on A, received on B" is only visible when A and B
+      # are distinct targets.
+      - targets:
+          - server-a:8080
+          - server-b:8080
+        labels:
+          service: realtime-chat
+
+    relabel_configs:
+      # Label by container name rather than host:port so panels read
+      # "server-a" instead of an address that changes with every recreate.
+      - source_labels: [__address__]
+        regex: "([^:]+):.*"
+        target_label: instance
+        replacement: "$1"
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

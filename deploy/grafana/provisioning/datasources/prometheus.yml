@@ -1,0 +1,25 @@
+# Grafana datasource provisioning.
+#
+# Provisioned rather than clicked in, so a fresh Grafana comes up already wired
+# to Prometheus. The dashboard references its datasource through the
+# ${DS_PROMETHEUS} template variable, and the uid below is what that resolves
+# to — changing one without the other leaves every panel showing "datasource not
+# found".
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    # Service name from docker-compose.observability.yml. Point this at your own
+    # Prometheus for any real deployment.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # Must be >= the scrape_interval in deploy/prometheus/prometheus.yml, or
+      # Grafana asks for a resolution Prometheus never recorded and panels show
+      # gaps that look like outages.
+      timeInterval: 15s
+      httpMethod: POST

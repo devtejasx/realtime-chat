@@ -55,6 +55,8 @@ add_executable(rtc_tests
     # Horizontal scaling: cross-instance state.
     distributed_presence_test.cpp
     cluster_broadcast_test.cpp
+    # Observability: logs joinable to traces.
+    log_correlation_test.cpp
 )
 
 target_include_directories(rtc_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

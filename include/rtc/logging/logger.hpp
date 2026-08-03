@@ -20,6 +20,15 @@ namespace rtc::logging {
 // "json" (one JSON object per line, for log aggregation in production).
 void init(std::string_view level, std::string_view format = "text");
 
+// Builds the formatter init() installs, with the trace/span/request-id flags
+// registered.
+//
+// Exposed so the correlation fields can be asserted against the *real* pattern
+// rather than a copy of it in a test — a duplicated pattern would keep passing
+// after the production one lost a field, which is precisely the regression worth
+// catching.
+[[nodiscard]] std::unique_ptr<spdlog::formatter> make_formatter(bool json);
+
 // Returns the shared application logger. Never null after init(); before
 // init() it lazily returns spdlog's default logger so early logging is safe.
 [[nodiscard]] std::shared_ptr<spdlog::logger> get();

@@ -30,6 +30,7 @@ target_link_libraries(rtc_password_hashing PRIVATE bcrypt OpenSSL::Crypto rtc_wa
 add_library(rtc_core STATIC
     config/config.cpp
     logging/logger.cpp
+    logging/log_context.cpp
     errors/error_mapper.cpp
     utils/time.cpp
     security/jwt_token_service.cpp

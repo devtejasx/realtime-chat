@@ -77,6 +77,8 @@ add_library(rtc_core STATIC
     jobs/background_executor.cpp
     jobs/periodic_scheduler.cpp
     metrics/metrics_registry.cpp
+    reliability/retry_policy.cpp
+    reliability/circuit_breaker.cpp
     media/mime.cpp
     storage/local_file_storage.cpp
     realtime/protocol.cpp

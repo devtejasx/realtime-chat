@@ -8,6 +8,8 @@
 #include <queue>
 #include <string>
 
+#include "rtc/reliability/circuit_breaker.hpp"
+
 namespace rtc::database {
 
 class ConnectionPool;
@@ -68,6 +70,19 @@ class ConnectionPool {
     [[nodiscard]] std::size_t size() const noexcept { return size_; }
     [[nodiscard]] std::size_t idle_count();
 
+    // Optional circuit breaker guarding every database operation.
+    //
+    // Lives on the pool because the pool is the one object every repository
+    // already shares, so a single breaker covers the whole database dependency
+    // without threading one through ~11 repository constructors.
+    //
+    // A breaker rather than a retry, deliberately. A breaker never re-executes
+    // anything — it only declines to call — so it is safe over reads and writes
+    // alike. Blanket-retrying at this seam would silently re-run
+    // non-idempotent writes, which is how one INSERT becomes two.
+    void set_circuit_breaker(reliability::CircuitBreaker& breaker) noexcept { breaker_ = &breaker; }
+    [[nodiscard]] reliability::CircuitBreaker* circuit_breaker() const noexcept { return breaker_; }
+
   private:
     friend class PooledConnection;
 
@@ -80,6 +95,7 @@ class ConnectionPool {
     std::condition_variable available_;
     std::queue<std::unique_ptr<pqxx::connection>> idle_;
     bool shutting_down_ = false;
+    reliability::CircuitBreaker* breaker_ = nullptr;
 };
 
 }  // namespace rtc::database

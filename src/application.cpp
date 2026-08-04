@@ -14,6 +14,7 @@
 #include "rtc/logging/logger.hpp"
 #include "rtc/realtime/cluster_presence.hpp"
 #include "rtc/realtime/redis_cluster_bus.hpp"
+#include "rtc/reliability/circuit_breaker.hpp"
 #include "rtc/repositories/pg_attachment_repository.hpp"
 #include "rtc/repositories/pg_audit_log_repository.hpp"
 #include "rtc/repositories/pg_conversation_repository.hpp"
@@ -292,7 +293,28 @@ void Application::wire_object_graph() {
     // Phase 3 infrastructure.
     metrics_ = std::make_unique<metrics::MetricsRegistry>();
     cache_store_ = make_cache_store(config_);
+    // Circuit breakers over the two external dependencies.
+    //
+    // Created before the components that use them so the wiring below cannot
+    // reference a null. Both guard *this* process's view of the dependency:
+    // breakers are deliberately per-instance, since a replica that can still
+    // reach the database should keep serving even while another cannot.
+    db_breaker_ = std::make_unique<reliability::CircuitBreaker>(
+        "postgres",
+        reliability::CircuitBreaker::Options{.failure_threshold = 5,
+                                             .open_duration = std::chrono::seconds(15)});
+    // The cache breaker is deliberately twitchier and recovers faster. Opening
+    // it costs only cache misses — the request still succeeds from the source of
+    // truth — so there is little reason to tolerate a struggling cache, and
+    // every reason to re-check often.
+    cache_breaker_ = std::make_unique<reliability::CircuitBreaker>(
+        "cache",
+        reliability::CircuitBreaker::Options{.failure_threshold = 3,
+                                             .open_duration = std::chrono::seconds(5)});
+    pool_->set_circuit_breaker(*db_breaker_);
+
     cache_service_ = std::make_unique<cache::CacheService>(*cache_store_);
+    cache_service_->set_circuit_breaker(*cache_breaker_);
     presence_cache_ = std::make_unique<cache::PresenceCache>(*cache_store_);
     rate_limiter_ =
         std::make_unique<ratelimit::RateLimiter>(*cache_store_, config_.rate_limit_enabled);

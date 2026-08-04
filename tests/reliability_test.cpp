@@ -1,9 +1,14 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <nlohmann/json.hpp>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
+#include "rtc/cache/cache_service.hpp"
+#include "rtc/cache/in_memory_cache_store.hpp"
 #include "rtc/reliability/circuit_breaker.hpp"
 #include "rtc/reliability/retry_policy.hpp"
 
@@ -344,3 +349,116 @@ TEST_F(BreakerTest, BreakerShortCircuitsRetryOnceTheDependencyIsDown) {
 }
 
 }  // namespace
+
+// --- cache degradation -----------------------------------------------------
+//
+// A cache is an optimisation. Its failure must degrade to a miss, because every
+// caller either falls back to the source of truth or recomputes through
+// remember(). Before this, a backend exception propagated straight out of
+// CacheService::get() into the caller — so a Redis outage did not make the
+// service slower, it made it return 500s from endpoints that could have been
+// served perfectly well from PostgreSQL.
+
+namespace {
+
+// Fails every operation, as an unreachable Redis does.
+class BrokenCacheStore final : public rtc::cache::ICacheStore {
+  public:
+    void set(std::string_view, std::string_view, Seconds) override { fail(); }
+    [[nodiscard]] std::optional<std::string> get(std::string_view) override { fail(); }
+    bool del(std::string_view) override { fail(); }
+    [[nodiscard]] bool exists(std::string_view) override { fail(); }
+    void expire(std::string_view, Seconds) override { fail(); }
+    [[nodiscard]] std::int64_t incr(std::string_view, Seconds) override { fail(); }
+    void sadd(std::string_view, std::string_view) override { fail(); }
+    void srem(std::string_view, std::string_view) override { fail(); }
+    [[nodiscard]] bool sismember(std::string_view, std::string_view) override { fail(); }
+    [[nodiscard]] std::vector<std::string> smembers(std::string_view) override { fail(); }
+    [[nodiscard]] std::size_t scard(std::string_view) override { fail(); }
+    std::size_t purge_expired() override { return 0; }
+    [[nodiscard]] std::string_view backend_name() const override { return "broken"; }
+
+    int calls = 0;
+
+  private:
+    [[noreturn]] void fail() {
+        ++calls;
+        throw std::runtime_error("connection refused");
+    }
+};
+
+}  // namespace
+
+TEST(CacheResilience, ReadFailureDegradesToAMissRatherThanThrowing) {
+    BrokenCacheStore store;
+    rtc::cache::CacheService cache(store);
+
+    std::optional<nlohmann::json> value;
+    EXPECT_NO_THROW(value = cache.get("users", "1"))
+        << "a cache outage must not turn into a request failure";
+    EXPECT_FALSE(value.has_value()) << "the correct answer is a miss";
+    EXPECT_EQ(cache.misses(), 1U) << "and it should be counted as one";
+}
+
+TEST(CacheResilience, WriteFailureIsSwallowed) {
+    // Failing the write that produced the value because the *cache* is down
+    // would be the tail wagging the dog.
+    BrokenCacheStore store;
+    rtc::cache::CacheService cache(store);
+    EXPECT_NO_THROW(cache.put("users", "1", nlohmann::json{{"id", 1}}, std::chrono::seconds(60)));
+}
+
+TEST(CacheResilience, InvalidationFailureIsSwallowed) {
+    // The caller has already performed the mutation this follows; there is
+    // nothing useful it could do with the error. Staleness is TTL-bounded.
+    BrokenCacheStore store;
+    rtc::cache::CacheService cache(store);
+    EXPECT_NO_THROW(cache.invalidate_local("users", "1"));
+}
+
+TEST(CacheResilience, RememberFallsBackToTheLoaderWhenTheCacheIsDown) {
+    // The property that makes degrading safe: the value is still produced.
+    BrokenCacheStore store;
+    rtc::cache::CacheService cache(store);
+
+    int loader_calls = 0;
+    const auto value = cache.remember("users", "1", std::chrono::seconds(60), [&] {
+        ++loader_calls;
+        return nlohmann::json{{"id", 1}, {"from", "database"}};
+    });
+
+    EXPECT_EQ(loader_calls, 1);
+    EXPECT_EQ(value.at("from"), "database") << "the request still gets its answer";
+}
+
+TEST(CacheResilience, BreakerStopsCallingADeadCacheAltogether) {
+    BrokenCacheStore store;
+    rtc::cache::CacheService cache(store);
+    CircuitBreaker breaker("cache", {.failure_threshold = 2, .open_duration = 10000ms});
+    cache.set_circuit_breaker(breaker);
+
+    EXPECT_FALSE(cache.get("users", "1").has_value());
+    EXPECT_FALSE(cache.get("users", "2").has_value());
+    ASSERT_EQ(breaker.state(), CircuitBreaker::State::kOpen);
+
+    const int calls_before = store.calls;
+    EXPECT_FALSE(cache.get("users", "3").has_value());
+    cache.put("users", "3", nlohmann::json{{"id", 3}}, std::chrono::seconds(60));
+    EXPECT_EQ(store.calls, calls_before)
+        << "an open breaker must stop touching the backend, not just ignore its errors";
+}
+
+TEST(CacheResilience, AWorkingCacheIsUnaffectedByTheBreaker) {
+    // The default path must not change: hits still hit, misses still miss.
+    rtc::cache::InMemoryCacheStore store;
+    rtc::cache::CacheService cache(store);
+    CircuitBreaker breaker("cache", {.failure_threshold = 1});
+    cache.set_circuit_breaker(breaker);
+
+    EXPECT_FALSE(cache.get("users", "1").has_value());
+    cache.put("users", "1", nlohmann::json{{"id", 1}}, std::chrono::seconds(60));
+    const auto value = cache.get("users", "1");
+    ASSERT_TRUE(value.has_value());
+    EXPECT_EQ(value->at("id"), 1);
+    EXPECT_EQ(breaker.state(), CircuitBreaker::State::kClosed);
+}

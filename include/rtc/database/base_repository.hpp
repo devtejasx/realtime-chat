@@ -31,20 +31,55 @@ class BaseRepository {
     template <typename Fn>
     auto with_transaction(Fn&& fn) -> std::invoke_result_t<Fn, pqxx::work&> {
         using Result = std::invoke_result_t<Fn, pqxx::work&>;
+
+        // The single choke point for every repository operation, and therefore
+        // where the database circuit breaker belongs. Guarding here rather than
+        // at each of ~11 repositories means a new repository is protected the
+        // moment it is written.
+        auto* breaker = pool_.circuit_breaker();
+        if (breaker != nullptr && !breaker->allow()) {
+            // Fail immediately instead of queueing behind a dependency that is
+            // not answering. Without this, each caller waits out the pool
+            // acquire timeout holding a worker thread, and the pool fills with
+            // threads waiting on a database that is down — at which point
+            // endpoints that never touch it start timing out too.
+            throw rtc::errors::DatabaseException("Database is unavailable", "circuit=open");
+        }
+
         try {
             PooledConnection lease = pool_.acquire();
             pqxx::work txn(lease.get());
             if constexpr (std::is_void_v<Result>) {
                 std::forward<Fn>(fn)(txn);
                 txn.commit();
+                if (breaker != nullptr) {
+                    breaker->on_success();
+                }
             } else {
                 Result result = std::forward<Fn>(fn)(txn);
                 txn.commit();
+                if (breaker != nullptr) {
+                    breaker->on_success();
+                }
                 return result;
             }
         } catch (const rtc::errors::AppException&) {
+            // A domain error counts as a *success* for the breaker, which is the
+            // subtle part: a duplicate username or a missing row means the
+            // database answered correctly and promptly. Counting those as
+            // dependency failures would let ordinary user input — a burst of
+            // conflicting registrations — trip the breaker and take the database
+            // offline for everyone.
+            if (breaker != nullptr) {
+                breaker->on_success();
+            }
             throw;  // domain errors pass through untouched
         } catch (const std::exception& ex) {
+            // Everything else is the dependency failing: connection refused,
+            // timeout, protocol error.
+            if (breaker != nullptr) {
+                breaker->on_failure();
+            }
             throw rtc::errors::DatabaseException("Database operation failed", ex.what());
         }
     }

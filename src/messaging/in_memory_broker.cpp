@@ -158,8 +158,8 @@ void InMemoryMessageBroker::dispatch(Message message) {
             return;
 
         case Ack::kRetry:
-            if (message.delivery_attempt >= static_cast<std::uint32_t>(
-                                               std::max(1, options_.max_attempts))) {
+            if (message.delivery_attempt >=
+                static_cast<std::uint32_t>(std::max(1, options_.max_attempts))) {
                 RTC_LOG_ERROR("Message on '{}' failed {} times; dead-lettering",
                               message.topic,
                               message.delivery_attempt);
@@ -173,8 +173,8 @@ void InMemoryMessageBroker::dispatch(Message message) {
             // Backoff before requeueing. Slept on the worker rather than with a
             // timer so a retry storm is bounded by worker count — the queue
             // cannot spin faster than the pool can process it.
-            reliability::sleep_for(options_.backoff.delay_for(
-                static_cast<int>(message.delivery_attempt) + 1));
+            reliability::sleep_for(
+                options_.backoff.delay_for(static_cast<int>(message.delivery_attempt) + 1));
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 if (running_) {

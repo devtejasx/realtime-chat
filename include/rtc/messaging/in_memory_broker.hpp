@@ -46,8 +46,8 @@ class InMemoryMessageBroker final : public IMessageBroker {
         int max_attempts = 3;
         // Backoff between attempts. Reuses RetryPolicy so the ladder is the same
         // one used everywhere else rather than a second implementation.
-        reliability::RetryPolicy backoff{
-            .max_attempts = 3, .initial_delay = std::chrono::milliseconds{50}};
+        reliability::RetryPolicy backoff{.max_attempts = 3,
+                                         .initial_delay = std::chrono::milliseconds{50}};
         // Consumer threads.
         std::size_t worker_count = 1;
     };

@@ -60,6 +60,8 @@ add_executable(rtc_tests
     trace_propagation_test.cpp
     # Reliability primitives: retry and circuit breaking.
     reliability_test.cpp
+    # Durable messaging semantics: retry, DLQ, poison handling.
+    message_broker_test.cpp
 )
 
 target_include_directories(rtc_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

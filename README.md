@@ -358,9 +358,13 @@ Operational guidance, the readiness checklist and the runbook are in
 [Terraform](deploy/terraform/README.md) ·
 [Monitoring](docs/Monitoring.md) ·
 [Reliability](docs/Reliability.md) ·
+[Performance method](docs/performance/README.md) ·
 [Performance](docs/Performance.md) ·
 [Load testing](loadtest/README.md) ·
 [Troubleshooting](docs/Troubleshooting.md)
+
+**Decisions**
+[Architecture decision records](docs/adr/README.md)
 
 **Project**
 [Security posture](docs/Security.md) ·

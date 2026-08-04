@@ -83,6 +83,25 @@ instance is actually clustered — `"distributed": false` on a multi-replica
 deployment means delivery is partial right now, silently. Full walkthrough in
 [docs/Deployment.md](docs/Deployment.md#running-more-than-one-instance).
 
+### With dashboards and traces
+
+Overlays Prometheus, Grafana and Jaeger onto the cluster stack. It attaches to
+the *two-instance* stack rather than the single-server one because the panels
+worth looking at — cluster fan-out, per-instance connections — say nothing with
+one replica:
+
+```bash
+docker compose -f docker-compose.cluster.yml -f docker-compose.observability.yml up --build
+```
+
+| | |
+| --- | --- |
+| `localhost:3000` | Grafana, opening on the dashboard |
+| `localhost:9090` | Prometheus |
+| `localhost:16686` | Jaeger — one trace should span both instances |
+
+See [docs/Monitoring.md](docs/Monitoring.md#dashboards).
+
 ## Features
 
 ### Messaging
@@ -116,8 +135,13 @@ deployment means delivery is partial right now, silently. Full walkthrough in
 | **API versioning** | Routes authored once, served at `/api/v1/...` **and** the legacy `/api/...`; an unknown version returns a machine-readable 404 |
 | **OpenAPI 3.1** | The spec is compiled into the binary and served at `/openapi.json`, with Swagger UI at `/docs`. A test asserts every registered route is documented |
 | **Event bus** | Typed domain events dispatched on a worker pool with per-subscriber error isolation, so a slow subscriber never touches request latency |
-| **Tracing** | W3C trace context propagation and OTLP/Zipkin export to Jaeger, Zipkin, Tempo or an OpenTelemetry Collector |
-| **Metrics** | Prometheus exposition at `/metrics` |
+| **Tracing** | W3C trace context propagation and OTLP/Zipkin export to Jaeger, Zipkin, Tempo or an OpenTelemetry Collector. Context follows the request across Redis Pub/Sub and into background workers, so one trace id spans the whole lifecycle |
+| **Structured logs** | JSON with `trace_id`, `span_id` and `request_id` on **every** line, read from ambient context — so a log statement in a repository that knows nothing about HTTP is still joinable to its trace |
+| **Metrics** | Prometheus exposition at `/metrics`, with histogram buckets so `histogram_quantile` gives real p95/p99 rather than an average |
+| **Dashboards** | A [Grafana dashboard](deploy/grafana/dashboards/realtime-chat-overview.json) of 26 panels, every query checked against a metric the binary actually emits |
+| **Circuit breakers** | PostgreSQL and the cache fail fast instead of queueing behind a dead dependency. A domain error (duplicate username, missing row) counts as a *success* — otherwise ordinary user input could trip the breaker |
+| **Graceful degradation** | A cache outage degrades to a miss, not a 500: reads fall back to the source of truth and writes become no-ops |
+| **Retry policy** | Bounded exponential backoff with jitter. The retryable predicate is mandatory — retrying a non-idempotent write that already applied is how one INSERT becomes two |
 | **Health probes** | `/health/live`, `/health/ready`, `/health/startup` — three probes answering three genuinely different questions |
 | **Feature flags** | Eight runtime-togglable capabilities, seeded from the environment, switchable live by a super admin |
 | **Admin module** | Users, groups, sessions, connected sockets, cache, jobs, system metrics, audit search, feature toggles |
@@ -127,7 +151,7 @@ deployment means delivery is partial right now, silently. Full walkthrough in
 | | |
 | --- | --- |
 | **Architecture** | Clean architecture — controllers → services → repositories, with DTOs, models, middlewares and a single composition root |
-| **Testing** | GoogleTest across config, validation, security, every service, realtime managers, and the API, plus opt-in database integration tests. HTTP-level suites drive the real Crow router — one in-process (`ctest -L unit`) and one against a live socket (`ctest -L live`) — asserting prefix parity and that the OpenAPI document matches the DTOs it describes |
+| **Testing** | GoogleTest across config, validation, security, every service, realtime managers, and the API, plus opt-in database integration tests. HTTP-level suites drive the real Crow router — one in-process (`ctest -L unit`) and one against a live socket (`ctest -L live`) — asserting prefix parity and that the OpenAPI document matches the DTOs it describes. 397 tests in CI, including cross-instance delivery, trace propagation across process boundaries, and circuit-breaker state transitions against an injected clock |
 | **Benchmarks** | Google Benchmark for JWT, cache, protocol encoding, event bus, authorization and PostgreSQL |
 | **Load testing** | k6 scenarios for authentication, messaging, WebSocket concurrency and upload/search |
 | **CI/CD** | GitHub Actions — build, test, coverage, clang-format/clang-tidy, CodeQL, secret scanning, GHCR image push, tagged releases |
@@ -333,6 +357,7 @@ Operational guidance, the readiness checklist and the runbook are in
 [Kubernetes](deploy/k8s/README.md) ·
 [Terraform](deploy/terraform/README.md) ·
 [Monitoring](docs/Monitoring.md) ·
+[Reliability](docs/Reliability.md) ·
 [Performance](docs/Performance.md) ·
 [Load testing](loadtest/README.md) ·
 [Troubleshooting](docs/Troubleshooting.md)

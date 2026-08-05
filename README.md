@@ -138,7 +138,7 @@ See [docs/Monitoring.md](docs/Monitoring.md#dashboards).
 | **Tracing** | W3C trace context propagation and OTLP/Zipkin export to Jaeger, Zipkin, Tempo or an OpenTelemetry Collector. Context follows the request across Redis Pub/Sub and into background workers, so one trace id spans the whole lifecycle |
 | **Structured logs** | JSON with `trace_id`, `span_id` and `request_id` on **every** line, read from ambient context — so a log statement in a repository that knows nothing about HTTP is still joinable to its trace |
 | **Metrics** | Prometheus exposition at `/metrics`, with histogram buckets so `histogram_quantile` gives real p95/p99 rather than an average |
-| **Dashboards** | A [Grafana dashboard](deploy/grafana/dashboards/realtime-chat-overview.json) of 26 panels, every query checked against a metric the binary actually emits |
+| **Dashboards** | A [Grafana dashboard](deploy/grafana/dashboards/realtime-chat-overview.json) of 20 panels across 6 rows, every query checked against a metric the binary actually emits |
 | **Circuit breakers** | PostgreSQL and the cache fail fast instead of queueing behind a dead dependency. A domain error (duplicate username, missing row) counts as a *success* — otherwise ordinary user input could trip the breaker |
 | **Graceful degradation** | A cache outage degrades to a miss, not a 500: reads fall back to the source of truth and writes become no-ops |
 | **Retry policy** | Bounded exponential backoff with jitter. The retryable predicate is mandatory — retrying a non-idempotent write that already applied is how one INSERT becomes two |
@@ -151,7 +151,7 @@ See [docs/Monitoring.md](docs/Monitoring.md#dashboards).
 | | |
 | --- | --- |
 | **Architecture** | Clean architecture — controllers → services → repositories, with DTOs, models, middlewares and a single composition root |
-| **Testing** | GoogleTest across config, validation, security, every service, realtime managers, and the API, plus opt-in database integration tests. HTTP-level suites drive the real Crow router — one in-process (`ctest -L unit`) and one against a live socket (`ctest -L live`) — asserting prefix parity and that the OpenAPI document matches the DTOs it describes. 397 tests in CI, including cross-instance delivery, trace propagation across process boundaries, and circuit-breaker state transitions against an injected clock |
+| **Testing** | GoogleTest across config, validation, security, every service, realtime managers, and the API, plus opt-in database integration tests. HTTP-level suites drive the real Crow router — one in-process (`ctest -L unit`) and one against a live socket (`ctest -L live`) — asserting prefix parity and that the OpenAPI document matches the DTOs it describes. 414 tests, including cross-instance delivery, trace propagation across process boundaries, and circuit-breaker state transitions against an injected clock. Seven of them are the database integration tests and report as skipped until `RTC_RUN_DB_TESTS=1` and a reachable PostgreSQL |
 | **Benchmarks** | Google Benchmark for JWT, cache, protocol encoding, event bus, authorization and PostgreSQL |
 | **Load testing** | k6 scenarios for authentication, messaging, WebSocket concurrency and upload/search |
 | **CI/CD** | GitHub Actions — build, test, coverage, clang-format/clang-tidy, CodeQL, secret scanning, GHCR image push, tagged releases |

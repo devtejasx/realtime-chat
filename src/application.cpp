@@ -440,9 +440,8 @@ void Application::wire_object_graph() {
     user_controller_ = std::make_unique<controllers::UserController>(*user_service_, *auth_guard_);
     conversation_controller_ =
         std::make_unique<controllers::ConversationController>(*conversation_service_, *auth_guard_);
-    message_controller_ =
-        std::make_unique<controllers::MessageController>(
-            *message_service_, *auth_guard_, *rate_limiter_, config_);
+    message_controller_ = std::make_unique<controllers::MessageController>(
+        *message_service_, *auth_guard_, *rate_limiter_, config_);
     websocket_controller_ =
         std::make_unique<controllers::WebSocketController>(*token_service_, *event_dispatcher_);
     attachment_controller_ = std::make_unique<controllers::AttachmentController>(

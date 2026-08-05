@@ -164,4 +164,3 @@ std::string MetricsRegistry::render_prometheus() const {
 }
 
 }  // namespace rtc::metrics
-

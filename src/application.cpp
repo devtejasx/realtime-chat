@@ -435,13 +435,14 @@ void Application::wire_object_graph() {
     health_controller_->set_worker_dependencies(*executor_, *scheduler_);
     health_controller_->set_cluster_bus(*cluster_bus_);
     auth_controller_ = std::make_unique<controllers::AuthController>(
-        *auth_service_, *user_service_, *session_service_, *auth_guard_);
+        *auth_service_, *user_service_, *session_service_, *auth_guard_, *rate_limiter_, config_);
     auth_controller_->set_event_publisher(*event_bus_);
     user_controller_ = std::make_unique<controllers::UserController>(*user_service_, *auth_guard_);
     conversation_controller_ =
         std::make_unique<controllers::ConversationController>(*conversation_service_, *auth_guard_);
     message_controller_ =
-        std::make_unique<controllers::MessageController>(*message_service_, *auth_guard_);
+        std::make_unique<controllers::MessageController>(
+            *message_service_, *auth_guard_, *rate_limiter_, config_);
     websocket_controller_ =
         std::make_unique<controllers::WebSocketController>(*token_service_, *event_dispatcher_);
     attachment_controller_ = std::make_unique<controllers::AttachmentController>(

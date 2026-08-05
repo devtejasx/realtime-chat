@@ -824,10 +824,11 @@ constexpr const char* kOpenApiJson = R"OPENAPI({
       "parameters": [{ "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }],
       "delete": {
         "tags": ["Sessions"], "summary": "Revoke one of the caller's sessions", "operationId": "revokeOwnSession",
+        "description": "Idempotent, and deliberately does not distinguish 'no such session' from 'not yours'. Revocation is scoped to the caller's own sessions, so an id belonging to someone else simply does not match; answering 404 for that case would turn this endpoint into an oracle for whether a session id exists. Both outcomes return 200 with `revoked` saying whether anything was actually revoked — the same shape as /auth/logout.",
         "responses": {
-          "200": { "description": "Revoked" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "200": { "description": "Revoked", "content": { "application/json": { "schema": { "type": "object",
+            "properties": { "revoked": { "type": "boolean" } } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
     },

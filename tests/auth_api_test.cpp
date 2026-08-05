@@ -6,11 +6,13 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
+#include "rtc/cache/in_memory_cache_store.hpp"
 #include "rtc/config/config.hpp"
 #include "rtc/controllers/auth_controller.hpp"
 #include "rtc/controllers/health_controller.hpp"
 #include "rtc/http/app.hpp"
 #include "rtc/middlewares/auth_middleware.hpp"
+#include "rtc/ratelimit/rate_limiter.hpp"
 #include "rtc/security/jwt_token_service.hpp"
 #include "rtc/services/auth_service.hpp"
 #include "rtc/services/session_service.hpp"
@@ -31,7 +33,7 @@ class AuthApiTest : public ::testing::Test {
     void SetUp() override {
         health_ = std::make_unique<rtc::controllers::HealthController>(config_);
         auth_ = std::make_unique<rtc::controllers::AuthController>(
-            auth_service_, user_service_, session_service_, guard_);
+            auth_service_, user_service_, session_service_, guard_, rate_limiter_, config_);
         health_->register_routes(app_);
         auth_->register_routes(app_);
         app_.validate();
@@ -72,6 +74,12 @@ class AuthApiTest : public ::testing::Test {
     rtc::testing::FakeSessionRepository session_repo_;
     rtc::services::SessionService session_service_{session_repo_, token_service_, 1209600};
     rtc::middlewares::AuthMiddleware guard_{token_service_};
+
+    // Disabled here: this suite registers and logs in repeatedly from one
+    // "address", which the real budgets would cut off mid-suite. Enforcement is
+    // covered by rate_limiter_test.
+    rtc::cache::InMemoryCacheStore rate_limit_store_;
+    rtc::ratelimit::RateLimiter rate_limiter_{rate_limit_store_, /*enabled=*/false};
 
     rtc::http::App app_;
     std::unique_ptr<rtc::controllers::HealthController> health_;

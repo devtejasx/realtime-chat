@@ -1,5 +1,6 @@
 #include "rtc/controllers/auth_controller.hpp"
 
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
@@ -56,6 +57,14 @@ void AuthController::register_routes(http::App& app) {
     RTC_API_ROUTE(app, "/auth/register")
         .methods(crow::HTTPMethod::Post)([this, with_session](const crow::request& req) {
             return http::run_guarded([&] {
+                // Scoped by client IP, not by user: there is no authenticated
+                // identity yet, and the attack this exists to stop is one host
+                // enumerating accounts or minting them in bulk.
+                rate_limiter_.enforce("register",
+                                      req.remote_ip_address,
+                                      config_.rate_limit_register_max,
+                                      std::chrono::seconds(config_.rate_limit_window_seconds));
+
                 auto request = dto::RegisterRequest::from_json(http::parse_json_body(req));
                 const auto response = auth_service_.register_user(std::move(request));
                 auto body = with_session(req, response);
@@ -72,6 +81,14 @@ void AuthController::register_routes(http::App& app) {
     RTC_API_ROUTE(app, "/auth/login")
         .methods(crow::HTTPMethod::Post)([this, with_session](const crow::request& req) {
             return http::run_guarded([&] {
+                // Counted before the credential check, so failed attempts are what
+                // the window actually bounds. Limiting only successful logins would
+                // leave password guessing completely unthrottled.
+                rate_limiter_.enforce("login",
+                                      req.remote_ip_address,
+                                      config_.rate_limit_login_max,
+                                      std::chrono::seconds(config_.rate_limit_window_seconds));
+
                 auto request = dto::LoginRequest::from_json(http::parse_json_body(req));
                 const auto response = auth_service_.login(std::move(request));
                 auto body = with_session(req, response);

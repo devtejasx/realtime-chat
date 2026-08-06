@@ -132,6 +132,24 @@ export function createDirectConversation(token, peerId) {
   return ok ? response.json('id') : null;
 }
 
+// Creates a group conversation containing the caller and `participantIds`.
+//
+// A direct conversation holds exactly two people, so it is the wrong fixture for
+// any scenario that spreads load across a pool of users: everyone outside the
+// pair is correctly refused, and the run measures the rejection path.
+export function createGroupConversation(token, name, participantIds) {
+  const response = http.post(
+    `${BASE_URL}${API}/conversations`,
+    JSON.stringify({ type: 'group', name, participant_ids: participantIds }),
+    { headers: jsonHeaders(token), tags: { operation: 'create_conversation' } },
+  );
+  const ok = check(response, {
+    'conversation: created': (r) => r.status === 201 || r.status === 200,
+  });
+  errorRate.add(!ok);
+  return ok ? response.json('id') : null;
+}
+
 export function sendMessage(token, conversationId, content) {
   const started = Date.now();
   const response = http.post(

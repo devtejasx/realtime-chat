@@ -10,7 +10,7 @@ import {
   API,
   uniqueUser,
   registerUser,
-  createDirectConversation,
+  createGroupConversation,
   sendMessage,
   jsonHeaders,
   commonThresholds,
@@ -73,7 +73,22 @@ export function setup() {
   // One shared conversation. Deliberate: it concentrates writes on a single
   // conversation row, which is the worst case for the last_message_at update and
   // therefore the interesting one.
-  const conversationId = createDirectConversation(users[0].accessToken, users[1].userId);
+  // A group holding the whole pool, not a direct conversation.
+  //
+  // The default function spreads VUs across all `users`, but a direct
+  // conversation contains exactly two of them — so the other eight were sending
+  // to a conversation they are not in and being refused. That is the server
+  // behaving correctly; it just meant roughly 1 - 2/poolSize of every run
+  // measured the authorization-failure path. Observed as an 80% error rate with
+  // a p95 of 60ms: fast, and almost entirely rejections.
+  //
+  // A group keeps what the fixture was for — one conversation row taking every
+  // write, which is the worst case for the last_message_at update.
+  const conversationId = createGroupConversation(
+    users[0].accessToken,
+    'load-test',
+    users.slice(1).map((u) => u.userId),
+  );
   if (!conversationId) {
     throw new Error('setup: could not create the shared conversation');
   }

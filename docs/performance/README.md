@@ -1,19 +1,23 @@
 # Performance
 
-> **Status: methodology defined, results not yet collected.**
+> **Status: one run recorded, on a developer laptop.**
 >
-> This directory describes how to measure the service and where to record the
-> numbers. It deliberately contains **no results**, because none have been
-> gathered on a controlled machine. Publishing invented or casually-obtained
-> figures would be worse than publishing none: a number with a methodology
-> attached can be reproduced and argued with, and a number without one is
-> decoration.
+> [results-2026-08-06.md](results-2026-08-06.md) is the first set of figures.
+> Read its Environment and Known distortions sections before quoting anything
+> from it: the load generator, both app instances, PostgreSQL, Redis and the
+> whole observability stack shared one 16-thread machine, so the numbers describe
+> that machine as much as the service. Several microbenchmark rows exceed the 10%
+> CV bar below and are marked accordingly.
+>
+> It is recorded anyway because a number with its conditions attached can be
+> reproduced and argued with. A run on a dedicated host is still wanted, and
+> should be added as its own dated file rather than replacing that one.
 >
 > [results-template.md](results-template.md) is the form to fill in.
 
 ## What already exists to run
 
-Both harnesses are in the repository and working; only the *runs* are missing.
+Both harnesses are in the repository and working.
 
 | Suite | Location | Covers |
 | --- | --- | --- |

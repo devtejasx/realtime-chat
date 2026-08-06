@@ -75,3 +75,10 @@ Watch `rtc_http_request_seconds_avg`, `rtc_db_query_seconds`,
 `rtc_cache_hit_ratio`, `rtc_ws_connections`, and `rtc_background_jobs_pending`
 (see [Monitoring.md](Monitoring.md)). Load-test WebSocket fan-out and message
 throughput before capacity planning.
+
+The targets at the top of this page are design goals, not measurements. For
+figures that were actually taken — and the conditions that produced them — see
+[performance/results-2026-08-06.md](performance/results-2026-08-06.md). The short
+version from that run: messaging is bounded by PostgreSQL and authentication by
+bcrypt, which are separate limits with separate remedies, and neither is the
+application layer.

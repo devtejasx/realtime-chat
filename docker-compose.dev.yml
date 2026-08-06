@@ -45,6 +45,9 @@ services:
       DB_PASSWORD: chat_password
       REDIS_ENABLED: "true"
       REDIS_URL: tcp://redis:6379
+      # See docker-compose.cluster.yml: lets the documented load-testing override
+      # reach the process. Defaults to on.
+      RATE_LIMIT_ENABLED: "${RATE_LIMIT_ENABLED:-true}"
       JWT_SECRET: dev-insecure-secret-change-me-in-production
       APP_ENV: development
       LOG_LEVEL: debug

@@ -618,7 +618,24 @@ int Application::run() {
     RTC_LOG_INFO("HTTP + WebSocket server listening on port {}", config_.chat_port);
     RTC_LOG_INFO("API: /api/v1 (legacy /api supported) — docs at /docs, spec at /openapi.json");
     app_->loglevel(crow::LogLevel::Warning);
-    app_->port(config_.chat_port).multithreaded().run();
+    // Idle-connection timeout, and it must be LONGER than that of whatever proxy
+    // sits in front of this process — not shorter.
+    //
+    // Crow defaults to 5 seconds. Every reverse proxy we ship a config for pools
+    // idle upstream connections for far longer: nginx `keepalive` defaults to 60s
+    // (nginx/cluster.conf, nginx/conf.d/realtime-chat.conf) and an AWS ALB
+    // defaults to 60s too. So the proxy holds a connection it believes is good,
+    // the app hangs up on it 55 seconds earlier, and the next request written
+    // into that socket dies as "upstream prematurely closed connection" — a 502
+    // the client sees and the application never logs, because it never received
+    // the request. POSTs are not retried by default, so it lands on exactly the
+    // requests that matter.
+    //
+    // 65s clears the 60s both proxies use. Measured under loadtest/auth.js at
+    // 200 VUs: 7170 of 14255 requests 502'd before this and the nginx Connection
+    // fix, 1041 with the nginx fix alone, 0 with both.
+    static constexpr std::uint8_t kIdleConnectionTimeoutSeconds = 65;
+    app_->port(config_.chat_port).timeout(kIdleConnectionTimeoutSeconds).multithreaded().run();
     RTC_LOG_INFO("HTTP server stopped");
 
     // Reverse order of startup. The cluster bus stops first so no inbound message

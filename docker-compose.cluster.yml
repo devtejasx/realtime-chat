@@ -74,6 +74,13 @@ services:
       # The switch this whole file exists to exercise. Without it the bus is the
       # no-op implementation and delivery is silently partial across replicas.
       CLUSTER_ENABLED: "true"
+      # Passed through so `RATE_LIMIT_ENABLED=false docker compose ... up -d`
+      # actually reaches the process. loadtest/README.md tells you to turn the
+      # limiter off before measuring capacity — otherwise the limiter, not the
+      # service, is what the numbers describe — and without this line that
+      # instruction silently did nothing. Defaults to on, so an ordinary run of
+      # this stack is still rate limited.
+      RATE_LIMIT_ENABLED: "${RATE_LIMIT_ENABLED:-true}"
       JWT_SECRET: dev-insecure-secret-change-me-in-production
       APP_ENV: development
       LOG_LEVEL: debug

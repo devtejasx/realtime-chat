@@ -61,7 +61,22 @@ COPY --from=build /src/build/bin/realtime-chat /app/realtime-chat
 COPY --from=build /src/migrations /app/migrations
 
 ENV CHAT_PORT=8080 \
-    MIGRATIONS_DIR=/app/migrations
+    MIGRATIONS_DIR=/app/migrations \
+    UPLOAD_DIR=/data/uploads
+
+# Uploads need an absolute directory this user can actually write to.
+#
+# UPLOAD_DIR defaults to the *relative* "uploads", which resolves against WORKDIR
+# — and /app is owned by root while the process runs as appuser. Creating it
+# fails with EACCES, and the attachment service treats that as fatal, so the
+# container exited with "Cannot create upload root directory" before binding a
+# port. `docker compose up --build` therefore never came up at all, which is
+# unfortunate for the first command in the README.
+#
+# Same layout as docker/Dockerfile.prod, so the two images agree on where
+# attachments live.
+RUN mkdir -p /data/uploads && chown -R appuser:appuser /data
+VOLUME ["/data"]
 
 EXPOSE 8080
 

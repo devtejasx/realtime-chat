@@ -42,6 +42,7 @@
 #include "rtc/realtime/connection_manager.hpp"
 #include "rtc/realtime/event_dispatcher.hpp"
 #include "rtc/realtime/heartbeat_monitor.hpp"
+#include "rtc/reliability/circuit_breaker.hpp"
 #include "rtc/repositories/attachment_repository.hpp"
 #include "rtc/repositories/audit_log_repository.hpp"
 #include "rtc/repositories/conversation_repository.hpp"
@@ -176,6 +177,8 @@ class Application {
     std::unique_ptr<realtime::IClusterBus> cluster_bus_;
     std::unique_ptr<realtime::ClusterInvalidationPublisher> invalidation_publisher_;
     std::unique_ptr<realtime::ClusterPresencePublisher> presence_publisher_;
+    std::unique_ptr<reliability::CircuitBreaker> db_breaker_;
+    std::unique_ptr<reliability::CircuitBreaker> cache_breaker_;
 
     // Realtime infrastructure (ConnectionManager is the IEventBroadcaster).
     std::unique_ptr<realtime::ConnectionManager> connection_manager_;

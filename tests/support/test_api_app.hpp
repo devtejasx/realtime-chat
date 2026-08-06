@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "rtc/cache/in_memory_cache_store.hpp"
 #include "rtc/config/config.hpp"
 #include "rtc/controllers/api_fallback_controller.hpp"
 #include "rtc/controllers/auth_controller.hpp"
@@ -24,6 +25,7 @@
 #include "rtc/http/app.hpp"
 #include "rtc/middlewares/auth_middleware.hpp"
 #include "rtc/notifications/notification_dispatcher.hpp"
+#include "rtc/ratelimit/rate_limiter.hpp"
 #include "rtc/repositories/message_search_repository.hpp"
 #include "rtc/security/jwt_token_service.hpp"
 #include "rtc/services/attachment_linker.hpp"
@@ -190,11 +192,18 @@ class TestApiApp {
 
     middlewares::AuthMiddleware guard_{tokens_};
 
+    // Disabled: these tests drive many requests through the same in-process
+    // limiter, and the default per-window budgets would start returning 429 part
+    // way through a suite. Enforcement itself is covered by rate_limiter_test.
+    cache::InMemoryCacheStore rate_limit_store_{};
+    ratelimit::RateLimiter rate_limiter_{rate_limit_store_, /*enabled=*/false};
+
     controllers::HealthController health_{config_};
-    controllers::AuthController auth_{auth_service_, user_service_, session_service_, guard_};
+    controllers::AuthController auth_{
+        auth_service_, user_service_, session_service_, guard_, rate_limiter_, config_};
     controllers::UserController users_{user_service_, guard_};
     controllers::ConversationController conversations_{conversations_service_, guard_};
-    controllers::MessageController messages_{messages_service_, guard_};
+    controllers::MessageController messages_{messages_service_, guard_, rate_limiter_, config_};
     controllers::ReactionController reactions_{reactions_service_, guard_};
     controllers::SessionController sessions_{session_service_, guard_};
     controllers::SearchController search_{search_service_, guard_};

@@ -10,6 +10,7 @@
 
 #include "rtc/cache/cache_store.hpp"
 #include "rtc/cache/invalidation.hpp"
+#include "rtc/reliability/circuit_breaker.hpp"
 
 namespace rtc::cache {
 
@@ -49,6 +50,15 @@ class CacheService {
         invalidations_ = &publisher;
     }
 
+    // Optional circuit breaker over the cache backend.
+    //
+    // A cache is an optimisation, so its failure must degrade to a miss rather
+    // than to an error: every read falls back to the source of truth and every
+    // write becomes a no-op. Without the breaker, a Redis outage does not slow
+    // the service down — it turns cache lookups into exceptions and converts a
+    // performance problem into a availability one.
+    void set_circuit_breaker(reliability::CircuitBreaker& breaker) noexcept { breaker_ = &breaker; }
+
     // Read-through cache: returns the cached value, or computes it via `loader`,
     // stores it under `ttl`, and returns it. `loader` returns a JSON value.
     template <typename Loader>
@@ -78,6 +88,7 @@ class CacheService {
   private:
     ICacheStore& store_;
     IInvalidationPublisher* invalidations_{&NullInvalidationPublisher::instance()};
+    reliability::CircuitBreaker* breaker_ = nullptr;
     std::atomic<std::uint64_t> hits_{0};
     std::atomic<std::uint64_t> misses_{0};
 };

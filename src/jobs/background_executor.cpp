@@ -31,8 +31,24 @@ void BackgroundExecutor::start() {
 }
 
 void BackgroundExecutor::stop() {
-    if (!running_.exchange(false)) {
-        return;
+    {
+        // The flag must be cleared under the mutex, even though it is atomic.
+        //
+        // `running_` is half of the wait predicate, and worker_loop() evaluates
+        // that predicate while holding the mutex — cv_.wait() releases the lock
+        // and blocks atomically. Clearing the flag outside the lock lets stop()
+        // land in the window after a worker has read `running_ == true` and
+        // before it is enrolled on the condition variable, so notify_all()
+        // reaches nobody. With an untimed wait() and an empty queue, no further
+        // notification is ever sent: the worker sleeps forever and stop() blocks
+        // in join(). Shutdown then hangs until something SIGKILLs the process.
+        //
+        // Serialising the store against the predicate evaluation closes the
+        // window. This is the pattern InMemoryMessageBroker::stop() already uses.
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!running_.exchange(false)) {
+            return;
+        }
     }
     cv_.notify_all();
     for (auto& worker : workers_) {

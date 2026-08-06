@@ -56,7 +56,23 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/_deps
-          key: deps-${{ runner.os }}-${{ hashFiles('cmake/dependencies.cmake') }}
+          # github.repository is part of the key because build/_deps is not
+          # relocatable: FetchContent writes a CMakeCache.txt per dependency
+          # containing the absolute workspace path it was configured in. Restore
+          # that into a workspace at a different path and CMake refuses —
+          #
+          #   The current CMakeCache.txt directory .../realtime-chat-server/build/_deps/...
+          #   is different than the directory .../realtime-chat/build/_deps/... where
+          #   CMakeCache.txt was created
+          #
+          # which is exactly what happened when this repository was renamed: the
+          # workspace moved from /home/runner/work/realtime-chat/realtime-chat to
+          # .../realtime-chat-server/realtime-chat-server, the key still matched,
+          # and configure failed on a cache that could not be used.
+          #
+          # Keying on the repository name means a rename produces a cache miss —
+          # one slow build — instead of a broken one.
+          key: deps-${{ runner.os }}-${{ github.repository }}-${{ hashFiles('cmake/dependencies.cmake') }}
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRTC_BUILD_TESTS=ON

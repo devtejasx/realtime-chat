@@ -117,7 +117,30 @@ export function login(user) {
 export function createDirectConversation(token, peerId) {
   const response = http.post(
     `${BASE_URL}${API}/conversations`,
-    JSON.stringify({ participant_id: peerId }),
+    // {type, participant_ids[]} — see CreateConversationRequest in the OpenAPI
+    // spec. This previously sent {participant_id}, which the API answers with
+    // 400 "Missing required field: type", so setup() threw and the messaging,
+    // websocket and upload scenarios all died before generating any load. Only
+    // auth.js, which never creates a conversation, could run at all.
+    JSON.stringify({ type: 'direct', participant_ids: [peerId] }),
+    { headers: jsonHeaders(token), tags: { operation: 'create_conversation' } },
+  );
+  const ok = check(response, {
+    'conversation: created': (r) => r.status === 201 || r.status === 200,
+  });
+  errorRate.add(!ok);
+  return ok ? response.json('id') : null;
+}
+
+// Creates a group conversation containing the caller and `participantIds`.
+//
+// A direct conversation holds exactly two people, so it is the wrong fixture for
+// any scenario that spreads load across a pool of users: everyone outside the
+// pair is correctly refused, and the run measures the rejection path.
+export function createGroupConversation(token, name, participantIds) {
+  const response = http.post(
+    `${BASE_URL}${API}/conversations`,
+    JSON.stringify({ type: 'group', name, participant_ids: participantIds }),
     { headers: jsonHeaders(token), tags: { operation: 'create_conversation' } },
   );
   const ok = check(response, {

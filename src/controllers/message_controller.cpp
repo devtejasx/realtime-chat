@@ -1,7 +1,9 @@
 #include "rtc/controllers/message_controller.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <nlohmann/json.hpp>
+#include <string>
 
 #include "rtc/dto/message_dto.hpp"
 #include "rtc/dto/pagination.hpp"
@@ -17,6 +19,13 @@ void MessageController::register_routes(http::App& app) {
         .methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
             return http::run_guarded([&] {
                 const auto claims = auth_guard_.authenticate(req);
+                // Scoped by user id: send is authenticated, and the budget belongs
+                // to the account rather than to whatever address it dialled from.
+                rate_limiter_.enforce("message",
+                                      std::to_string(claims.user_id),
+                                      config_.rate_limit_message_max,
+                                      std::chrono::seconds(config_.rate_limit_window_seconds));
+
                 const auto request = dto::SendMessageRequest::from_json(http::parse_json_body(req));
                 const auto message = messages_.send(claims.user_id, request);
                 return http::json_response(201, messages_.to_response(message).to_json());

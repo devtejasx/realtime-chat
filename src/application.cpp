@@ -14,6 +14,7 @@
 #include "rtc/logging/logger.hpp"
 #include "rtc/realtime/cluster_presence.hpp"
 #include "rtc/realtime/redis_cluster_bus.hpp"
+#include "rtc/reliability/circuit_breaker.hpp"
 #include "rtc/repositories/pg_attachment_repository.hpp"
 #include "rtc/repositories/pg_audit_log_repository.hpp"
 #include "rtc/repositories/pg_conversation_repository.hpp"
@@ -292,7 +293,28 @@ void Application::wire_object_graph() {
     // Phase 3 infrastructure.
     metrics_ = std::make_unique<metrics::MetricsRegistry>();
     cache_store_ = make_cache_store(config_);
+    // Circuit breakers over the two external dependencies.
+    //
+    // Created before the components that use them so the wiring below cannot
+    // reference a null. Both guard *this* process's view of the dependency:
+    // breakers are deliberately per-instance, since a replica that can still
+    // reach the database should keep serving even while another cannot.
+    db_breaker_ = std::make_unique<reliability::CircuitBreaker>(
+        "postgres",
+        reliability::CircuitBreaker::Options{.failure_threshold = 5,
+                                             .open_duration = std::chrono::seconds(15)});
+    // The cache breaker is deliberately twitchier and recovers faster. Opening
+    // it costs only cache misses — the request still succeeds from the source of
+    // truth — so there is little reason to tolerate a struggling cache, and
+    // every reason to re-check often.
+    cache_breaker_ = std::make_unique<reliability::CircuitBreaker>(
+        "cache",
+        reliability::CircuitBreaker::Options{.failure_threshold = 3,
+                                             .open_duration = std::chrono::seconds(5)});
+    pool_->set_circuit_breaker(*db_breaker_);
+
     cache_service_ = std::make_unique<cache::CacheService>(*cache_store_);
+    cache_service_->set_circuit_breaker(*cache_breaker_);
     presence_cache_ = std::make_unique<cache::PresenceCache>(*cache_store_);
     rate_limiter_ =
         std::make_unique<ratelimit::RateLimiter>(*cache_store_, config_.rate_limit_enabled);
@@ -413,13 +435,13 @@ void Application::wire_object_graph() {
     health_controller_->set_worker_dependencies(*executor_, *scheduler_);
     health_controller_->set_cluster_bus(*cluster_bus_);
     auth_controller_ = std::make_unique<controllers::AuthController>(
-        *auth_service_, *user_service_, *session_service_, *auth_guard_);
+        *auth_service_, *user_service_, *session_service_, *auth_guard_, *rate_limiter_, config_);
     auth_controller_->set_event_publisher(*event_bus_);
     user_controller_ = std::make_unique<controllers::UserController>(*user_service_, *auth_guard_);
     conversation_controller_ =
         std::make_unique<controllers::ConversationController>(*conversation_service_, *auth_guard_);
-    message_controller_ =
-        std::make_unique<controllers::MessageController>(*message_service_, *auth_guard_);
+    message_controller_ = std::make_unique<controllers::MessageController>(
+        *message_service_, *auth_guard_, *rate_limiter_, config_);
     websocket_controller_ =
         std::make_unique<controllers::WebSocketController>(*token_service_, *event_dispatcher_);
     attachment_controller_ = std::make_unique<controllers::AttachmentController>(
@@ -596,7 +618,24 @@ int Application::run() {
     RTC_LOG_INFO("HTTP + WebSocket server listening on port {}", config_.chat_port);
     RTC_LOG_INFO("API: /api/v1 (legacy /api supported) — docs at /docs, spec at /openapi.json");
     app_->loglevel(crow::LogLevel::Warning);
-    app_->port(config_.chat_port).multithreaded().run();
+    // Idle-connection timeout, and it must be LONGER than that of whatever proxy
+    // sits in front of this process — not shorter.
+    //
+    // Crow defaults to 5 seconds. Every reverse proxy we ship a config for pools
+    // idle upstream connections for far longer: nginx `keepalive` defaults to 60s
+    // (nginx/cluster.conf, nginx/conf.d/realtime-chat.conf) and an AWS ALB
+    // defaults to 60s too. So the proxy holds a connection it believes is good,
+    // the app hangs up on it 55 seconds earlier, and the next request written
+    // into that socket dies as "upstream prematurely closed connection" — a 502
+    // the client sees and the application never logs, because it never received
+    // the request. POSTs are not retried by default, so it lands on exactly the
+    // requests that matter.
+    //
+    // 65s clears the 60s both proxies use. Measured under loadtest/auth.js at
+    // 200 VUs: 7170 of 14255 requests 502'd before this and the nginx Connection
+    // fix, 1041 with the nginx fix alone, 0 with both.
+    static constexpr std::uint8_t kIdleConnectionTimeoutSeconds = 65;
+    app_->port(config_.chat_port).timeout(kIdleConnectionTimeoutSeconds).multithreaded().run();
     RTC_LOG_INFO("HTTP server stopped");
 
     // Reverse order of startup. The cluster bus stops first so no inbound message

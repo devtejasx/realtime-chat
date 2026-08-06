@@ -199,6 +199,23 @@ void Config::validate() const {
         if (jwt_secret == "dev-insecure-secret-change-me-in-production") {
             throw ConfigException("JWT_SECRET must be overridden in production");
         }
+        // Any value carrying REPLACE_ME, not just the dev default.
+        //
+        // deploy/k8s/secret.yaml ships JWT_SECRET as
+        // "REPLACE_ME_WITH_AT_LEAST_32_RANDOM_BYTES", which is 40 bytes and is
+        // not the dev default — so it cleared both checks above and the service
+        // booted happily, signing every token in the deployment with a string
+        // published in this repository. That is strictly worse than a short
+        // random secret: it is a *known* key, so anyone can mint a valid token
+        // for any user. The length floor cannot catch it, because the
+        // placeholder was written to satisfy exactly that floor.
+        //
+        // Matching on the marker rather than the one literal covers the other
+        // REPLACE_ME values in that template and any that get added later.
+        if (jwt_secret.find("REPLACE_ME") != std::string::npos) {
+            throw ConfigException(
+                "JWT_SECRET is still a placeholder; set a real secret in production");
+        }
         if (jwt_secret.size() < 32) {
             throw ConfigException("JWT_SECRET must be at least 32 bytes in production");
         }

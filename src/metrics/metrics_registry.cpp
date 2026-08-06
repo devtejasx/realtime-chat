@@ -2,9 +2,48 @@
 
 #include <algorithm>
 #include <sstream>
+#include <string_view>
 #include <utility>
 
 namespace rtc::metrics {
+namespace {
+
+// Coerces a name into the Prometheus grammar: [a-zA-Z_:][a-zA-Z0-9_:]*.
+//
+// This is not cosmetic. The exposition format is parsed as a whole, so a single
+// illegal name fails the *entire* scrape and every other metric from that
+// instance disappears with it. That is exactly what happened here: domain-event
+// counters are named from the event type, event types contain dots
+// (`conversation.created`), and Prometheus answered
+//
+//   invalid metric type "created_total counter"
+//
+// marking the target down. Monitoring went blind at the moment the service
+// started doing work, and the only visible symptom was a target that had been
+// green a minute earlier.
+//
+// Sanitising here rather than at the call site is deliberate: the registry owns
+// the wire format, and any current or future caller composing a name from
+// runtime data would otherwise be able to take the endpoint down again.
+[[nodiscard]] std::string sanitised(std::string_view name) {
+    if (name.empty()) {
+        return "_";
+    }
+    std::string out;
+    out.reserve(name.size());
+    for (const char c : name) {
+        const bool alpha = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+        const bool digit = c >= '0' && c <= '9';
+        out.push_back(alpha || digit || c == '_' || c == ':' ? c : '_');
+    }
+    // A leading digit is legal mid-name but not at the start.
+    if (out[0] >= '0' && out[0] <= '9') {
+        out.insert(out.begin(), '_');
+    }
+    return out;
+}
+
+}  // namespace
 
 const std::vector<double>& MetricsRegistry::default_buckets() {
     // Prometheus' own default latency boundaries. Chosen rather than invented:
@@ -26,12 +65,12 @@ MetricsRegistry::Histogram& MetricsRegistry::histogram_for(const std::string& na
 
 void MetricsRegistry::increment(const std::string& name, double amount) {
     std::lock_guard<std::mutex> lock(mutex_);
-    counters_[name] += amount;
+    counters_[sanitised(name)] += amount;
 }
 
 void MetricsRegistry::set_gauge(const std::string& name, double value) {
     std::lock_guard<std::mutex> lock(mutex_);
-    gauges_[name] = value;
+    gauges_[sanitised(name)] = value;
 }
 
 void MetricsRegistry::register_histogram(const std::string& name, std::vector<double> buckets) {
@@ -39,7 +78,7 @@ void MetricsRegistry::register_histogram(const std::string& name, std::vector<do
     std::sort(buckets.begin(), buckets.end());
     buckets.erase(std::unique(buckets.begin(), buckets.end()), buckets.end());
 
-    auto& histogram = histograms_[name];
+    auto& histogram = histograms_[sanitised(name)];
     histogram.bounds = std::move(buckets);
     // Counts are reset rather than carried over: they were binned under the old
     // boundaries, and re-binning them is not possible from aggregates alone.
@@ -51,7 +90,7 @@ void MetricsRegistry::register_histogram(const std::string& name, std::vector<do
 
 void MetricsRegistry::observe(const std::string& name, double value) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto& histogram = histogram_for(name);
+    auto& histogram = histogram_for(sanitised(name));
     histogram.sum += value;
     histogram.count += 1;
 
@@ -71,12 +110,12 @@ void MetricsRegistry::observe(const std::string& name, double value) {
 void MetricsRegistry::register_gauge_callback(const std::string& name,
                                               std::function<double()> callback) {
     std::lock_guard<std::mutex> lock(mutex_);
-    gauge_callbacks_[name] = std::move(callback);
+    gauge_callbacks_[sanitised(name)] = std::move(callback);
 }
 
 double MetricsRegistry::counter(const std::string& name) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    const auto it = counters_.find(name);
+    const auto it = counters_.find(sanitised(name));
     return it == counters_.end() ? 0.0 : it->second;
 }
 
